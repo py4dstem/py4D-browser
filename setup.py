@@ -13,47 +13,23 @@ setup(
     name='py4DSTEM',
     version=version_ns['__version__'],
     packages=find_packages(),
-    description='An open source python package for processing and analysis of 4D STEM data.',
+    description='A 4D-STEM data browser built on py4DSTEM.',
     long_description=long_description,
     long_description_content_type="text/markdown",
     url='https://github.com/py4dstem/py4DSTEM/',
-    author='Benjamin H. Savitzky',
-    author_email='ben.savitzky@gmail.com',
+    author='Steven E Zeltmann',
+    author_email='steven.zeltmann@lbl.gov',
     license='GNU GPLv3',
     keywords="STEM 4DSTEM",
     python_requires='>=3.7',
     install_requires=[
+        'py4dstem == 0.13.11',
         'numpy >= 1.19',
-        'scipy >= 1.5.2',
-        'h5py >= 3.2.0',
-        'ncempy >= 1.8.1',
         'matplotlib >= 3.2.2',
-        'scikit-image >= 0.17.2',
-        'scikit-learn >= 0.23.2',
         'PyQt5 >= 5.10',
         'pyqtgraph >= 0.11',
-        'qtconsole >= 4.7.7',
-        'ipywidgets >= 7.6.3',
-        'tqdm >= 4.46.1',
-        'dill >= 0.3.3',
-        'gdown >= 4.4.0',
-        'dask >= 2.3.0',
-        'distributed >= 2.3.0'
         ],
-    extras_require={
-        'ipyparallel': ['ipyparallel >= 6.2.4', 'dill >= 0.3.3'],
-        'cuda': ['cupy'],
-        'acom': ['pymatgen >= 2022', 'mp-api == 0.24.1'],
-        'aiml': ['tensorflow == 2.4.1','tensorflow-addons <= 0.14.0','crystal4D'],
-        'aiml-cuda': ['tensorflow == 2.4.1','tensorflow-addons <= 0.14.0','crystal4D','cupy'],
-        'numba': ['numba >= 0.49.1']
-        },
     entry_points={
-        'console_scripts': ['py4DSTEM=py4DSTEM.gui.runGUI:launch']
-    },
-    package_data={
-        'py4DSTEM':['process/utils/scattering_factors.txt',
-                    'process/diskdetection/multicorr_row_kernel.cu',
-                    'process/diskdetection/multicorr_col_kernel.cu']
+        'console_scripts': ['py4DSTEM=py4D_browser.runGUI:launch']
     },
 )
