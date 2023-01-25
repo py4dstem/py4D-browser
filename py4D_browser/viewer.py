@@ -27,11 +27,11 @@ import gc
 from pathlib import Path
 
 from py4D_browser.dialogs import ControlPanel, PreprocessingWidget, SaveWidget, EditMetadataWidget
-from py4D_browser.gui_utils import sibling_path, pg_point_roi, LQCollection, datacube_selector
+from py4D_browser.gui_utils import pg_point_roi, LQCollection
 from py4DSTEM.io.read import read
 from py4DSTEM.io.native import save, is_py4DSTEM_file
-from py4DSTEM.io.datastructure.datacube import DataCube
-from py4D_browser.strain import *
+from py4DSTEM.io import DataCube
+# from py4D_browser.strain import *
 
 import IPython
 if IPython.version_info[0] < 4:
@@ -162,7 +162,7 @@ class DataViewer(QtWidgets.QMainWindow):
         self.control_widget.pushButton_EditDirectoryMetadata.clicked.connect(self.edit_directory_metadata)
         self.control_widget.pushButton_SaveFile.clicked.connect(self.save_file)
         self.control_widget.pushButton_SaveDirectory.clicked.connect(self.save_directory)
-        self.control_widget.pushButton_LaunchStrain.clicked.connect(self.launch_strain)
+        # self.control_widget.pushButton_LaunchStrain.clicked.connect(self.launch_strain)
 
         # Virtual detectors
         self.settings.New('virtual_detector_shape', dtype=int, initial=0)
@@ -283,10 +283,10 @@ class DataViewer(QtWidgets.QMainWindow):
     # or from the command line.                                      # 
     ##################################################################
 
-    def launch_strain(self):
-        self.strain_window = StrainMappingWindow(main_window=self)
+    # def launch_strain(self):
+    #     self.strain_window = StrainMappingWindow(main_window=self)
 
-        self.strain_window.setup_tabs()
+    #     self.strain_window.setup_tabs()
 
     ################ Load ################
 
@@ -833,8 +833,8 @@ class DataViewer(QtWidgets.QMainWindow):
             print("Error: unknown detector shape value {}.  Must be 0, 1, or 2.".format(detector_shape))
 
         # propagate to the strain window, if it exists
-        if self.strain_window is not None:
-            self.strain_window.bragg_disk_tab.update_views()
+        # if self.strain_window is not None:
+        #     self.strain_window.bragg_disk_tab.update_views()
 
         return
 

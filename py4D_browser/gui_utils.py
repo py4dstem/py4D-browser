@@ -63,12 +63,12 @@ import pyqtgraph as pg
 #     else:
 #         print("No datacubes found in this file.")
 
-# def sibling_path(fpath, fname):
-#     """
-#     Given a file with absolute path fpath, returns the absolute path to another file with name
-#     fname in the same directory.
-#     """
-#     return join(dirname(fpath), fname)
+def sibling_path(fpath, fname):
+    """
+    Given a file with absolute path fpath, returns the absolute path to another file with name
+    fname in the same directory.
+    """
+    return join(dirname(fpath), fname)
 
 def pg_point_roi(view_box):
     """

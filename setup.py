@@ -5,12 +5,12 @@ with open("README.md","r") as f:
     long_description = f.read()
 
 version_ns = {}
-vpath = convert_path('py4DSTEM/version.py')
+vpath = convert_path('py4D_browser/version.py')
 with open(vpath) as version_file:
     exec(version_file.read(), version_ns)
 
 setup(
-    name='py4DSTEM',
+    name='py4D_browser',
     version=version_ns['__version__'],
     packages=find_packages(),
     description='A 4D-STEM data browser built on py4DSTEM.',
@@ -30,6 +30,6 @@ setup(
         'pyqtgraph >= 0.11',
         ],
     entry_points={
-        'console_scripts': ['py4DSTEM=py4D_browser.runGUI:launch']
+        'console_scripts': ['py4DGUI=py4D_browser.runGUI:launch']
     },
 )

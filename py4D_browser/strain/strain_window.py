@@ -6,7 +6,7 @@ import pyqtgraph as pg
 import gc
 
 from py4D_browser.strain.panels import *
-from py4D_browser.gui_utils import sibling_path, pg_point_roi, LQCollection
+from py4D_browser.gui_utils import pg_point_roi, LQCollection
 
 
 class StrainMappingWindow(QtWidgets.QMainWindow):
