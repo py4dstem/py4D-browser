@@ -42,7 +42,7 @@ else:
     from qtconsole.inprocess import QtInProcessKernelManager
 
 
-class DataViewer(QtWidgets.QMainWindow):
+class DataViewer(QMainWindow):
     """
     The class is used by instantiating and then entering the main Qt loop with, e.g.:
         app = DataViewer(sys.argv)
@@ -53,11 +53,10 @@ class DataViewer(QtWidgets.QMainWindow):
         Initialize class, setting up windows and widgets.
         """
         # Define this as the QApplication object
+        super().__init__()
         self.qtapp = QtWidgets.QApplication.instance()
         if not self.qtapp:
             self.qtapp = QtWidgets.QApplication(argv)
-        QtWidgets.QMainWindow.__init__(self)
-        self.this_dir, self.this_filename = os.path.split(__file__)
 
         self.setAcceptDrops(True)
 
