@@ -25,10 +25,10 @@ import sys, os
 import pyqtgraph as pg
 import gc
 from pathlib import Path
+import py4DSTEM
 
 from py4D_browser.dialogs import ControlPanel, PreprocessingWidget, SaveWidget, EditMetadataWidget
 from py4D_browser.gui_utils import pg_point_roi, LQCollection
-from py4DSTEM.io.read import read
 from py4DSTEM.io.native import save, is_py4DSTEM_file
 from py4DSTEM.io import DataCube
 # from py4D_browser.strain import *
@@ -58,6 +58,7 @@ class DataViewer(QtWidgets.QMainWindow):
             self.qtapp = QtWidgets.QApplication(argv)
         QtWidgets.QMainWindow.__init__(self)
         self.this_dir, self.this_filename = os.path.split(__file__)
+
         self.setAcceptDrops(True)
 
         # Make settings collection
@@ -102,7 +103,7 @@ class DataViewer(QtWidgets.QMainWindow):
                 print(err)
 
 
-
+    # Handle dragging and dropping a file on the window
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
             event.accept()
@@ -111,8 +112,10 @@ class DataViewer(QtWidgets.QMainWindow):
 
     def dropEvent(self, event):
         files = [u.toLocalFile() for u in event.mimeData().urls()]
-        for f in files:
-            print(f)
+        if len(f) == 1:
+            print(f"Trying to load {f[0]}")
+            self.settings.data_filename.val = f[0]
+            self.load_file()
 
     ###############################################
     ############ Widget setup methods #############
@@ -326,7 +329,7 @@ class DataViewer(QtWidgets.QMainWindow):
             if is_py4DSTEM_file(fname):
                 self.datacube = datacube_selector(fname)
             else:
-                self.datacube = read(fname)
+                self.datacube = py4DSTEM.import_file(fname)
             if type(self.datacube) == str :
                 self.Unidentified_file(fname)
                 #Reset view
@@ -336,9 +339,9 @@ class DataViewer(QtWidgets.QMainWindow):
             if is_py4DSTEM_file(fname):
                 self.datacube = datacube_selector(fname)
             else:
-                self.datacube = read(fname, mem="MEMMAP")
+                self.datacube = py4DSTEM.import_file(fname, mem="MEMMAP")
         elif self.control_widget.widget_LoadPreprocessSave.widget.loadRadioGatan.isChecked():
-            self.datacube = read(fname, ft='gatan_bin')
+            self.datacube = py4DSTEM.import_file(fname, ft='gatan_bin')
 
         # Update scan shape information
         self.settings.R_Nx.update_value(self.datacube.R_Nx)
@@ -367,20 +370,22 @@ class DataViewer(QtWidgets.QMainWindow):
     ### Scan Shape ###
 
     def update_scan_shape_Nx(self):
-        R_Nx = self.settings.R_Nx.val
-        self.settings.R_Ny.update_value(int(self.datacube.R_N/R_Nx))
-        R_Ny = self.settings.R_Ny.val
+        return
+        # R_Nx = self.settings.R_Nx.val
+        # self.settings.R_Ny.update_value(int(self.datacube.R_N/R_Nx))
+        # R_Ny = self.settings.R_Ny.val
 
-        self.datacube.set_scan_shape(R_Nx, R_Ny)
-        self.update_real_space_view()
+        # self.datacube.set_scan_shape(R_Nx, R_Ny)
+        # self.update_real_space_view()
 
     def update_scan_shape_Ny(self):
-        R_Ny = self.settings.R_Ny.val
-        self.settings.R_Nx.update_value(int(self.datacube.R_N/R_Ny))
-        R_Nx = self.settings.R_Nx.val
+        return
+        # R_Ny = self.settings.R_Ny.val
+        # self.settings.R_Nx.update_value(int(self.datacube.R_N/R_Ny))
+        # R_Nx = self.settings.R_Nx.val
 
-        self.datacube.set_scan_shape(R_Nx, R_Ny)
-        self.update_real_space_view()
+        # self.datacube.set_scan_shape(R_Nx, R_Ny)
+        # self.update_real_space_view()
 
     ### Crop ###
 
@@ -694,62 +699,63 @@ class DataViewer(QtWidgets.QMainWindow):
             3: CoM, Y
             4: CoM, X
         """
-        detector_mode = self.settings.virtual_detector_mode.val
-        detector_shape = self.settings.virtual_detector_shape.val
+        pass
+        # self.detector_mode = self.settings.virtual_detector_mode.val
+        # self.detector_shape = self.settings.virtual_detector_shape.val
 
-        # Integrating detector
-        if detector_mode==0:
-            if detector_shape==0:
-                self.get_virtual_image = self.datacube.get_virtual_image_rect_integrate
-            elif detector_shape==1:
-                self.get_virtual_image = self.datacube.get_virtual_image_circ_integrate
-            elif detector_shape==2:
-                self.get_virtual_image = self.datacube.get_virtual_image_annular_integrate
-            else:
-                raise ValueError("Unknown detector shape value {}".format(detector_shape))
+        # # Integrating detector
+        # if detector_mode==0:
+        #     if detector_shape==0:
+        #         self.get_virtual_image = self.datacube.get_virtual_image_rect_integrate
+        #     elif detector_shape==1:
+        #         self.get_virtual_image = self.datacube.get_virtual_image_circ_integrate
+        #     elif detector_shape==2:
+        #         self.get_virtual_image = self.datacube.get_virtual_image_annular_integrate
+        #     else:
+        #         raise ValueError("Unknown detector shape value {}".format(detector_shape))
 
-        # Difference detector
-        elif detector_mode==1:
-            if detector_shape==0:
-                self.get_virtual_image = self.datacube.get_virtual_image_rect_diffX
-            elif detector_shape==1:
-                self.get_virtual_image = self.datacube.get_virtual_image_circ_diffX
-            elif detector_shape==2:
-                self.get_virtual_image = self.datacube.get_virtual_image_annular_diffX
-            else:
-                raise ValueError("Unknown detector shape value {}".format(detector_shape))
-        elif detector_mode==2:
-            if detector_shape==0:
-                self.get_virtual_image = self.datacube.get_virtual_image_rect_diffY
-            elif detector_shape==1:
-                self.get_virtual_image = self.datacube.get_virtual_image_circ_diffY
-            elif detector_shape==2:
-                self.get_virtual_image = self.datacube.get_virtual_image_annular_diffY
-            else:
-                raise ValueError("Unknown detector shape value {}".format(detector_shape))
+        # # Difference detector
+        # elif detector_mode==1:
+        #     if detector_shape==0:
+        #         self.get_virtual_image = self.datacube.get_virtual_image_rect_diffX
+        #     elif detector_shape==1:
+        #         self.get_virtual_image = self.datacube.get_virtual_image_circ_diffX
+        #     elif detector_shape==2:
+        #         self.get_virtual_image = self.datacube.get_virtual_image_annular_diffX
+        #     else:
+        #         raise ValueError("Unknown detector shape value {}".format(detector_shape))
+        # elif detector_mode==2:
+        #     if detector_shape==0:
+        #         self.get_virtual_image = self.datacube.get_virtual_image_rect_diffY
+        #     elif detector_shape==1:
+        #         self.get_virtual_image = self.datacube.get_virtual_image_circ_diffY
+        #     elif detector_shape==2:
+        #         self.get_virtual_image = self.datacube.get_virtual_image_annular_diffY
+        #     else:
+        #         raise ValueError("Unknown detector shape value {}".format(detector_shape))
 
-        # CoM detector
-        elif detector_mode==3:
-            if detector_shape==0:
-                self.get_virtual_image = self.datacube.get_virtual_image_rect_CoMX
-            elif detector_shape==1:
-                self.get_virtual_image = self.datacube.get_virtual_image_circ_CoMX
-            elif detector_shape==2:
-                self.get_virtual_image = self.datacube.get_virtual_image_annular_CoMX
-            else:
-                raise ValueError("Unknown detector shape value {}".format(detector_shape))
-        elif detector_mode==4:
-            if detector_shape==0:
-                self.get_virtual_image = self.datacube.get_virtual_image_rect_CoMY
-            elif detector_shape==1:
-                self.get_virtual_image = self.datacube.get_virtual_image_circ_CoMY
-            elif detector_shape==2:
-                self.get_virtual_image = self.datacube.get_virtual_image_annular_CoMY
-            else:
-                raise ValueError("Unknown detector shape value {}".format(detector_shape))
+        # # CoM detector
+        # elif detector_mode==3:
+        #     if detector_shape==0:
+        #         self.get_virtual_image = self.datacube.get_virtual_image_rect_CoMX
+        #     elif detector_shape==1:
+        #         self.get_virtual_image = self.datacube.get_virtual_image_circ_CoMX
+        #     elif detector_shape==2:
+        #         self.get_virtual_image = self.datacube.get_virtual_image_annular_CoMX
+        #     else:
+        #         raise ValueError("Unknown detector shape value {}".format(detector_shape))
+        # elif detector_mode==4:
+        #     if detector_shape==0:
+        #         self.get_virtual_image = self.datacube.get_virtual_image_rect_CoMY
+        #     elif detector_shape==1:
+        #         self.get_virtual_image = self.datacube.get_virtual_image_circ_CoMY
+        #     elif detector_shape==2:
+        #         self.get_virtual_image = self.datacube.get_virtual_image_annular_CoMY
+        #     else:
+        #         raise ValueError("Unknown detector shape value {}".format(detector_shape))
 
-        else:
-            raise ValueError("Unknown detector mode value {}".format(detector_mode))
+        # else:
+        #     raise ValueError("Unknown detector mode value {}".format(detector_mode))
 
         self.update_real_space_view()
 
@@ -765,32 +771,33 @@ class DataViewer(QtWidgets.QMainWindow):
         xc,yc = int(x0+1),int(y0+1)
 
         # Set the diffraction space image
-        new_diffraction_space_view, success = self.datacube.get_diffraction_space_view(xc,yc)
-        if success:
-            self.diffraction_space_view = new_diffraction_space_view
-            self.real_space_view_text.setText(f"[{xc},{yc}]")
+        # Normalize coordinates
+        xc = np.clip(xc,0,self.datacube.R_Nx)
+        yc = np.clip(yc,0,self.datacube.R_Ny)
+        new_diffraction_space_view = self.datacube.data[xc,yc]
+        self.diffraction_space_view = new_diffraction_space_view
+        self.real_space_view_text.setText(f"[{xc},{yc}]")
 
-            # rescale DP as selected (0 means raw, does no scaling)
-            if self.settings.diffraction_scaling_mode.val == 1:
-                # sqrt mode
-                self.diffraction_space_view = np.sqrt(self.diffraction_space_view)
-            elif self.settings.diffraction_scaling_mode.val == 2:
-                # log mode
-                self.diffraction_space_view = np.log(
-                    self.diffraction_space_view - np.min(self.diffraction_space_view) + 1)
-            elif self.settings.diffraction_scaling_mode.val == 3:
-                # EWPC mode
-                h = np.hanning(self.datacube.Q_Nx)[:,np.newaxis] @ np.hanning(self.datacube.Q_Ny)[np.newaxis,:]
-                self.diffraction_space_view = np.abs(np.fft.fftshift(np.fft.fft2(np.log(
-                    (h*(self.diffraction_space_view - np.min(self.diffraction_space_view))) + 1))))**2
+        # rescale DP as selected (0 means raw, does no scaling)
+        if self.settings.diffraction_scaling_mode.val == 1:
+            # sqrt mode
+            self.diffraction_space_view = np.sqrt(self.diffraction_space_view)
+        elif self.settings.diffraction_scaling_mode.val == 2:
+            # log mode
+            self.diffraction_space_view = np.log(
+                self.diffraction_space_view - np.min(self.diffraction_space_view) + 1)
+        elif self.settings.diffraction_scaling_mode.val == 3:
+            # EWPC mode
+            h = np.hanning(self.datacube.Q_Nx)[:,np.newaxis] @ np.hanning(self.datacube.Q_Ny)[np.newaxis,:]
+            self.diffraction_space_view = np.abs(np.fft.fftshift(np.fft.fft2(np.log(
+                (h*(self.diffraction_space_view - np.min(self.diffraction_space_view))) + 1))))**2
 
-            self.diffraction_space_widget.setImage(self.diffraction_space_view.T,
-                                                   autoLevels=False,autoRange=False)
-        else:
-            pass
-        return
+        self.diffraction_space_widget.setImage(self.diffraction_space_view.T,
+                                               autoLevels=False,autoRange=False)
+
 
     def update_real_space_view(self):
+        detector_mode = self.settings.virtual_detector_mode.val
         detector_shape = self.settings.virtual_detector_shape.val
 
         # Rectangular detector
@@ -800,16 +807,13 @@ class DataViewer(QtWidgets.QMainWindow):
             slice_y, slice_x = slices
 
             # Get the virtual image and set the real space view
-            new_real_space_view, success = self.get_virtual_image(slice_x,slice_y)
-            if success:
-                self.real_space_view = new_real_space_view
-                self.real_space_widget.setImage(self.real_space_view.T,autoLevels=True)
+            new_real_space_view = np.sum(self.datacube.data[:,:,slice_x,slice_y],axis=(2,3))
+            self.real_space_view = new_real_space_view
+            self.real_space_widget.setImage(self.real_space_view.T,autoLevels=True)
 
-                #update the label:
-                self.diffraction_space_view_text.setText(
-                    f"[{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]")
-            else:
-                pass
+            #update the label:
+            self.diffraction_space_view_text.setText(
+                f"[{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]")
 
         # Circular detector
         elif detector_shape == 1:
