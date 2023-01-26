@@ -18,6 +18,7 @@ from PyQt5.QtWidgets import (
     QButtonGroup,
     QDesktopWidget,
     QMessageBox,
+    QActionGroup,
 )
 from PyQt5 import QtGui
 
@@ -26,6 +27,7 @@ import numpy as np
 
 from functools import partial
 from pathlib import Path
+
 
 class DataViewer(QMainWindow):
     """
@@ -44,7 +46,7 @@ class DataViewer(QMainWindow):
 
     from py4D_browser.update_views import (
         update_diffraction_space_view,
-        update_real_space_view
+        update_real_space_view,
     )
 
     def __init__(self, argv):
@@ -93,73 +95,108 @@ class DataViewer(QMainWindow):
         self.menu_bar.addMenu(self.scaling_menu)
 
         # Diffraction scaling
+        diff_scaling_group = QActionGroup(self)
+        diff_scaling_group.setExclusive(True)
+        self.diff_scaling_group = diff_scaling_group
         diff_menu_separator = QAction("Diffraction", self)
         diff_menu_separator.setDisabled(True)
         self.scaling_menu.addAction(diff_menu_separator)
 
         diff_scale_linear_action = QAction("Linear", self)
-        diff_scale_linear_action.triggered.connect(partial(self.set_diffraction_scaling,"linear"))
+        diff_scale_linear_action.setCheckable(True)
+        diff_scale_linear_action.triggered.connect(
+            partial(self.set_diffraction_scaling, "linear")
+        )
+        diff_scaling_group.addAction(diff_scale_linear_action)
         self.scaling_menu.addAction(diff_scale_linear_action)
 
         diff_scale_log_action = QAction("Log", self)
-        diff_scale_log_action.triggered.connect(partial(self.set_diffraction_scaling,"log"))
+        diff_scale_log_action.setCheckable(True)
+        diff_scale_log_action.triggered.connect(
+            partial(self.set_diffraction_scaling, "log")
+        )
+        diff_scaling_group.addAction(diff_scale_log_action)
         self.scaling_menu.addAction(diff_scale_log_action)
 
         diff_scale_sqrt_action = QAction("Square Root", self)
-        diff_scale_sqrt_action.triggered.connect(partial(self.set_diffraction_scaling,"sqrt"))
+        diff_scale_sqrt_action.setCheckable(True)
+        diff_scale_sqrt_action.triggered.connect(
+            partial(self.set_diffraction_scaling, "sqrt")
+        )
+        diff_scaling_group.addAction(diff_scale_sqrt_action)
+        diff_scale_sqrt_action.setChecked(True)
         self.scaling_menu.addAction(diff_scale_sqrt_action)
 
         self.scaling_menu.addSeparator()
 
         # Real space scaling
+        vimg_scaling_group = QActionGroup(self)
+        vimg_scaling_group.setExclusive(True)
+        self.vimg_scaling_group = vimg_scaling_group
         vimg_menu_separator = QAction("Virtual Image", self)
         vimg_menu_separator.setDisabled(True)
         self.scaling_menu.addAction(vimg_menu_separator)
 
         vimg_scale_linear_action = QAction("Linear", self)
-        vimg_scale_linear_action.triggered.connect(partial(self.set_vimg_scaling,"linear"))
+        vimg_scale_linear_action.setCheckable(True)
+        vimg_scale_linear_action.setChecked(True)
+        vimg_scale_linear_action.triggered.connect(
+            partial(self.set_vimg_scaling, "linear")
+        )
+        vimg_scaling_group.addAction(vimg_scale_linear_action)
         self.scaling_menu.addAction(vimg_scale_linear_action)
 
         vimg_scale_log_action = QAction("Log", self)
-        vimg_scale_log_action.triggered.connect(partial(self.set_vimg_scaling,"log"))
+        vimg_scale_log_action.setCheckable(True)
+        vimg_scale_log_action.triggered.connect(partial(self.set_vimg_scaling, "log"))
+        vimg_scaling_group.addAction(vimg_scale_log_action)
         self.scaling_menu.addAction(vimg_scale_log_action)
 
         vimg_scale_sqrt_action = QAction("Square Root", self)
-        vimg_scale_sqrt_action.triggered.connect(partial(self.set_vimg_scaling,"sqrt"))
+        vimg_scale_sqrt_action.setCheckable(True)
+        vimg_scale_sqrt_action.triggered.connect(partial(self.set_vimg_scaling, "sqrt"))
+        vimg_scaling_group.addAction(vimg_scale_sqrt_action)
         self.scaling_menu.addAction(vimg_scale_sqrt_action)
-
 
     def setup_views(self):
         # Set up the diffraction space window.
         self.diffraction_space_widget = pg.ImageView()
-        self.diffraction_space_widget.setImage(np.zeros((512,512)))
-        self.diffraction_space_view_text = pg.TextItem('Slice',(200,200,200),None,(0,1))
+        self.diffraction_space_widget.setImage(np.zeros((512, 512)))
+        self.diffraction_space_view_text = pg.TextItem(
+            "Slice", (200, 200, 200), None, (0, 1)
+        )
         self.diffraction_space_widget.addItem(self.diffraction_space_view_text)
 
         # Create virtual detector ROI selector
-        self.virtual_detector_roi = pg.RectROI([256, 256], [50,50], pen=(3,9))
+        self.virtual_detector_roi = pg.RectROI([256, 256], [50, 50], pen=(3, 9))
         self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi)
-        self.virtual_detector_roi.sigRegionChangeFinished.connect(self.update_real_space_view)
+        self.virtual_detector_roi.sigRegionChangeFinished.connect(
+            self.update_real_space_view
+        )
 
         # Name and return
-        self.diffraction_space_widget.setWindowTitle('Diffraction Space')
+        self.diffraction_space_widget.setWindowTitle("Diffraction Space")
 
         # Set up the real space window.
         self.real_space_widget = pg.ImageView()
-        self.real_space_widget.setImage(np.zeros((512,512)))
-        self.real_space_view_text = pg.TextItem('Scan pos.',(200,200,200),None,(0,1))
+        self.real_space_widget.setImage(np.zeros((512, 512)))
+        self.real_space_view_text = pg.TextItem(
+            "Scan pos.", (200, 200, 200), None, (0, 1)
+        )
         self.real_space_widget.addItem(self.real_space_view_text)
 
         # Add point selector connected to displayed diffraction pattern
         self.real_space_point_selector = pg_point_roi(self.real_space_widget.getView())
-        self.real_space_point_selector.sigRegionChanged.connect(self.update_diffraction_space_view)
+        self.real_space_point_selector.sigRegionChanged.connect(
+            self.update_diffraction_space_view
+        )
 
         # Name and return
-        self.real_space_widget.setWindowTitle('Real Space')
+        self.real_space_widget.setWindowTitle("Real Space")
 
         layout = QHBoxLayout()
-        layout.addWidget(self.diffraction_space_widget,1)
-        layout.addWidget(self.real_space_widget,1)
+        layout.addWidget(self.diffraction_space_widget, 1)
+        layout.addWidget(self.real_space_widget, 1)
         widget = QWidget()
         widget.setLayout(layout)
         self.setCentralWidget(widget)
@@ -170,9 +207,9 @@ def pg_point_roi(view_box):
     Point selection.  Based in pyqtgraph, and returns a pyqtgraph CircleROI object.
     This object has a sigRegionChanged.connect() signal method to connect to other functions.
     """
-    circ_roi = pg.CircleROI( (-0.5,-0.5), (2,2), movable=True, pen=(0,9))
-    h = circ_roi.addTranslateHandle((0.5,0.5))
-    h.pen = pg.mkPen('r')
+    circ_roi = pg.CircleROI((-0.5, -0.5), (2, 2), movable=True, pen=(0, 9))
+    h = circ_roi.addTranslateHandle((0.5, 0.5))
+    h.pen = pg.mkPen("r")
     h.update()
     view_box.addItem(circ_roi)
     circ_roi.removeHandle(0)
