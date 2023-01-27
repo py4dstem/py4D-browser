@@ -23,7 +23,7 @@ setup(
     keywords="STEM 4DSTEM",
     python_requires='>=3.7',
     install_requires=[
-        'py4dstem == 0.13.11',
+        'py4dstem >= 0.13.11',
         'numpy >= 1.19',
         'matplotlib >= 3.2.2',
         'PyQt5 >= 5.10',
