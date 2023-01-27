@@ -43,6 +43,7 @@ class DataViewer(QMainWindow):
         load_data_auto,
         load_data_bin,
         load_data_mmap,
+        show_file_dialog,
     )
 
     from py4D_browser.update_views import (
