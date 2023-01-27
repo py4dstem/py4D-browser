@@ -26,4 +26,3 @@ def load_file(self, filepath, mmap=False, binning=1):
     self.update_real_space_view(reset=True)
 
     self.setWindowTitle(filepath)
-

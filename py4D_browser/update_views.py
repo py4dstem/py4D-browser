@@ -60,9 +60,7 @@ def update_real_space_view(self, reset=False):
         y0 = (slice_y.start + slice_y.stop) / 2.0
         R = (slice_y.stop - slice_y.start) / 2.0
 
-        self.diffraction_space_view_text.setText(
-            f"[({x0},{y0}),{R}]"
-        )
+        self.diffraction_space_view_text.setText(f"[({x0},{y0}),{R}]")
 
         mask = py4DSTEM.process.virtualimage.make_detector(
             (self.datacube.Q_Nx, self.datacube.Q_Ny), "circle", ((x0, y0), R)
@@ -83,9 +81,7 @@ def update_real_space_view(self, reset=False):
         if R_inner == R_outer:
             R_inner -= 1
 
-        self.diffraction_space_view_text.setText(
-            f"[({x0},{y0}),({R_inner},{R_outer})]"
-        )
+        self.diffraction_space_view_text.setText(f"[({x0},{y0}),({R_inner},{R_outer})]")
 
         mask = py4DSTEM.process.virtualimage.make_detector(
             (self.datacube.Q_Nx, self.datacube.Q_Ny),
