@@ -37,6 +37,7 @@ class DataViewer(QMainWindow):
     """
 
     from py4D_browser.menu_actions import (
+        load_file,
         load_data_auto,
         load_data_bin,
         load_data_mmap,
@@ -63,6 +64,9 @@ class DataViewer(QMainWindow):
         self.qtapp.setWindowIcon(icon)
 
         self.setWindowTitle("py4DSTEM")
+        self.setAcceptDrops(True)
+
+        self.datacube = None
 
         self.setup_menus()
         self.setup_views()
@@ -133,6 +137,7 @@ class DataViewer(QMainWindow):
         vimg_scaling_group = QActionGroup(self)
         vimg_scaling_group.setExclusive(True)
         self.vimg_scaling_group = vimg_scaling_group
+
         vimg_menu_separator = QAction("Virtual Image", self)
         vimg_menu_separator.setDisabled(True)
         self.scaling_menu.addAction(vimg_menu_separator)
@@ -140,23 +145,81 @@ class DataViewer(QMainWindow):
         vimg_scale_linear_action = QAction("Linear", self)
         vimg_scale_linear_action.setCheckable(True)
         vimg_scale_linear_action.setChecked(True)
-        vimg_scale_linear_action.triggered.connect(
-            partial(self.set_vimg_scaling, "linear")
-        )
+        vimg_scale_linear_action.triggered.connect(self.update_real_space_view)
         vimg_scaling_group.addAction(vimg_scale_linear_action)
         self.scaling_menu.addAction(vimg_scale_linear_action)
 
         vimg_scale_log_action = QAction("Log", self)
         vimg_scale_log_action.setCheckable(True)
-        vimg_scale_log_action.triggered.connect(partial(self.set_vimg_scaling, "log"))
+        vimg_scale_log_action.triggered.connect(self.update_real_space_view)
         vimg_scaling_group.addAction(vimg_scale_log_action)
         self.scaling_menu.addAction(vimg_scale_log_action)
 
         vimg_scale_sqrt_action = QAction("Square Root", self)
         vimg_scale_sqrt_action.setCheckable(True)
-        vimg_scale_sqrt_action.triggered.connect(partial(self.set_vimg_scaling, "sqrt"))
+        vimg_scale_sqrt_action.triggered.connect(self.update_real_space_view)
         vimg_scaling_group.addAction(vimg_scale_sqrt_action)
         self.scaling_menu.addAction(vimg_scale_sqrt_action)
+
+        # Detector Response Menu
+        self.detector_menu = QMenu("&Detector Response", self)
+        self.menu_bar.addMenu(self.detector_menu)
+
+        detector_mode_group = QActionGroup(self)
+        detector_mode_group.setExclusive(True)
+        self.detector_mode_group = detector_mode_group
+
+        detector_integrating_action = QAction("&Integrating", self)
+        detector_integrating_action.setCheckable(True)
+        detector_integrating_action.setChecked(True)
+        detector_integrating_action.triggered.connect(self.update_real_space_view)
+        detector_mode_group.addAction(detector_integrating_action)
+        self.detector_menu.addAction(detector_integrating_action)
+
+        detector_maximum_action = QAction("&Maximum", self)
+        detector_maximum_action.setCheckable(True)
+        detector_maximum_action.triggered.connect(self.update_real_space_view)
+        detector_mode_group.addAction(detector_maximum_action)
+        self.detector_menu.addAction(detector_maximum_action)
+
+        detector_CoM_magnitude = QAction("CoM Ma&gnitude", self)
+        detector_CoM_magnitude.setCheckable(True)
+        detector_CoM_magnitude.triggered.connect(self.update_real_space_view)
+        detector_mode_group.addAction(detector_CoM_magnitude)
+        self.detector_menu.addAction(detector_CoM_magnitude)
+
+        detector_CoM_angle = QAction("CoM &Angle", self)
+        detector_CoM_angle.setCheckable(True)
+        detector_CoM_angle.triggered.connect(self.update_real_space_view)
+        detector_mode_group.addAction(detector_CoM_angle)
+        self.detector_menu.addAction(detector_CoM_angle)
+
+        # Detector Shape Menu
+        self.detector_shape_menu = QMenu("Detector &Shape", self)
+        self.menu_bar.addMenu(self.detector_shape_menu)
+
+        detector_shape_group = QActionGroup(self)
+        detector_shape_group.setExclusive(True)
+        self.detector_shape_group = detector_shape_group
+
+        detector_rectangle_action = QAction("&Rectangular", self)
+        detector_rectangle_action.setCheckable(True)
+        detector_rectangle_action.setChecked(True)
+        detector_rectangle_action.triggered.connect(self.update_real_space_view)
+        detector_shape_group.addAction(detector_rectangle_action)
+        self.detector_shape_menu.addAction(detector_rectangle_action)
+
+        detector_circle_action = QAction("&Circle", self)
+        detector_circle_action.setCheckable(True)
+        detector_circle_action.triggered.connect(self.update_real_space_view)
+        detector_shape_group.addAction(detector_circle_action)
+        self.detector_shape_menu.addAction(detector_circle_action)
+
+        detector_annulus_action = QAction("&Annulus", self)
+        detector_annulus_action.setCheckable(True)
+        detector_annulus_action.triggered.connect(self.update_real_space_view)
+        detector_shape_group.addAction(detector_annulus_action)
+        self.detector_shape_menu.addAction(detector_annulus_action)
 
     def setup_views(self):
         # Set up the diffraction space window.
@@ -194,6 +257,13 @@ class DataViewer(QMainWindow):
         # Name and return
         self.real_space_widget.setWindowTitle("Real Space")
 
+        self.diffraction_space_widget.setAcceptDrops(True)
+        self.real_space_widget.setAcceptDrops(True)
+        self.diffraction_space_widget.dragEnterEvent = self.dragEnterEvent
+        self.real_space_widget.dragEnterEvent = self.dragEnterEvent
+        self.diffraction_space_widget.dropEvent = self.dropEvent
+        self.real_space_widget.dropEvent = self.dropEvent
+
         layout = QHBoxLayout()
         layout.addWidget(self.diffraction_space_widget, 1)
         layout.addWidget(self.real_space_widget, 1)
@@ -201,6 +271,18 @@ class DataViewer(QMainWindow):
         widget.setLayout(layout)
         self.setCentralWidget(widget)
 
+    # Handle dragging and dropping a file on the window
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.accept()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        files = [u.toLocalFile() for u in event.mimeData().urls()]
+        if len(files) == 1:
+            print(f"Trying to load {files[0]}")
+            self.load_file(files[0])
 
 def pg_point_roi(view_box):
     """
