@@ -51,7 +51,7 @@ def update_real_space_view(self, reset=False):
         (slice_x, slice_y), _ = self.virtual_detector_roi.getArraySlice(self.datacube.data[0,0,:,:], self.diffraction_space_widget.getImageItem())
         x0 = (slice_x.start + slice_x.stop) / 2.
         y0 = (slice_y.start + slice_y.stop) / 2.
-        R = (slice_y.start - slice_y.stop) / 2.
+        R = (slice_y.stop - slice_y.start) / 2.
 
         mask = py4DSTEM.process.virtualimage.make_detector(
             (self.datacube.Q_Nx, self.datacube.Q_Ny),
@@ -62,10 +62,13 @@ def update_real_space_view(self, reset=False):
         (slice_x, slice_y), _ = self.virtual_detector_roi_outer.getArraySlice(self.datacube.data[0,0,:,:], self.diffraction_space_widget.getImageItem())
         x0 = (slice_x.start + slice_x.stop) / 2.
         y0 = (slice_y.start + slice_y.stop) / 2.
-        R_outer = (slice_y.start - slice_y.stop) / 2.
+        R_outer = (slice_y.stop - slice_y.start) / 2.
 
-        (slice_ix, slice_iy), _ = self.virtual_detector_roi_outer.getArraySlice(self.datacube.data[0,0,:,:], self.diffraction_space_widget.getImageItem())
-        R_inner = (slice_iy.start - slice_iy.stop) / 2.
+        (slice_ix, slice_iy), _ = self.virtual_detector_roi_inner.getArraySlice(self.datacube.data[0,0,:,:], self.diffraction_space_widget.getImageItem())
+        R_inner = (slice_iy.stop - slice_iy.start) / 2.
+
+        if R_inner == R_outer:
+            R_inner -= 1
 
         mask = py4DSTEM.process.virtualimage.make_detector(
             (self.datacube.Q_Nx, self.datacube.Q_Ny),
