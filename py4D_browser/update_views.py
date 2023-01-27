@@ -4,14 +4,19 @@ import py4DSTEM
 
 
 def update_real_space_view(self, reset=False):
-    scaling_mode = self.vimg_scaling_group.checkedAction().text().replace("&","")
+    scaling_mode = self.vimg_scaling_group.checkedAction().text().replace("&", "")
     assert scaling_mode in ["Linear", "Log", "Square Root"], scaling_mode
 
-    detector_shape = self.detector_shape_group.checkedAction().text().replace("&","")
+    detector_shape = self.detector_shape_group.checkedAction().text().replace("&", "")
     assert detector_shape in ["Rectangular", "Circle", "Annulus"], detector_shape
 
-    detector_mode = self.detector_mode_group.checkedAction().text().replace("&","")
-    assert detector_mode in ["Integrating", "Maximum", "CoM Magnitude", "CoM Angle"], detector_mode
+    detector_mode = self.detector_mode_group.checkedAction().text().replace("&", "")
+    assert detector_mode in [
+        "Integrating",
+        "Maximum",
+        "CoM Magnitude",
+        "CoM Angle",
+    ], detector_mode
 
     # If a CoM method is checked, ensure linear scaling
     if detector_mode in ["CoM Magnitude", "CoM Angle"] and scaling_mode != "Linear":
@@ -23,7 +28,7 @@ def update_real_space_view(self, reset=False):
         return
 
     # We will branch through certain combinations of detector shape and mode.
-    # If we happen across a special case that can be handled directly, we 
+    # If we happen across a special case that can be handled directly, we
     # compute vimg. If we encounter a case that needs a more complicated
     # computation we compute the mask and then do the virtual image later
     mask = None
@@ -44,36 +49,48 @@ def update_real_space_view(self, reset=False):
         elif detector_mode == "Maximum":
             vimg = np.max(self.datacube.data[:, :, slice_x, slice_y], axis=(2, 3))
         else:
-            mask = np.zeros((self.datacube.Q_Nx,self.datacube.Q_Ny), dtype=np.bool_)
-            mask[slice_x,slice_y] = True
-        
+            mask = np.zeros((self.datacube.Q_Nx, self.datacube.Q_Ny), dtype=np.bool_)
+            mask[slice_x, slice_y] = True
+
     elif detector_shape == "Circle":
-        (slice_x, slice_y), _ = self.virtual_detector_roi.getArraySlice(self.datacube.data[0,0,:,:], self.diffraction_space_widget.getImageItem())
-        x0 = (slice_x.start + slice_x.stop) / 2.
-        y0 = (slice_y.start + slice_y.stop) / 2.
-        R = (slice_y.stop - slice_y.start) / 2.
+        (slice_x, slice_y), _ = self.virtual_detector_roi.getArraySlice(
+            self.datacube.data[0, 0, :, :], self.diffraction_space_widget.getImageItem()
+        )
+        x0 = (slice_x.start + slice_x.stop) / 2.0
+        y0 = (slice_y.start + slice_y.stop) / 2.0
+        R = (slice_y.stop - slice_y.start) / 2.0
+
+        self.diffraction_space_view_text.setText(
+            f"[({x0},{y0}),{R}]"
+        )
 
         mask = py4DSTEM.process.virtualimage.make_detector(
-            (self.datacube.Q_Nx, self.datacube.Q_Ny),
-            'circle',
-            ((x0,y0),R)
+            (self.datacube.Q_Nx, self.datacube.Q_Ny), "circle", ((x0, y0), R)
         )
     elif detector_shape == "Annulus":
-        (slice_x, slice_y), _ = self.virtual_detector_roi_outer.getArraySlice(self.datacube.data[0,0,:,:], self.diffraction_space_widget.getImageItem())
-        x0 = (slice_x.start + slice_x.stop) / 2.
-        y0 = (slice_y.start + slice_y.stop) / 2.
-        R_outer = (slice_y.stop - slice_y.start) / 2.
+        (slice_x, slice_y), _ = self.virtual_detector_roi_outer.getArraySlice(
+            self.datacube.data[0, 0, :, :], self.diffraction_space_widget.getImageItem()
+        )
+        x0 = (slice_x.start + slice_x.stop) / 2.0
+        y0 = (slice_y.start + slice_y.stop) / 2.0
+        R_outer = (slice_y.stop - slice_y.start) / 2.0
 
-        (slice_ix, slice_iy), _ = self.virtual_detector_roi_inner.getArraySlice(self.datacube.data[0,0,:,:], self.diffraction_space_widget.getImageItem())
-        R_inner = (slice_iy.stop - slice_iy.start) / 2.
+        (slice_ix, slice_iy), _ = self.virtual_detector_roi_inner.getArraySlice(
+            self.datacube.data[0, 0, :, :], self.diffraction_space_widget.getImageItem()
+        )
+        R_inner = (slice_iy.stop - slice_iy.start) / 2.0
 
         if R_inner == R_outer:
             R_inner -= 1
 
+        self.diffraction_space_view_text.setText(
+            f"[({x0},{y0}),({R_inner},{R_outer})]"
+        )
+
         mask = py4DSTEM.process.virtualimage.make_detector(
             (self.datacube.Q_Nx, self.datacube.Q_Ny),
-            'annulus',
-            ((x0,y0),(R_inner,R_outer))
+            "annulus",
+            ((x0, y0), (R_inner, R_outer)),
         )
 
     else:
@@ -84,23 +101,24 @@ def update_real_space_view(self, reset=False):
         iterator = py4DSTEM.tqdmnd(self.datacube.R_Nx, self.datacube.R_Ny, disable=True)
 
         if detector_mode == "Integrating":
-            for rx,ry in iterator:
-                vimg[rx,ry] = np.sum(self.datacube.data[rx,ry] * mask)
+            for rx, ry in iterator:
+                vimg[rx, ry] = np.sum(self.datacube.data[rx, ry] * mask)
 
         elif detector_mode == "Maximum":
-            for rx,ry in iterator:
-                vimg[rx,ry] = np.max(self.datacube.data[rx,ry] * mask)
+            for rx, ry in iterator:
+                vimg[rx, ry] = np.max(self.datacube.data[rx, ry] * mask)
 
         elif "CoM" in detector_mode:
-            nx, ny = np.shape(vimg)
-            ry, rx = np.meshgrid(np.arange(ny), np.arange(nx))
+            ry_coord, rx_coord = np.meshgrid(
+                np.arange(self.datacube.Q_Ny), np.arange(self.datacube.Q_Nx)
+            )
             CoMx = np.zeros_like(vimg)
             CoMy = np.zeros_like(vimg)
-            for rx,ry in iterator:
-                ar = self.datacube.data[rx,ry] * mask
+            for rx, ry in iterator:
+                ar = self.datacube.data[rx, ry] * mask
                 tot_intens = np.sum(ar)
-                CoMx[rx,ry] = np.sum(rx * ar) / tot_intens
-                CoMy[rx,ry] = np.sum(ry * ar) / tot_intens
+                CoMx[rx, ry] = np.sum(rx_coord * ar) / tot_intens
+                CoMy[rx, ry] = np.sum(ry_coord * ar) / tot_intens
 
             CoMx -= np.mean(CoMx)
             CoMy -= np.mean(CoMy)
@@ -108,7 +126,7 @@ def update_real_space_view(self, reset=False):
             if detector_mode == "CoM Magnitude":
                 vimg = np.hypot(CoMx, CoMy)
             elif detector_mode == "CoM Angle":
-                vimg = np.arctan2(CoMy,CoMx)
+                vimg = np.arctan2(CoMy, CoMx)
             elif detector_mode == "iCoM":
                 raise NotImplementedError("Coming soon...")
             else:
@@ -116,7 +134,6 @@ def update_real_space_view(self, reset=False):
 
         else:
             raise ValueError("Oppsie")
-
 
     if scaling_mode == "Linear":
         new_view = vimg
@@ -130,7 +147,7 @@ def update_real_space_view(self, reset=False):
 
 
 def update_diffraction_space_view(self, reset=False):
-    scaling_mode = self.diff_scaling_group.checkedAction().text().replace("&","")
+    scaling_mode = self.diff_scaling_group.checkedAction().text().replace("&", "")
     assert scaling_mode in ["Linear", "Log", "Square Root"]
 
     if self.datacube is None:
