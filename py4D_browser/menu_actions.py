@@ -38,7 +38,7 @@ def show_file_dialog(self):
         self,
         "Open 4D-STEM Data",
         "",
-        "4D-STEM Data (*.dm4 *.raw *.mib *.gtg)",
+        "4D-STEM Data (*.dm3 *.dm4 *.raw *.mib *.gtg);;Any file (*)",
     )
     if filename is not None and len(filename[0]) > 0:
         return filename[0]
