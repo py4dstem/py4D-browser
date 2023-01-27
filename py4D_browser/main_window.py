@@ -36,6 +36,8 @@ class DataViewer(QMainWindow):
         app.exec_()
     """
 
+    LOG_SCALE_MIN_VALUE = 1e-6
+
     from py4D_browser.menu_actions import (
         load_file,
         load_data_auto,
@@ -109,19 +111,25 @@ class DataViewer(QMainWindow):
 
         diff_scale_linear_action = QAction("Linear", self)
         diff_scale_linear_action.setCheckable(True)
-        diff_scale_linear_action.triggered.connect(partial(self.update_diffraction_space_view,True))
+        diff_scale_linear_action.triggered.connect(
+            partial(self.update_diffraction_space_view, True)
+        )
         diff_scaling_group.addAction(diff_scale_linear_action)
         self.scaling_menu.addAction(diff_scale_linear_action)
 
         diff_scale_log_action = QAction("Log", self)
         diff_scale_log_action.setCheckable(True)
-        diff_scale_log_action.triggered.connect(partial(self.update_diffraction_space_view,True))
+        diff_scale_log_action.triggered.connect(
+            partial(self.update_diffraction_space_view, True)
+        )
         diff_scaling_group.addAction(diff_scale_log_action)
         self.scaling_menu.addAction(diff_scale_log_action)
 
         diff_scale_sqrt_action = QAction("Square Root", self)
         diff_scale_sqrt_action.setCheckable(True)
-        diff_scale_sqrt_action.triggered.connect(partial(self.update_diffraction_space_view,True))
+        diff_scale_sqrt_action.triggered.connect(
+            partial(self.update_diffraction_space_view, True)
+        )
         diff_scaling_group.addAction(diff_scale_sqrt_action)
         diff_scale_sqrt_action.setChecked(True)
         self.scaling_menu.addAction(diff_scale_sqrt_action)
@@ -138,21 +146,28 @@ class DataViewer(QMainWindow):
         self.scaling_menu.addAction(vimg_menu_separator)
 
         vimg_scale_linear_action = QAction("Linear", self)
+        self.vimg_scale_linear_action = vimg_scale_linear_action  # Save this one!
         vimg_scale_linear_action.setCheckable(True)
         vimg_scale_linear_action.setChecked(True)
-        vimg_scale_linear_action.triggered.connect(self.update_real_space_view)
+        vimg_scale_linear_action.triggered.connect(
+            partial(self.update_real_space_view, True)
+        )
         vimg_scaling_group.addAction(vimg_scale_linear_action)
         self.scaling_menu.addAction(vimg_scale_linear_action)
 
         vimg_scale_log_action = QAction("Log", self)
         vimg_scale_log_action.setCheckable(True)
-        vimg_scale_log_action.triggered.connect(self.update_real_space_view)
+        vimg_scale_log_action.triggered.connect(
+            partial(self.update_real_space_view, True)
+        )
         vimg_scaling_group.addAction(vimg_scale_log_action)
         self.scaling_menu.addAction(vimg_scale_log_action)
 
         vimg_scale_sqrt_action = QAction("Square Root", self)
         vimg_scale_sqrt_action.setCheckable(True)
-        vimg_scale_sqrt_action.triggered.connect(self.update_real_space_view)
+        vimg_scale_sqrt_action.triggered.connect(
+            partial(self.update_real_space_view, True)
+        )
         vimg_scaling_group.addAction(vimg_scale_sqrt_action)
         self.scaling_menu.addAction(vimg_scale_sqrt_action)
 
@@ -167,27 +182,39 @@ class DataViewer(QMainWindow):
         detector_integrating_action = QAction("&Integrating", self)
         detector_integrating_action.setCheckable(True)
         detector_integrating_action.setChecked(True)
-        detector_integrating_action.triggered.connect(self.update_real_space_view)
+        detector_integrating_action.triggered.connect(
+            partial(self.update_real_space_view, True)
+        )
         detector_mode_group.addAction(detector_integrating_action)
         self.detector_menu.addAction(detector_integrating_action)
 
         detector_maximum_action = QAction("&Maximum", self)
         detector_maximum_action.setCheckable(True)
-        detector_maximum_action.triggered.connect(self.update_real_space_view)
+        detector_maximum_action.triggered.connect(
+            partial(self.update_real_space_view, True)
+        )
         detector_mode_group.addAction(detector_maximum_action)
         self.detector_menu.addAction(detector_maximum_action)
 
         detector_CoM_magnitude = QAction("CoM Ma&gnitude", self)
         detector_CoM_magnitude.setCheckable(True)
-        detector_CoM_magnitude.triggered.connect(self.update_real_space_view)
+        detector_CoM_magnitude.triggered.connect(
+            partial(self.update_real_space_view, True)
+        )
         detector_mode_group.addAction(detector_CoM_magnitude)
         self.detector_menu.addAction(detector_CoM_magnitude)
 
         detector_CoM_angle = QAction("CoM &Angle", self)
         detector_CoM_angle.setCheckable(True)
-        detector_CoM_angle.triggered.connect(self.update_real_space_view)
+        detector_CoM_angle.triggered.connect(partial(self.update_real_space_view, True))
         detector_mode_group.addAction(detector_CoM_angle)
         self.detector_menu.addAction(detector_CoM_angle)
+
+        # detector_iCoM = QAction("i&CoM", self)
+        # detector_iCoM.setCheckable(True)
+        # detector_iCoM.triggered.connect(partial(self.update_real_space_view, True))
+        # detector_mode_group.addAction(detector_iCoM)
+        # self.detector_menu.addAction(detector_iCoM)
 
         # Detector Shape Menu
         self.detector_shape_menu = QMenu("Detector &Shape", self)
@@ -226,10 +253,10 @@ class DataViewer(QMainWindow):
         self.diffraction_space_widget.addItem(self.diffraction_space_view_text)
 
         # Create virtual detector ROI selector
-        self.virtual_detector_roi = pg.RectROI([256, 256], [50, 50], pen=(3, 9))
+        self.virtual_detector_roi = pg.RectROI([5, 5], [20, 20], pen=(3, 9))
         self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi)
         self.virtual_detector_roi.sigRegionChangeFinished.connect(
-            self.update_real_space_view
+            partial(self.update_real_space_view, False)
         )
 
         # Name and return
@@ -246,7 +273,7 @@ class DataViewer(QMainWindow):
         # Add point selector connected to displayed diffraction pattern
         self.real_space_point_selector = pg_point_roi(self.real_space_widget.getView())
         self.real_space_point_selector.sigRegionChanged.connect(
-            self.update_diffraction_space_view
+            partial(self.update_diffraction_space_view, False)
         )
 
         # Name and return
