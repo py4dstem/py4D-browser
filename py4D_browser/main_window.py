@@ -41,13 +41,14 @@ class DataViewer(QMainWindow):
         load_data_auto,
         load_data_bin,
         load_data_mmap,
-        set_diffraction_scaling,
-        set_vimg_scaling,
     )
 
     from py4D_browser.update_views import (
         update_diffraction_space_view,
         update_real_space_view,
+        update_diffraction_detector,
+        update_annulus_pos,
+        update_annulus_radii,
     )
 
     def __init__(self, argv):
@@ -108,25 +109,19 @@ class DataViewer(QMainWindow):
 
         diff_scale_linear_action = QAction("Linear", self)
         diff_scale_linear_action.setCheckable(True)
-        diff_scale_linear_action.triggered.connect(
-            partial(self.set_diffraction_scaling, "linear")
-        )
+        diff_scale_linear_action.triggered.connect(partial(self.update_diffraction_space_view,True))
         diff_scaling_group.addAction(diff_scale_linear_action)
         self.scaling_menu.addAction(diff_scale_linear_action)
 
         diff_scale_log_action = QAction("Log", self)
         diff_scale_log_action.setCheckable(True)
-        diff_scale_log_action.triggered.connect(
-            partial(self.set_diffraction_scaling, "log")
-        )
+        diff_scale_log_action.triggered.connect(partial(self.update_diffraction_space_view,True))
         diff_scaling_group.addAction(diff_scale_log_action)
         self.scaling_menu.addAction(diff_scale_log_action)
 
         diff_scale_sqrt_action = QAction("Square Root", self)
         diff_scale_sqrt_action.setCheckable(True)
-        diff_scale_sqrt_action.triggered.connect(
-            partial(self.set_diffraction_scaling, "sqrt")
-        )
+        diff_scale_sqrt_action.triggered.connect(partial(self.update_diffraction_space_view,True))
         diff_scaling_group.addAction(diff_scale_sqrt_action)
         diff_scale_sqrt_action.setChecked(True)
         self.scaling_menu.addAction(diff_scale_sqrt_action)
@@ -205,19 +200,19 @@ class DataViewer(QMainWindow):
         detector_rectangle_action = QAction("&Rectangular", self)
         detector_rectangle_action.setCheckable(True)
         detector_rectangle_action.setChecked(True)
-        detector_rectangle_action.triggered.connect(self.update_real_space_view)
+        detector_rectangle_action.triggered.connect(self.update_diffraction_detector)
         detector_shape_group.addAction(detector_rectangle_action)
         self.detector_shape_menu.addAction(detector_rectangle_action)
 
         detector_circle_action = QAction("&Circle", self)
         detector_circle_action.setCheckable(True)
-        detector_circle_action.triggered.connect(self.update_real_space_view)
+        detector_circle_action.triggered.connect(self.update_diffraction_detector)
         detector_shape_group.addAction(detector_circle_action)
         self.detector_shape_menu.addAction(detector_circle_action)
 
         detector_annulus_action = QAction("&Annulus", self)
         detector_annulus_action.setCheckable(True)
-        detector_annulus_action.triggered.connect(self.update_real_space_view)
+        detector_annulus_action.triggered.connect(self.update_diffraction_detector)
         detector_shape_group.addAction(detector_annulus_action)
         self.detector_shape_menu.addAction(detector_annulus_action)
 
@@ -281,8 +276,9 @@ class DataViewer(QMainWindow):
     def dropEvent(self, event):
         files = [u.toLocalFile() for u in event.mimeData().urls()]
         if len(files) == 1:
-            print(f"Trying to load {files[0]}")
+            print(f"Reieving dropped file: {files[0]}")
             self.load_file(files[0])
+
 
 def pg_point_roi(view_box):
     """
