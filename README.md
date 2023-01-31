@@ -10,6 +10,8 @@ Currently, to install you must download or clone the repo and run `python setup.
 ## Usage
 Run `py4DGUI` in your terminal to open the GUI. Then just drag and drop a 4D-STEM dataset into the window!
 
+![Demonstration](/images/demo.gif)
+
 ## About 
 
 ![py4DSTEM logo](/images/py4DSTEM_logo.png)
