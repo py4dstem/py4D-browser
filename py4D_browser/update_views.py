@@ -2,13 +2,15 @@ import pyqtgraph as pg
 import numpy as np
 import py4DSTEM
 
+from py4D_browser.utils import pg_point_roi
+
 
 def update_real_space_view(self, reset=False):
     scaling_mode = self.vimg_scaling_group.checkedAction().text().replace("&", "")
     assert scaling_mode in ["Linear", "Log", "Square Root"], scaling_mode
 
     detector_shape = self.detector_shape_group.checkedAction().text().replace("&", "")
-    assert detector_shape in ["Rectangular", "Circle", "Annulus"], detector_shape
+    assert detector_shape in ["Point", "Rectangular", "Circle", "Annulus"], detector_shape
 
     detector_mode = self.detector_mode_group.checkedAction().text().replace("&", "")
     assert detector_mode in [
@@ -88,6 +90,18 @@ def update_real_space_view(self, reset=False):
             "annulus",
             ((x0, y0), (R_inner, R_outer)),
         )
+    elif detector_shape == "Point":
+        roi_state = self.virtual_detector_point.saveState()
+        y0, x0 = roi_state["pos"]
+        xc, yc = int(x0 + 1), int(y0 + 1)
+
+        # Set the diffraction space image
+        # Normalize coordinates
+        xc = np.clip(xc, 0, self.datacube.Q_Nx - 1)
+        yc = np.clip(yc, 0, self.datacube.Q_Ny - 1)
+        vimg = self.datacube.data[: ,: , xc, yc]
+
+        self.diffraction_space_view_text.setText(f"[{xc},{yc}]")
 
     else:
         raise ValueError("Detector shape not recognized")
@@ -179,7 +193,7 @@ def update_diffraction_detector(self):
     # change the shape of the detector, then update the view
 
     detector_shape = self.detector_shape_group.checkedAction().text().strip("&")
-    assert detector_shape in ["Rectangular", "Circle", "Annulus"]
+    assert detector_shape in ["Point", "Rectangular", "Circle", "Annulus"]
 
     if self.datacube is None:
         return
@@ -189,6 +203,8 @@ def update_diffraction_detector(self):
     xr, yr = x / 10, y / 10
 
     # Remove existing detector
+    if hasattr(self, "virtual_detector_point"):
+        self.diffraction_space_widget.view.scene().removeItem(self.virtual_detector_point)
     if hasattr(self, "virtual_detector_roi"):
         self.diffraction_space_widget.view.scene().removeItem(self.virtual_detector_roi)
     if hasattr(self, "virtual_detector_roi_inner"):
@@ -201,7 +217,13 @@ def update_diffraction_detector(self):
         )
 
     # Rectangular detector
-    if detector_shape == "Rectangular":
+    if detector_shape == "Point":
+        self.virtual_detector_point = pg_point_roi(self.diffraction_space_widget.getView())
+        self.virtual_detector_point.sigRegionChanged.connect(
+            self.update_real_space_view
+        )
+
+    elif detector_shape == "Rectangular":
         self.virtual_detector_roi = pg.RectROI(
             [int(x0 - xr / 2), int(y0 - yr / 2)], [int(xr), int(yr)], pen=(3, 9)
         )
@@ -258,7 +280,7 @@ def update_diffraction_detector(self):
 
     else:
         raise ValueError(
-            "Unknown detector shape value {}.  Must be 0, 1, or 2.".format(
+            "Unknown detector shape! Got: {}".format(
                 detector_shape
             )
         )

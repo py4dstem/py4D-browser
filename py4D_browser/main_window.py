@@ -28,6 +28,8 @@ import numpy as np
 from functools import partial
 from pathlib import Path
 
+from py4D_browser.utils import pg_point_roi
+
 
 class DataViewer(QMainWindow):
     """
@@ -225,9 +227,16 @@ class DataViewer(QMainWindow):
         detector_shape_group.setExclusive(True)
         self.detector_shape_group = detector_shape_group
 
+        detector_point_action = QAction("&Point", self)
+        detector_point_action.setCheckable(True)
+        detector_point_action.setChecked(True) # Default
+        detector_point_action.triggered.connect(self.update_diffraction_detector)
+        detector_shape_group.addAction(detector_point_action)
+        self.detector_shape_menu.addAction(detector_point_action)
+
         detector_rectangle_action = QAction("&Rectangular", self)
         detector_rectangle_action.setCheckable(True)
-        detector_rectangle_action.setChecked(True)
+        # detector_rectangle_action.setChecked(True)
         detector_rectangle_action.triggered.connect(self.update_diffraction_detector)
         detector_shape_group.addAction(detector_rectangle_action)
         self.detector_shape_menu.addAction(detector_rectangle_action)
@@ -254,11 +263,15 @@ class DataViewer(QMainWindow):
         self.diffraction_space_widget.addItem(self.diffraction_space_view_text)
 
         # Create virtual detector ROI selector
-        self.virtual_detector_roi = pg.RectROI([5, 5], [20, 20], pen=(3, 9))
-        self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi)
-        self.virtual_detector_roi.sigRegionChangeFinished.connect(
-            partial(self.update_real_space_view, False)
+        self.virtual_detector_point = pg_point_roi(self.diffraction_space_widget.getView())
+        self.virtual_detector_point.sigRegionChanged.connect(
+            self.update_real_space_view
         )
+        # self.virtual_detector_roi = pg.RectROI([5, 5], [20, 20], pen=(3, 9))
+        # self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi)
+        # self.virtual_detector_roi.sigRegionChangeFinished.connect(
+        #     partial(self.update_real_space_view, False)
+        # )
 
         # Name and return
         self.diffraction_space_widget.setWindowTitle("Diffraction Space")
@@ -307,16 +320,3 @@ class DataViewer(QMainWindow):
             print(f"Reieving dropped file: {files[0]}")
             self.load_file(files[0])
 
-
-def pg_point_roi(view_box):
-    """
-    Point selection.  Based in pyqtgraph, and returns a pyqtgraph CircleROI object.
-    This object has a sigRegionChanged.connect() signal method to connect to other functions.
-    """
-    circ_roi = pg.CircleROI((-0.5, -0.5), (2, 2), movable=True, pen=(0, 9))
-    h = circ_roi.addTranslateHandle((0.5, 0.5))
-    h.pen = pg.mkPen("r")
-    h.update()
-    view_box.addItem(circ_roi)
-    circ_roi.removeHandle(0)
-    return circ_roi
