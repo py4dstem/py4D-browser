@@ -6,19 +6,19 @@ with open("README.md", "r") as f:
 
 setup(
     name="py4D_browser",
-    version="0.9",
+    version="0.99",
     packages=find_packages(),
     description="A 4D-STEM data browser built on py4DSTEM.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/py4dstem/py4DSTEM/",
     author="Steven E Zeltmann",
-    author_email="steven.zeltmann@lbl.gov",
+    author_email="steven.zeltmann@berkeley.edu",
     license="GNU GPLv3",
     keywords="STEM 4DSTEM",
     python_requires=">=3.8",
     install_requires=[
-        "py4dstem >= 0.13.11",
+        "py4dstem >= 0.14.0",
         "numpy >= 1.19",
         "matplotlib >= 3.2.2",
         "PyQt5 >= 5.10",

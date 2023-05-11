@@ -22,13 +22,14 @@ def load_data_bin(self):
 def load_file(self, filepath, mmap=False, binning=1):
     print(f"Loading file {filepath}")
 
-    if py4DSTEM.io.utils.parse_filetype(filepath) == "py4DSTEM":
+    from py4DSTEM.io.parsefiletype import _parse_filetype
+    if _parse_filetype(filepath) == "H5":
         datacubes = get_4D(h5py.File(filepath, "r"))
         print(f"Found {len(datacubes)} 4D datasets inside the HDF5 file...")
         if len(datacubes) >= 1:
             # Read the first datacube in the HDF5 file into RAM
             print(f"Reading dataset at location {datacubes[0].name}")
-            self.datacube = py4DSTEM.io.DataCube(
+            self.datacube = py4DSTEM.DataCube(
                 datacubes[0] if mmap else datacubes[0][()]
             )
     else:
