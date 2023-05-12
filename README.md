@@ -7,7 +7,7 @@ This repository hosts the `pyqt` based graphical 4D--STEM data browser that was 
 Currently, to install you must download or clone the repo and run `python setup.py`.
 `pip` and `conda` installation will be available shortly.
 
-You can shortcut this by running `pip install git+https://github.com/sezelt/py4D-browser`
+You can shortcut this by running `pip install git+https://github.com/py4dstem/py4D-browser`
 
 ## Usage
 Run `py4DGUI` in your terminal to open the GUI. Then just drag and drop a 4D-STEM dataset into the window!
