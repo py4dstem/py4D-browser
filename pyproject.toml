@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "py4D_browser"
-version = "0.99"
+version = "0.9"
 authors = [
   { name="Steven Zeltmann", email="steven.zeltmann@berkeley.edu" },
 ]
@@ -16,7 +16,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-  "py4dstem >= 0.14.0",
+  "py4dstem >= 0.13.17",
   "numpy >= 1.19",
   "matplotlib >= 3.2.2",
   "PyQt5 >= 5.10",
