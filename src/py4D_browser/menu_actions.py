@@ -22,7 +22,7 @@ def load_data_bin(self):
 
 def load_file(self, filepath, mmap=False, binning=1):
     print(f"Loading file {filepath}")
-    print(f"Type: {os.path.splitext(filepath)[0].lower()}")
+    print(f"Type: {os.path.splitext(filepath)[-1].lower()}")
     if os.path.splitext(filepath)[-1].lower() in (".h5", ".hdf5", ".py4dstem", ".emd"):
         datacubes = get_4D(h5py.File(filepath, "r"))
         print(f"Found {len(datacubes)} 4D datasets inside the HDF5 file...")
