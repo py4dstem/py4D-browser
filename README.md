@@ -4,8 +4,12 @@
 This repository hosts the `pyqt` based graphical 4D--STEM data browser that was originally part of **py4DSTEM** until version 0.13.11. 
 
 ## Installation 
-The GUI is available on PyPI: `pip install py4D-browser`
-`conda` installation will be available shortly.
+The GUI is available on PyPI and conda-forge: 
+
+`pip install py4D-browser`
+
+`conda install -c conda-forge py4d-browser`
+
 
 ## Usage
 Run `py4DGUI` in your terminal to open the GUI. Then just drag and drop a 4D-STEM dataset into the window!
