@@ -64,7 +64,7 @@ def update_real_space_view(self, reset=False):
 
         self.diffraction_space_view_text.setText(f"[({x0},{y0}),{R}]")
 
-        mask = py4DSTEM.process.virtualimage.make_detector(
+        mask = py4DSTEM.datacube.virtualimage.DataCubeVirtualImager.make_detector(
             (self.datacube.Q_Nx, self.datacube.Q_Ny), "circle", ((x0, y0), R)
         )
     elif detector_shape == "Annulus":
@@ -85,7 +85,7 @@ def update_real_space_view(self, reset=False):
 
         self.diffraction_space_view_text.setText(f"[({x0},{y0}),({R_inner},{R_outer})]")
 
-        mask = py4DSTEM.process.virtualimage.make_detector(
+        mask = py4DSTEM.datacube.virtualimage.DataCubeVirtualImager.make_detector(
             (self.datacube.Q_Nx, self.datacube.Q_Ny),
             "annulus",
             ((x0, y0), (R_inner, R_outer)),
