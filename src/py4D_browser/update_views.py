@@ -155,6 +155,13 @@ def update_real_space_view(self, reset=False):
         raise ValueError("Mode not recognized")
     self.real_space_widget.setImage(new_view.T, autoLevels=True)
 
+    # Update FFT view
+    fft = np.abs(np.fft.fftshift(np.fft.fft2(new_view))) ** 0.5
+    levels = (np.min(fft), np.percentile(fft, 99.9))
+    self.fft_widget.setImage(
+        fft.T, autoLevels=False, levels=levels, autoRange=reset
+    )
+
 
 def update_diffraction_space_view(self, reset=False):
     scaling_mode = self.diff_scaling_group.checkedAction().text().replace("&", "")

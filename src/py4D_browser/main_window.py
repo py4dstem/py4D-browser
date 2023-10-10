@@ -1,4 +1,5 @@
-from PyQt5.QtCore import Qt
+from PyQt5 import QtCore
+from PyQt5.QtCore import Qt, right
 from PyQt5.QtWidgets import (
     QApplication,
     QLabel,
@@ -18,6 +19,7 @@ from PyQt5.QtWidgets import (
     QButtonGroup,
     QDesktopWidget,
     QMessageBox,
+    QSplitter,
     QActionGroup,
 )
 from PyQt5 import QtGui
@@ -300,9 +302,27 @@ class DataViewer(QMainWindow):
         self.diffraction_space_widget.dropEvent = self.dropEvent
         self.real_space_widget.dropEvent = self.dropEvent
 
+        # Set up the FFT window.
+        self.fft_widget = pg.ImageView()
+        self.fft_widget.setImage(np.zeros((512, 512)))
+
+        # Name and return
+        self.fft_widget.setWindowTitle("FFT of Virtual Image")
+
+        self.fft_widget.setAcceptDrops(True)
+        self.fft_widget.dragEnterEvent = self.dragEnterEvent
+        self.fft_widget.dropEvent = self.dropEvent
+
         layout = QHBoxLayout()
         layout.addWidget(self.diffraction_space_widget, 1)
-        layout.addWidget(self.real_space_widget, 1)
+
+        # add a resizeable layout for the vimg and FFT
+        rightside = QSplitter()
+        rightside.addWidget(self.real_space_widget)
+        rightside.addWidget(self.fft_widget)
+        rightside.setOrientation(QtCore.Qt.Vertical)
+        layout.addWidget(rightside, 1)
+        
         widget = QWidget()
         widget.setLayout(layout)
         self.setCentralWidget(widget)
