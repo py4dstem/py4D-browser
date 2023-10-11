@@ -1,5 +1,6 @@
 import pyqtgraph as pg
 
+
 def pg_point_roi(view_box):
     """
     Point selection.  Based in pyqtgraph, and returns a pyqtgraph CircleROI object.
