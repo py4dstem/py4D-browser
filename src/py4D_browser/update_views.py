@@ -2,7 +2,7 @@ import pyqtgraph as pg
 import numpy as np
 import py4DSTEM
 
-from py4D_browser.utils import pg_point_roi
+from py4D_browser.utils import pg_point_roi, make_detector
 
 
 def update_real_space_view(self, reset=False):
@@ -10,7 +10,12 @@ def update_real_space_view(self, reset=False):
     assert scaling_mode in ["Linear", "Log", "Square Root"], scaling_mode
 
     detector_shape = self.detector_shape_group.checkedAction().text().replace("&", "")
-    assert detector_shape in ["Point", "Rectangular", "Circle", "Annulus"], detector_shape
+    assert detector_shape in [
+        "Point",
+        "Rectangular",
+        "Circle",
+        "Annulus",
+    ], detector_shape
 
     detector_mode = self.detector_mode_group.checkedAction().text().replace("&", "")
     assert detector_mode in [
@@ -55,37 +60,34 @@ def update_real_space_view(self, reset=False):
             mask[slice_x, slice_y] = True
 
     elif detector_shape == "Circle":
-        (slice_x, slice_y), _ = self.virtual_detector_roi.getArraySlice(
-            self.datacube.data[0, 0, :, :], self.diffraction_space_widget.getImageItem()
-        )
-        x0 = (slice_x.start + slice_x.stop) / 2.0
-        y0 = (slice_y.start + slice_y.stop) / 2.0
-        R = (slice_y.stop - slice_y.start) / 2.0
+        R = self.virtual_detector_roi.size()[0] / 2.0
 
-        self.diffraction_space_view_text.setText(f"[({x0},{y0}),{R}]")
+        x0 = self.virtual_detector_roi.pos()[0] + R
+        y0 = self.virtual_detector_roi.pos()[1] + R
 
-        mask = py4DSTEM.datacube.virtualimage.DataCubeVirtualImager.make_detector(
+        self.diffraction_space_view_text.setText(f"[({x0:.0f},{y0:.0f}),{R:.0f}]")
+
+        mask = make_detector(
             (self.datacube.Q_Nx, self.datacube.Q_Ny), "circle", ((x0, y0), R)
         )
     elif detector_shape == "Annulus":
-        (slice_x, slice_y), _ = self.virtual_detector_roi_outer.getArraySlice(
-            self.datacube.data[0, 0, :, :], self.diffraction_space_widget.getImageItem()
-        )
-        x0 = (slice_x.start + slice_x.stop) / 2.0
-        y0 = (slice_y.start + slice_y.stop) / 2.0
-        R_outer = (slice_y.stop - slice_y.start) / 2.0
+        inner_pos = self.virtual_detector_roi_inner.pos()
+        inner_size = self.virtual_detector_roi_inner.size()
+        R_inner = inner_size[0] / 2.0
+        x0 = inner_pos[0] + R_inner
+        y0 = inner_pos[1] + R_inner
 
-        (slice_ix, slice_iy), _ = self.virtual_detector_roi_inner.getArraySlice(
-            self.datacube.data[0, 0, :, :], self.diffraction_space_widget.getImageItem()
-        )
-        R_inner = (slice_iy.stop - slice_iy.start) / 2.0
+        outer_size = self.virtual_detector_roi_outer.size()
+        R_outer = outer_size[0] / 2.0
 
-        if R_inner == R_outer:
+        if R_inner <= R_outer:
             R_inner -= 1
 
-        self.diffraction_space_view_text.setText(f"[({x0},{y0}),({R_inner},{R_outer})]")
+        self.diffraction_space_view_text.setText(
+            f"[({x0:.0f},{y0:.0f}),({R_inner:.0f},{R_outer:.0f})]"
+        )
 
-        mask = py4DSTEM.datacube.virtualimage.DataCubeVirtualImager.make_detector(
+        mask = make_detector(
             (self.datacube.Q_Nx, self.datacube.Q_Ny),
             "annulus",
             ((x0, y0), (R_inner, R_outer)),
@@ -99,7 +101,7 @@ def update_real_space_view(self, reset=False):
         # Normalize coordinates
         xc = np.clip(xc, 0, self.datacube.Q_Nx - 1)
         yc = np.clip(yc, 0, self.datacube.Q_Ny - 1)
-        vimg = self.datacube.data[: ,: , xc, yc]
+        vimg = self.datacube.data[:, :, xc, yc]
 
         self.diffraction_space_view_text.setText(f"[{xc},{yc}]")
 
@@ -107,6 +109,11 @@ def update_real_space_view(self, reset=False):
         raise ValueError("Detector shape not recognized")
 
     if mask is not None:
+        # For debugging masks:
+        # self.diffraction_space_widget.setImage(
+        #     mask.T, autoLevels=True, autoRange=True
+        # )
+        mask = mask.astype(np.float32)
         vimg = np.zeros((self.datacube.R_Nx, self.datacube.R_Ny))
         iterator = py4DSTEM.tqdmnd(self.datacube.R_Nx, self.datacube.R_Ny, disable=True)
 
@@ -154,6 +161,11 @@ def update_real_space_view(self, reset=False):
     else:
         raise ValueError("Mode not recognized")
     self.real_space_widget.setImage(new_view.T, autoLevels=True)
+
+    # Update FFT view
+    fft = np.abs(np.fft.fftshift(np.fft.fft2(new_view))) ** 0.5
+    levels = (np.min(fft), np.percentile(fft, 99.9))
+    self.fft_widget.setImage(fft.T, autoLevels=False, levels=levels, autoRange=reset)
 
 
 def update_diffraction_space_view(self, reset=False):
@@ -204,7 +216,9 @@ def update_diffraction_detector(self):
 
     # Remove existing detector
     if hasattr(self, "virtual_detector_point"):
-        self.diffraction_space_widget.view.scene().removeItem(self.virtual_detector_point)
+        self.diffraction_space_widget.view.scene().removeItem(
+            self.virtual_detector_point
+        )
     if hasattr(self, "virtual_detector_roi"):
         self.diffraction_space_widget.view.scene().removeItem(self.virtual_detector_roi)
     if hasattr(self, "virtual_detector_roi_inner"):
@@ -218,7 +232,9 @@ def update_diffraction_detector(self):
 
     # Rectangular detector
     if detector_shape == "Point":
-        self.virtual_detector_point = pg_point_roi(self.diffraction_space_widget.getView())
+        self.virtual_detector_point = pg_point_roi(
+            self.diffraction_space_widget.getView()
+        )
         self.virtual_detector_point.sigRegionChanged.connect(
             self.update_real_space_view
         )
@@ -279,11 +295,7 @@ def update_diffraction_detector(self):
         )
 
     else:
-        raise ValueError(
-            "Unknown detector shape! Got: {}".format(
-                detector_shape
-            )
-        )
+        raise ValueError("Unknown detector shape! Got: {}".format(detector_shape))
 
     self.update_real_space_view()
 
