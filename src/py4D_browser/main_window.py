@@ -1,28 +1,14 @@
-from PyQt5 import QtCore
-from PyQt5.QtCore import Qt, right
+from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import (
     QApplication,
-    QLabel,
     QMainWindow,
     QWidget,
     QMenu,
     QAction,
-    QFileDialog,
-    QVBoxLayout,
     QHBoxLayout,
-    QFrame,
-    QPushButton,
-    QScrollArea,
-    QCheckBox,
-    QLineEdit,
-    QRadioButton,
-    QButtonGroup,
-    QDesktopWidget,
-    QMessageBox,
     QSplitter,
     QActionGroup,
 )
-from PyQt5 import QtGui
 
 import pyqtgraph as pg
 import numpy as np
