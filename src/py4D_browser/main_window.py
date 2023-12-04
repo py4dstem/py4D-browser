@@ -1,26 +1,14 @@
-from PyQt5.QtCore import Qt
+from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import (
     QApplication,
-    QLabel,
     QMainWindow,
     QWidget,
     QMenu,
     QAction,
-    QFileDialog,
-    QVBoxLayout,
     QHBoxLayout,
-    QFrame,
-    QPushButton,
-    QScrollArea,
-    QCheckBox,
-    QLineEdit,
-    QRadioButton,
-    QButtonGroup,
-    QDesktopWidget,
-    QMessageBox,
+    QSplitter,
     QActionGroup,
 )
-from PyQt5 import QtGui
 
 import pyqtgraph as pg
 import numpy as np
@@ -80,6 +68,10 @@ class DataViewer(QMainWindow):
         self.resize(800, 400)
 
         self.show()
+
+        # If a file was passed on the command line, open it
+        if len(argv) > 1:
+            self.load_file(argv[1])
 
     def setup_menus(self):
         self.menu_bar = self.menuBar()
@@ -229,7 +221,7 @@ class DataViewer(QMainWindow):
 
         detector_point_action = QAction("&Point", self)
         detector_point_action.setCheckable(True)
-        detector_point_action.setChecked(True) # Default
+        detector_point_action.setChecked(True)  # Default
         detector_point_action.triggered.connect(self.update_diffraction_detector)
         detector_shape_group.addAction(detector_point_action)
         self.detector_shape_menu.addAction(detector_point_action)
@@ -263,7 +255,9 @@ class DataViewer(QMainWindow):
         self.diffraction_space_widget.addItem(self.diffraction_space_view_text)
 
         # Create virtual detector ROI selector
-        self.virtual_detector_point = pg_point_roi(self.diffraction_space_widget.getView())
+        self.virtual_detector_point = pg_point_roi(
+            self.diffraction_space_widget.getView()
+        )
         self.virtual_detector_point.sigRegionChanged.connect(
             self.update_real_space_view
         )
@@ -300,9 +294,29 @@ class DataViewer(QMainWindow):
         self.diffraction_space_widget.dropEvent = self.dropEvent
         self.real_space_widget.dropEvent = self.dropEvent
 
+        # Set up the FFT window.
+        self.fft_widget = pg.ImageView()
+        self.fft_widget.setImage(np.zeros((512, 512)))
+
+        # Name and return
+        self.fft_widget.setWindowTitle("FFT of Virtual Image")
+        self.fft_widget.addItem(pg.TextItem("FFT", (200, 200, 200), None, (0, 1)))
+
+        self.fft_widget.setAcceptDrops(True)
+        self.fft_widget.dragEnterEvent = self.dragEnterEvent
+        self.fft_widget.dropEvent = self.dropEvent
+
         layout = QHBoxLayout()
         layout.addWidget(self.diffraction_space_widget, 1)
-        layout.addWidget(self.real_space_widget, 1)
+
+        # add a resizeable layout for the vimg and FFT
+        rightside = QSplitter()
+        rightside.addWidget(self.real_space_widget)
+        rightside.addWidget(self.fft_widget)
+        rightside.setOrientation(QtCore.Qt.Vertical)
+        rightside.setStretchFactor(0, 2)
+        layout.addWidget(rightside, 1)
+
         widget = QWidget()
         widget.setLayout(layout)
         self.setCentralWidget(widget)
@@ -319,4 +333,3 @@ class DataViewer(QMainWindow):
         if len(files) == 1:
             print(f"Reieving dropped file: {files[0]}")
             self.load_file(files[0])
-

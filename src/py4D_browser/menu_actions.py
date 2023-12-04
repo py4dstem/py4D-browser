@@ -1,6 +1,7 @@
 import py4DSTEM
 from PyQt5.QtWidgets import QFileDialog
 import h5py
+import os
 
 
 def load_data_auto(self):
@@ -21,9 +22,8 @@ def load_data_bin(self):
 
 def load_file(self, filepath, mmap=False, binning=1):
     print(f"Loading file {filepath}")
-
-    from py4DSTEM.io.parsefiletype import _parse_filetype
-    if _parse_filetype(filepath) == "H5":
+    print(f"Type: {os.path.splitext(filepath)[-1].lower()}")
+    if os.path.splitext(filepath)[-1].lower() in (".h5", ".hdf5", ".py4dstem", ".emd"):
         datacubes = get_4D(h5py.File(filepath, "r"))
         print(f"Found {len(datacubes)} 4D datasets inside the HDF5 file...")
         if len(datacubes) >= 1:
@@ -50,7 +50,7 @@ def show_file_dialog(self):
         self,
         "Open 4D-STEM Data",
         "",
-        "4D-STEM Data (*.dm3 *.dm4 *.raw *.mib *.gtg);;Any file (*)",
+        "4D-STEM Data (*.dm3 *.dm4 *.raw *.mib *.gtg *.h5 *.hdf5 *.emd *.py4dstem);;Any file (*)",
     )
     if filename is not None and len(filename[0]) > 0:
         return filename[0]
