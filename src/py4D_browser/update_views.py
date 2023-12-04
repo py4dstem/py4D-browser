@@ -80,11 +80,12 @@ def update_real_space_view(self, reset=False):
         outer_size = self.virtual_detector_roi_outer.size()
         R_outer = outer_size[0] / 2.0
 
-
         if R_inner <= R_outer:
             R_inner -= 1
 
-        self.diffraction_space_view_text.setText(f"[({x0:.0f},{y0:.0f}),({R_inner:.0f},{R_outer:.0f})]")
+        self.diffraction_space_view_text.setText(
+            f"[({x0:.0f},{y0:.0f}),({R_inner:.0f},{R_outer:.0f})]"
+        )
 
         mask = make_detector(
             (self.datacube.Q_Nx, self.datacube.Q_Ny),
