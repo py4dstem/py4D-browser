@@ -240,11 +240,11 @@ class DataViewer(QMainWindow):
         detector_mode_group.addAction(detector_CoM_angle)
         self.detector_menu.addAction(detector_CoM_angle)
 
-        # detector_iCoM = QAction("i&CoM", self)
-        # detector_iCoM.setCheckable(True)
-        # detector_iCoM.triggered.connect(partial(self.update_real_space_view, True))
-        # detector_mode_group.addAction(detector_iCoM)
-        # self.detector_menu.addAction(detector_iCoM)
+        detector_iCoM = QAction("i&CoM", self)
+        detector_iCoM.setCheckable(True)
+        detector_iCoM.triggered.connect(partial(self.update_real_space_view, True))
+        detector_mode_group.addAction(detector_iCoM)
+        self.detector_menu.addAction(detector_iCoM)
 
         # Detector Shape Menu
         self.detector_shape_menu = QMenu("Detector &Shape", self)

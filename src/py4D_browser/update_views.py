@@ -23,6 +23,7 @@ def update_real_space_view(self, reset=False):
         "Maximum",
         "CoM Magnitude",
         "CoM Angle",
+        "iCoM",
     ], detector_mode
 
     # If a CoM method is checked, ensure linear scaling
@@ -145,7 +146,14 @@ def update_real_space_view(self, reset=False):
             elif detector_mode == "CoM Angle":
                 vimg = np.arctan2(CoMy, CoMx)
             elif detector_mode == "iCoM":
-                raise NotImplementedError("Coming soon...")
+                dpc = py4DSTEM.process.phase.DPCReconstruction(verbose=False)
+                dpc.preprocess(
+                    force_com_measured=[CoMx, CoMy],
+                    plot_rotation=False,
+                    plot_center_of_mass="",
+                )
+                dpc.reconstruct(max_iter=1, step_size=1)
+                vimg = dpc.object_phase
             else:
                 raise ValueError("Mode logic gone haywire!")
 
