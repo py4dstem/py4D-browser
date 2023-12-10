@@ -15,6 +15,7 @@ import numpy as np
 
 from functools import partial
 from pathlib import Path
+import importlib
 
 from py4D_browser.utils import pg_point_roi
 
@@ -43,6 +44,14 @@ class DataViewer(QMainWindow):
         update_annulus_pos,
         update_annulus_radii,
     )
+
+    HAS_EMPAD2 = importlib.util.find_spec("empad2") is not None
+    if HAS_EMPAD2:
+        from py4D_browser.empad2_reader import (
+            set_empad2_sensor,
+            load_empad2_background,
+            load_empad2_dataset,
+        )
 
     def __init__(self, argv):
         super().__init__()
@@ -91,6 +100,32 @@ class DataViewer(QMainWindow):
         self.load_binned_action = QAction("Load Data &Binned...", self)
         self.load_binned_action.triggered.connect(self.load_data_bin)
         self.file_menu.addAction(self.load_binned_action)
+
+        # EMPAD2 menu
+        if self.HAS_EMPAD2:
+            self.empad2_calibrations = None
+            self.empad2_background = None
+
+            self.empad2_menu = QMenu("EMPAD-G2", self)
+            self.menu_bar.addMenu(self.empad2_menu)
+
+            sensor_menu = self.empad2_menu.addMenu("Sensor")
+            calibration_action_group = QActionGroup(self)
+            calibration_action_group.setExclusive(True)
+            from empad2 import SENSORS
+
+            for name, sensor in SENSORS.items():
+                menu_item = sensor_menu.addAction(sensor["display-name"])
+                calibration_action_group.addAction(menu_item)
+                menu_item.setCheckable(True)
+                menu_item.triggered.connect(partial(self.set_empad2_sensor, name))
+
+            self.empad2_menu.addAction("Load Background...").triggered.connect(
+                self.load_empad2_background
+            )
+            self.empad2_menu.addAction("Load Dataset...").triggered.connect(
+                self.load_empad2_dataset
+            )
 
         # Scaling Menu
         self.scaling_menu = QMenu("&Scaling", self)
