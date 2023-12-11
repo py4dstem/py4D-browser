@@ -40,6 +40,7 @@ class DataViewer(QMainWindow):
     from py4D_browser.update_views import (
         update_diffraction_space_view,
         update_real_space_view,
+        update_realspace_detector,
         update_diffraction_detector,
         update_annulus_pos,
         update_annulus_radii,
@@ -254,6 +255,10 @@ class DataViewer(QMainWindow):
         detector_shape_group.setExclusive(True)
         self.detector_shape_group = detector_shape_group
 
+        diffraction_detector_separator = QAction("Diffraction", self)
+        diffraction_detector_separator.setDisabled(True)
+        self.detector_shape_menu.addAction(diffraction_detector_separator)
+
         detector_point_action = QAction("&Point", self)
         detector_point_action.setCheckable(True)
         detector_point_action.setChecked(True)  # Default
@@ -279,6 +284,30 @@ class DataViewer(QMainWindow):
         detector_annulus_action.triggered.connect(self.update_diffraction_detector)
         detector_shape_group.addAction(detector_annulus_action)
         self.detector_shape_menu.addAction(detector_annulus_action)
+
+        self.detector_shape_menu.addSeparator()
+
+        diffraction_detector_separator = QAction("Real Space", self)
+        diffraction_detector_separator.setDisabled(True)
+        self.detector_shape_menu.addAction(diffraction_detector_separator)
+
+        rs_detector_shape_group = QActionGroup(self)
+        rs_detector_shape_group.setExclusive(True)
+        self.rs_detector_shape_group = rs_detector_shape_group
+
+        rs_detector_point_action = QAction("Poin&t", self)
+        rs_detector_point_action.setCheckable(True)
+        rs_detector_point_action.setChecked(True)  # Default
+        rs_detector_point_action.triggered.connect(self.update_realspace_detector)
+        rs_detector_shape_group.addAction(rs_detector_point_action)
+        self.detector_shape_menu.addAction(rs_detector_point_action)
+
+        detector_rectangle_action = QAction("Rectan&gular", self)
+        detector_rectangle_action.setCheckable(True)
+        detector_rectangle_action.triggered.connect(self.update_realspace_detector)
+        rs_detector_shape_group.addAction(detector_rectangle_action)
+        self.detector_shape_menu.addAction(detector_rectangle_action)
+
 
     def setup_views(self):
         # Set up the diffraction space window.
