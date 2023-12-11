@@ -106,10 +106,10 @@ class DataViewer(QMainWindow):
             self.empad2_calibrations = None
             self.empad2_background = None
 
-            self.empad2_menu = QMenu("EMPAD-G2", self)
+            self.empad2_menu = QMenu("&EMPAD-G2", self)
             self.menu_bar.addMenu(self.empad2_menu)
 
-            sensor_menu = self.empad2_menu.addMenu("Sensor")
+            sensor_menu = self.empad2_menu.addMenu("&Sensor")
             calibration_action_group = QActionGroup(self)
             calibration_action_group.setExclusive(True)
             from empad2 import SENSORS
@@ -120,10 +120,10 @@ class DataViewer(QMainWindow):
                 menu_item.setCheckable(True)
                 menu_item.triggered.connect(partial(self.set_empad2_sensor, name))
 
-            self.empad2_menu.addAction("Load Background...").triggered.connect(
+            self.empad2_menu.addAction("Load &Background...").triggered.connect(
                 self.load_empad2_background
             )
-            self.empad2_menu.addAction("Load Dataset...").triggered.connect(
+            self.empad2_menu.addAction("Load &Dataset...").triggered.connect(
                 self.load_empad2_dataset
             )
 
@@ -296,11 +296,6 @@ class DataViewer(QMainWindow):
         self.virtual_detector_point.sigRegionChanged.connect(
             self.update_real_space_view
         )
-        # self.virtual_detector_roi = pg.RectROI([5, 5], [20, 20], pen=(3, 9))
-        # self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi)
-        # self.virtual_detector_roi.sigRegionChangeFinished.connect(
-        #     partial(self.update_real_space_view, False)
-        # )
 
         # Name and return
         self.diffraction_space_widget.setWindowTitle("Diffraction Space")
