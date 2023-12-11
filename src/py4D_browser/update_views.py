@@ -183,7 +183,9 @@ def update_diffraction_space_view(self, reset=False):
     if self.datacube is None:
         return
 
-    detector_shape = self.rs_detector_shape_group.checkedAction().text().replace("&", "")
+    detector_shape = (
+        self.rs_detector_shape_group.checkedAction().text().replace("&", "")
+    )
     assert detector_shape in [
         "Point",
         "Rectangular",
@@ -214,7 +216,7 @@ def update_diffraction_space_view(self, reset=False):
             f"[{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
         )
 
-        DP = np.sum(self.datacube.data[slice_x, slice_y], axis=(0,1))
+        DP = np.sum(self.datacube.data[slice_x, slice_y], axis=(0, 1))
 
         # if detector_mode == "Integrating":
         #     vimg = np.sum(self.datacube.data[:, :, slice_x, slice_y], axis=(2, 3))
@@ -239,10 +241,13 @@ def update_diffraction_space_view(self, reset=False):
         new_view.T, autoLevels=reset, autoRange=reset
     )
 
+
 def update_realspace_detector(self):
     # change the shape of the detector, then update the view
 
-    detector_shape = self.rs_detector_shape_group.checkedAction().text().replace("&","")
+    detector_shape = (
+        self.rs_detector_shape_group.checkedAction().text().replace("&", "")
+    )
     assert detector_shape in ["Point", "Rectangular"], detector_shape
 
     if self.datacube is None:
@@ -254,17 +259,13 @@ def update_realspace_detector(self):
 
     # Remove existing detector
     if hasattr(self, "real_space_point_selector"):
-        self.real_space_widget.view.scene().removeItem(
-            self.real_space_point_selector
-        )
+        self.real_space_widget.view.scene().removeItem(self.real_space_point_selector)
     if hasattr(self, "real_space_rect_selector"):
         self.real_space_widget.view.scene().removeItem(self.real_space_rect_selector)
 
     # Rectangular detector
     if detector_shape == "Point":
-        self.real_space_point_selector = pg_point_roi(
-            self.real_space_widget.getView()
-        )
+        self.real_space_point_selector = pg_point_roi(self.real_space_widget.getView())
         self.real_space_point_selector.sigRegionChanged.connect(
             self.update_diffraction_space_view
         )
@@ -282,6 +283,7 @@ def update_realspace_detector(self):
         raise ValueError("Unknown detector shape! Got: {}".format(detector_shape))
 
     self.update_diffraction_space_view()
+
 
 def update_diffraction_detector(self):
     # change the shape of the detector, then update the view

@@ -308,7 +308,6 @@ class DataViewer(QMainWindow):
         rs_detector_shape_group.addAction(detector_rectangle_action)
         self.detector_shape_menu.addAction(detector_rectangle_action)
 
-
     def setup_views(self):
         # Set up the diffraction space window.
         self.diffraction_space_widget = pg.ImageView()
