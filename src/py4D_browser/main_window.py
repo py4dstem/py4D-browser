@@ -35,6 +35,9 @@ class DataViewer(QMainWindow):
         load_data_bin,
         load_data_mmap,
         show_file_dialog,
+        get_savefile_name,
+        export_datacube,
+        export_virtual_image,
     )
 
     from py4D_browser.update_views import (
@@ -90,6 +93,10 @@ class DataViewer(QMainWindow):
         self.file_menu = QMenu("&File", self)
         self.menu_bar.addMenu(self.file_menu)
 
+        import_label = QAction("Import", self)
+        import_label.setDisabled(True)
+        self.file_menu.addAction(import_label)
+
         self.load_auto_action = QAction("&Load Data...", self)
         self.load_auto_action.triggered.connect(self.load_data_auto)
         self.file_menu.addAction(self.load_auto_action)
@@ -101,6 +108,37 @@ class DataViewer(QMainWindow):
         self.load_binned_action = QAction("Load Data &Binned...", self)
         self.load_binned_action.triggered.connect(self.load_data_bin)
         self.file_menu.addAction(self.load_binned_action)
+
+        self.file_menu.addSeparator()
+
+        export_label = QAction("Export", self)
+        export_label.setDisabled(True)
+        self.file_menu.addAction(export_label)
+
+        # Submenu to export datacube
+        datacube_export_menu = QMenu("Export Datacube", self)
+        self.file_menu.addMenu(datacube_export_menu)
+        for method in ["Raw float32", "py4DSTEM HDF5", "Plain HDF5"]:
+            menu_item = datacube_export_menu.addAction(method)
+            menu_item.triggered.connect(partial(self.export_datacube, method))
+
+        # Submenu to export virtual image
+        vimg_export_menu = QMenu("Export Virtual Image", self)
+        self.file_menu.addMenu(vimg_export_menu)
+        for method in ["PNG", "TIFF", "TIFF (raw)"]:
+            menu_item = vimg_export_menu.addAction(method)
+            menu_item.triggered.connect(
+                partial(self.export_virtual_image, method, "image")
+            )
+
+        # Submenu to export diffraction
+        vdiff_export_menu = QMenu("Export Diffraction Pattern", self)
+        self.file_menu.addMenu(vdiff_export_menu)
+        for method in ["PNG", "TIFF", "TIFF (raw)"]:
+            menu_item = vdiff_export_menu.addAction(method)
+            menu_item.triggered.connect(
+                partial(self.export_virtual_image, method, "diffraction")
+            )
 
         # EMPAD2 menu
         if self.HAS_EMPAD2:
