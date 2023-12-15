@@ -91,21 +91,28 @@ def export_datacube(self, save_format: str):
 
 
 def export_virtual_image(self, im_format: str, im_type: str):
-    assert im_type in ['image', 'diffraction'], f"bad image type: {im_type}"
+    assert im_type in ["image", "diffraction"], f"bad image type: {im_type}"
 
     filename = self.get_savefile_name(im_format)
 
-    view = self.real_space_widget if im_type == "image" else self.diffraction_space_widget
+    view = (
+        self.real_space_widget if im_type == "image" else self.diffraction_space_widget
+    )
 
     vimg = view.image
     vmin, vmax = view.getLevels()
 
     if im_format == "PNG":
-        plt.imsave(fname=filename,arr=vimg, vmin=vmin, vmax=vmax, format="png", cmap='gray')
+        plt.imsave(
+            fname=filename, arr=vimg, vmin=vmin, vmax=vmax, format="png", cmap="gray"
+        )
     elif im_format == "TIFF":
-        plt.imsave(fname=filename,arr=vimg, vmin=vmin, vmax=vmax, format="tiff", cmap='gray')
+        plt.imsave(
+            fname=filename, arr=vimg, vmin=vmin, vmax=vmax, format="tiff", cmap="gray"
+        )
     elif im_format == "TIFF (raw)":
         from tifffile import TiffWriter
+
         with TiffWriter(filename) as tw:
             tw.write(vimg)
 
@@ -156,8 +163,8 @@ def get_savefile_name(self, file_format) -> str:
         fname = filename[0]
         print(f"Save file picked at {filename}")
 
-        if os.path.splitext(fname)[1] == '':
-            fname = fname + defaults.get(file_format,"")
+        if os.path.splitext(fname)[1] == "":
+            fname = fname + defaults.get(file_format, "")
             print(f"Added default extension to get: {fname}")
         return fname
     else:
