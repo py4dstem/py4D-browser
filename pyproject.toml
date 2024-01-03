@@ -34,3 +34,12 @@ py4DGUI = "py4D_browser.runGUI:launch"
 
 [tool.pyright]
 venv = "py4dstem"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+py4D_browser = ["*.png"]
