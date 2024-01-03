@@ -23,6 +23,7 @@ def update_real_space_view(self, reset=False):
         "Maximum",
         "CoM Magnitude",
         "CoM Angle",
+        "iCoM",
     ], detector_mode
 
     # If a CoM method is checked, ensure linear scaling
@@ -145,7 +146,14 @@ def update_real_space_view(self, reset=False):
             elif detector_mode == "CoM Angle":
                 vimg = np.arctan2(CoMy, CoMx)
             elif detector_mode == "iCoM":
-                raise NotImplementedError("Coming soon...")
+                dpc = py4DSTEM.process.phase.DPCReconstruction(verbose=False)
+                dpc.preprocess(
+                    force_com_measured=[CoMx, CoMy],
+                    plot_rotation=False,
+                    plot_center_of_mass="",
+                )
+                dpc.reconstruct(max_iter=1, step_size=1)
+                vimg = dpc.object_phase
             else:
                 raise ValueError("Mode logic gone haywire!")
 
@@ -175,17 +183,50 @@ def update_diffraction_space_view(self, reset=False):
     if self.datacube is None:
         return
 
-    roi_state = self.real_space_point_selector.saveState()
-    y0, x0 = roi_state["pos"]
-    xc, yc = int(x0 + 1), int(y0 + 1)
+    detector_shape = (
+        self.rs_detector_shape_group.checkedAction().text().replace("&", "")
+    )
+    assert detector_shape in [
+        "Point",
+        "Rectangular",
+    ], detector_shape
 
-    # Set the diffraction space image
-    # Normalize coordinates
-    xc = np.clip(xc, 0, self.datacube.R_Nx - 1)
-    yc = np.clip(yc, 0, self.datacube.R_Ny - 1)
-    DP = self.datacube.data[xc, yc]
+    if detector_shape == "Point":
+        roi_state = self.real_space_point_selector.saveState()
+        y0, x0 = roi_state["pos"]
+        xc, yc = int(x0 + 1), int(y0 + 1)
 
-    self.real_space_view_text.setText(f"[{xc},{yc}]")
+        # Set the diffraction space image
+        # Normalize coordinates
+        xc = np.clip(xc, 0, self.datacube.R_Nx - 1)
+        yc = np.clip(yc, 0, self.datacube.R_Ny - 1)
+
+        self.real_space_view_text.setText(f"[{xc},{yc}]")
+
+        DP = self.datacube.data[xc, yc]
+    elif detector_shape == "Rectangular":
+        # Get slices corresponding to ROI
+        slices, _ = self.real_space_rect_selector.getArraySlice(
+            np.zeros((self.datacube.Rshape)), self.real_space_widget.getImageItem()
+        )
+        slice_y, slice_x = slices
+
+        # update the label:
+        self.real_space_view_text.setText(
+            f"[{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
+        )
+
+        DP = np.sum(self.datacube.data[slice_x, slice_y], axis=(0, 1))
+
+        # if detector_mode == "Integrating":
+        #     vimg = np.sum(self.datacube.data[:, :, slice_x, slice_y], axis=(2, 3))
+        # elif detector_mode == "Maximum":
+        #     vimg = np.max(self.datacube.data[:, :, slice_x, slice_y], axis=(2, 3))
+        # else:
+        #     mask = np.zeros((self.datacube.Q_Nx, self.datacube.Q_Ny), dtype=np.bool_)
+        #     mask[slice_x, slice_y] = True
+    else:
+        raise ValueError("Detector shape not recognized")
 
     if scaling_mode == "Linear":
         new_view = DP
@@ -199,6 +240,49 @@ def update_diffraction_space_view(self, reset=False):
     self.diffraction_space_widget.setImage(
         new_view.T, autoLevels=reset, autoRange=reset
     )
+
+
+def update_realspace_detector(self):
+    # change the shape of the detector, then update the view
+
+    detector_shape = (
+        self.rs_detector_shape_group.checkedAction().text().replace("&", "")
+    )
+    assert detector_shape in ["Point", "Rectangular"], detector_shape
+
+    if self.datacube is None:
+        return
+
+    x, y = self.datacube.shape[2:]
+    x0, y0 = x / 2, y / 2
+    xr, yr = x / 10, y / 10
+
+    # Remove existing detector
+    if hasattr(self, "real_space_point_selector"):
+        self.real_space_widget.view.scene().removeItem(self.real_space_point_selector)
+    if hasattr(self, "real_space_rect_selector"):
+        self.real_space_widget.view.scene().removeItem(self.real_space_rect_selector)
+
+    # Rectangular detector
+    if detector_shape == "Point":
+        self.real_space_point_selector = pg_point_roi(self.real_space_widget.getView())
+        self.real_space_point_selector.sigRegionChanged.connect(
+            self.update_diffraction_space_view
+        )
+
+    elif detector_shape == "Rectangular":
+        self.real_space_rect_selector = pg.RectROI(
+            [int(x0 - xr / 2), int(y0 - yr / 2)], [int(xr), int(yr)], pen=(3, 9)
+        )
+        self.real_space_widget.getView().addItem(self.real_space_rect_selector)
+        self.real_space_rect_selector.sigRegionChangeFinished.connect(
+            self.update_diffraction_space_view
+        )
+
+    else:
+        raise ValueError("Unknown detector shape! Got: {}".format(detector_shape))
+
+    self.update_diffraction_space_view()
 
 
 def update_diffraction_detector(self):
