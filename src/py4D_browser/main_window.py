@@ -15,6 +15,7 @@ import numpy as np
 
 from functools import partial
 from pathlib import Path
+import importlib
 
 from py4D_browser.utils import pg_point_roi
 
@@ -34,15 +35,27 @@ class DataViewer(QMainWindow):
         load_data_bin,
         load_data_mmap,
         show_file_dialog,
+        get_savefile_name,
+        export_datacube,
+        export_virtual_image,
     )
 
     from py4D_browser.update_views import (
         update_diffraction_space_view,
         update_real_space_view,
+        update_realspace_detector,
         update_diffraction_detector,
         update_annulus_pos,
         update_annulus_radii,
     )
+
+    HAS_EMPAD2 = importlib.util.find_spec("empad2") is not None
+    if HAS_EMPAD2:
+        from py4D_browser.empad2_reader import (
+            set_empad2_sensor,
+            load_empad2_background,
+            load_empad2_dataset,
+        )
 
     def __init__(self, argv):
         super().__init__()
@@ -80,6 +93,10 @@ class DataViewer(QMainWindow):
         self.file_menu = QMenu("&File", self)
         self.menu_bar.addMenu(self.file_menu)
 
+        import_label = QAction("Import", self)
+        import_label.setDisabled(True)
+        self.file_menu.addAction(import_label)
+
         self.load_auto_action = QAction("&Load Data...", self)
         self.load_auto_action.triggered.connect(self.load_data_auto)
         self.file_menu.addAction(self.load_auto_action)
@@ -91,6 +108,63 @@ class DataViewer(QMainWindow):
         self.load_binned_action = QAction("Load Data &Binned...", self)
         self.load_binned_action.triggered.connect(self.load_data_bin)
         self.file_menu.addAction(self.load_binned_action)
+
+        self.file_menu.addSeparator()
+
+        export_label = QAction("Export", self)
+        export_label.setDisabled(True)
+        self.file_menu.addAction(export_label)
+
+        # Submenu to export datacube
+        datacube_export_menu = QMenu("Export Datacube", self)
+        self.file_menu.addMenu(datacube_export_menu)
+        for method in ["Raw float32", "py4DSTEM HDF5", "Plain HDF5"]:
+            menu_item = datacube_export_menu.addAction(method)
+            menu_item.triggered.connect(partial(self.export_datacube, method))
+
+        # Submenu to export virtual image
+        vimg_export_menu = QMenu("Export Virtual Image", self)
+        self.file_menu.addMenu(vimg_export_menu)
+        for method in ["PNG", "TIFF", "TIFF (raw)"]:
+            menu_item = vimg_export_menu.addAction(method)
+            menu_item.triggered.connect(
+                partial(self.export_virtual_image, method, "image")
+            )
+
+        # Submenu to export diffraction
+        vdiff_export_menu = QMenu("Export Diffraction Pattern", self)
+        self.file_menu.addMenu(vdiff_export_menu)
+        for method in ["PNG", "TIFF", "TIFF (raw)"]:
+            menu_item = vdiff_export_menu.addAction(method)
+            menu_item.triggered.connect(
+                partial(self.export_virtual_image, method, "diffraction")
+            )
+
+        # EMPAD2 menu
+        if self.HAS_EMPAD2:
+            self.empad2_calibrations = None
+            self.empad2_background = None
+
+            self.empad2_menu = QMenu("&EMPAD-G2", self)
+            self.menu_bar.addMenu(self.empad2_menu)
+
+            sensor_menu = self.empad2_menu.addMenu("&Sensor")
+            calibration_action_group = QActionGroup(self)
+            calibration_action_group.setExclusive(True)
+            from empad2 import SENSORS
+
+            for name, sensor in SENSORS.items():
+                menu_item = sensor_menu.addAction(sensor["display-name"])
+                calibration_action_group.addAction(menu_item)
+                menu_item.setCheckable(True)
+                menu_item.triggered.connect(partial(self.set_empad2_sensor, name))
+
+            self.empad2_menu.addAction("Load &Background...").triggered.connect(
+                self.load_empad2_background
+            )
+            self.empad2_menu.addAction("Load &Dataset...").triggered.connect(
+                self.load_empad2_dataset
+            )
 
         # Scaling Menu
         self.scaling_menu = QMenu("&Scaling", self)
@@ -205,11 +279,11 @@ class DataViewer(QMainWindow):
         detector_mode_group.addAction(detector_CoM_angle)
         self.detector_menu.addAction(detector_CoM_angle)
 
-        # detector_iCoM = QAction("i&CoM", self)
-        # detector_iCoM.setCheckable(True)
-        # detector_iCoM.triggered.connect(partial(self.update_real_space_view, True))
-        # detector_mode_group.addAction(detector_iCoM)
-        # self.detector_menu.addAction(detector_iCoM)
+        detector_iCoM = QAction("i&CoM", self)
+        detector_iCoM.setCheckable(True)
+        detector_iCoM.triggered.connect(partial(self.update_real_space_view, True))
+        detector_mode_group.addAction(detector_iCoM)
+        self.detector_menu.addAction(detector_iCoM)
 
         # Detector Shape Menu
         self.detector_shape_menu = QMenu("Detector &Shape", self)
@@ -218,6 +292,10 @@ class DataViewer(QMainWindow):
         detector_shape_group = QActionGroup(self)
         detector_shape_group.setExclusive(True)
         self.detector_shape_group = detector_shape_group
+
+        diffraction_detector_separator = QAction("Diffraction", self)
+        diffraction_detector_separator.setDisabled(True)
+        self.detector_shape_menu.addAction(diffraction_detector_separator)
 
         detector_point_action = QAction("&Point", self)
         detector_point_action.setCheckable(True)
@@ -245,6 +323,29 @@ class DataViewer(QMainWindow):
         detector_shape_group.addAction(detector_annulus_action)
         self.detector_shape_menu.addAction(detector_annulus_action)
 
+        self.detector_shape_menu.addSeparator()
+
+        diffraction_detector_separator = QAction("Real Space", self)
+        diffraction_detector_separator.setDisabled(True)
+        self.detector_shape_menu.addAction(diffraction_detector_separator)
+
+        rs_detector_shape_group = QActionGroup(self)
+        rs_detector_shape_group.setExclusive(True)
+        self.rs_detector_shape_group = rs_detector_shape_group
+
+        rs_detector_point_action = QAction("Poin&t", self)
+        rs_detector_point_action.setCheckable(True)
+        rs_detector_point_action.setChecked(True)  # Default
+        rs_detector_point_action.triggered.connect(self.update_realspace_detector)
+        rs_detector_shape_group.addAction(rs_detector_point_action)
+        self.detector_shape_menu.addAction(rs_detector_point_action)
+
+        detector_rectangle_action = QAction("Rectan&gular", self)
+        detector_rectangle_action.setCheckable(True)
+        detector_rectangle_action.triggered.connect(self.update_realspace_detector)
+        rs_detector_shape_group.addAction(detector_rectangle_action)
+        self.detector_shape_menu.addAction(detector_rectangle_action)
+
     def setup_views(self):
         # Set up the diffraction space window.
         self.diffraction_space_widget = pg.ImageView()
@@ -261,11 +362,6 @@ class DataViewer(QMainWindow):
         self.virtual_detector_point.sigRegionChanged.connect(
             self.update_real_space_view
         )
-        # self.virtual_detector_roi = pg.RectROI([5, 5], [20, 20], pen=(3, 9))
-        # self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi)
-        # self.virtual_detector_roi.sigRegionChangeFinished.connect(
-        #     partial(self.update_real_space_view, False)
-        # )
 
         # Name and return
         self.diffraction_space_widget.setWindowTitle("Diffraction Space")
