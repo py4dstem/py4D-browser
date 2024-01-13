@@ -218,13 +218,6 @@ def update_diffraction_space_view(self, reset=False):
 
         DP = np.sum(self.datacube.data[slice_x, slice_y], axis=(0, 1))
 
-        # if detector_mode == "Integrating":
-        #     vimg = np.sum(self.datacube.data[:, :, slice_x, slice_y], axis=(2, 3))
-        # elif detector_mode == "Maximum":
-        #     vimg = np.max(self.datacube.data[:, :, slice_x, slice_y], axis=(2, 3))
-        # else:
-        #     mask = np.zeros((self.datacube.Q_Nx, self.datacube.Q_Ny), dtype=np.bool_)
-        #     mask[slice_x, slice_y] = True
     else:
         raise ValueError("Detector shape not recognized")
 
@@ -260,8 +253,10 @@ def update_realspace_detector(self):
     # Remove existing detector
     if hasattr(self, "real_space_point_selector"):
         self.real_space_widget.view.scene().removeItem(self.real_space_point_selector)
+        self.real_space_point_selector = None
     if hasattr(self, "real_space_rect_selector"):
         self.real_space_widget.view.scene().removeItem(self.real_space_rect_selector)
+        self.real_space_rect_selector = None
 
     # Rectangular detector
     if detector_shape == "Point":
@@ -303,16 +298,20 @@ def update_diffraction_detector(self):
         self.diffraction_space_widget.view.scene().removeItem(
             self.virtual_detector_point
         )
+        self.virtual_detector_point = None
     if hasattr(self, "virtual_detector_roi"):
         self.diffraction_space_widget.view.scene().removeItem(self.virtual_detector_roi)
+        self.virtual_detector_roi = None
     if hasattr(self, "virtual_detector_roi_inner"):
         self.diffraction_space_widget.view.scene().removeItem(
             self.virtual_detector_roi_inner
         )
+        self.virtual_detector_roi_inner = None
     if hasattr(self, "virtual_detector_roi_outer"):
         self.diffraction_space_widget.view.scene().removeItem(
             self.virtual_detector_roi_outer
         )
+        self.virtual_detector_roi_outer = None
 
     # Rectangular detector
     if detector_shape == "Point":
@@ -360,13 +359,13 @@ def update_diffraction_detector(self):
         self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi_inner)
 
         # Connect size/position of inner and outer detectors
-        self.virtual_detector_roi_outer.sigRegionChangeFinished.connect(
+        self.virtual_detector_roi_outer.sigRegionChanged.connect(
             self.update_annulus_pos
         )
-        self.virtual_detector_roi_outer.sigRegionChangeFinished.connect(
+        self.virtual_detector_roi_outer.sigRegionChanged.connect(
             self.update_annulus_radii
         )
-        self.virtual_detector_roi_inner.sigRegionChangeFinished.connect(
+        self.virtual_detector_roi_inner.sigRegionChanged.connect(
             self.update_annulus_radii
         )
 
@@ -384,6 +383,53 @@ def update_diffraction_detector(self):
     self.update_real_space_view()
 
 
+def nudge_real_space_selector(self, dx, dy):
+    if (
+        hasattr(self, "real_space_point_selector")
+        and self.real_space_point_selector is not None
+    ):
+        selector = self.real_space_point_selector
+    elif (
+        hasattr(self, "real_space_rect_selector")
+        and self.real_space_rect_selector is not None
+    ):
+        selector = self.real_space_rect_selector
+    else:
+        raise RuntimeError("Can't find the real space selector!")
+
+    position = selector.pos()
+    position[0] += dy
+    position[1] += dx
+
+    selector.setPos(position)
+
+
+def nudge_diffraction_selector(self, dx, dy):
+    if (
+        hasattr(self, "virtual_detector_point")
+        and self.virtual_detector_point is not None
+    ):
+        selector = self.virtual_detector_point
+    elif (
+        hasattr(self, "virtual_detector_roi") and self.virtual_detector_roi is not None
+    ):
+        selector = self.virtual_detector_roi
+    elif (
+        hasattr(self, "virtual_detector_roi_outer")
+        and self.virtual_detector_roi_outer is not None
+    ):
+        selector = self.virtual_detector_roi_outer
+    else:
+        raise RuntimeError("Can't find the diffraction space selector!")
+
+    position = selector.pos()
+    print(selector, position)
+    position[0] += dy
+    position[1] += dx
+
+    selector.setPos(position)
+
+
 def update_annulus_pos(self):
     """
     Function to keep inner and outer rings of annulus aligned.
@@ -393,7 +439,7 @@ def update_annulus_pos(self):
     # Only outer annulus is draggable; when it moves, update position of inner annulus
     x0 = self.virtual_detector_roi_outer.pos().x() + R_outer
     y0 = self.virtual_detector_roi_outer.pos().y() + R_outer
-    self.virtual_detector_roi_inner.setPos(x0 - R_inner, y0 - R_inner)
+    self.virtual_detector_roi_inner.setPos(x0 - R_inner, y0 - R_inner, update=False)
 
 
 def update_annulus_radii(self):
@@ -402,5 +448,7 @@ def update_annulus_radii(self):
     if R_outer < R_inner:
         x0 = self.virtual_detector_roi_outer.pos().x() + R_outer
         y0 = self.virtual_detector_roi_outer.pos().y() + R_outer
-        self.virtual_detector_roi_outer.setSize(2 * R_inner + 6)
-        self.virtual_detector_roi_outer.setPos(x0 - R_inner - 3, y0 - R_inner - 3)
+        self.virtual_detector_roi_outer.setSize(2 * R_inner + 6, update=False)
+        self.virtual_detector_roi_outer.setPos(
+            x0 - R_inner - 3, y0 - R_inner - 3, update=False
+        )

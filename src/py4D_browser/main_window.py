@@ -45,6 +45,8 @@ class DataViewer(QMainWindow):
         update_real_space_view,
         update_realspace_detector,
         update_diffraction_detector,
+        nudge_real_space_selector,
+        nudge_diffraction_selector,
         update_annulus_pos,
         update_annulus_radii,
     )
@@ -429,3 +431,22 @@ class DataViewer(QMainWindow):
         if len(files) == 1:
             print(f"Reieving dropped file: {files[0]}")
             self.load_file(files[0])
+
+    def keyPressEvent(self, event):
+        key = event.key()
+
+        if key in [QtCore.Qt.Key_W, QtCore.Qt.Key_A, QtCore.Qt.Key_S, QtCore.Qt.Key_D]:
+            self.nudge_diffraction_selector(
+                dx=-1 if key == QtCore.Qt.Key_W else 1 if key == QtCore.Qt.Key_S else 0,
+                dy=-1 if key == QtCore.Qt.Key_A else 1 if key == QtCore.Qt.Key_D else 0,
+            )
+        elif key in [
+            QtCore.Qt.Key_I,
+            QtCore.Qt.Key_J,
+            QtCore.Qt.Key_K,
+            QtCore.Qt.Key_L,
+        ]:
+            self.nudge_real_space_selector(
+                dx=-1 if key == QtCore.Qt.Key_I else 1 if key == QtCore.Qt.Key_K else 0,
+                dy=-1 if key == QtCore.Qt.Key_J else 1 if key == QtCore.Qt.Key_L else 0,
+            )
