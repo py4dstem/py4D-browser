@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "py4D_browser"
-version = "0.999995"
+version = "0.999999"
 authors = [
   { name="Steven Zeltmann", email="steven.zeltmann@lbl.gov" },
 ]
