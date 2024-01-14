@@ -423,7 +423,6 @@ def nudge_diffraction_selector(self, dx, dy):
         raise RuntimeError("Can't find the diffraction space selector!")
 
     position = selector.pos()
-    print(selector, position)
     position[0] += dy
     position[1] += dx
 
