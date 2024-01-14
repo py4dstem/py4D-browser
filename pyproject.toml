@@ -10,7 +10,7 @@ authors = [
 ]
 description = "A 4D-STEM data browser built on py4DSTEM."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
