@@ -18,6 +18,7 @@ from pathlib import Path
 import importlib
 
 from py4D_browser.utils import pg_point_roi
+from py4D_browser.scalebar import ScaleBar
 
 
 class DataViewer(QMainWindow):
@@ -365,6 +366,13 @@ class DataViewer(QMainWindow):
             self.update_real_space_view
         )
 
+        # Scalebar
+        self.diffraction_scale_bar = ScaleBar(pixel_size=1, units="px", width=20)
+        self.diffraction_scale_bar.setParentItem(
+            self.diffraction_space_widget.getView()
+        )
+        self.diffraction_scale_bar.anchor((1, 1), (1, 1), offset=(-40, -40))
+
         # Name and return
         self.diffraction_space_widget.setWindowTitle("Diffraction Space")
 
@@ -381,6 +389,11 @@ class DataViewer(QMainWindow):
         self.real_space_point_selector.sigRegionChanged.connect(
             partial(self.update_diffraction_space_view, False)
         )
+
+        # Scalebar, None by default
+        self.real_space_scale_bar = ScaleBar(pixel_size=1, units='px', width=20)
+        self.real_space_scale_bar.setParentItem(self.real_space_widget.getView())
+        self.real_space_scale_bar.anchor((1,1),(1,1), offset=(-40,-40))
 
         # Name and return
         self.real_space_widget.setWindowTitle("Real Space")

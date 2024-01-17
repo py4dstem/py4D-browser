@@ -35,7 +35,7 @@ def load_file(self, filepath, mmap=False, binning=1):
             self.datacube = py4DSTEM.DataCube(
                 datacubes[0] if mmap else datacubes[0][()]
             )
-    elif extension in [".npy", ".npz"]:
+    elif extension in [".npy"]:
         self.datacube = py4DSTEM.DataCube(np.load(filepath))
     else:
         self.datacube = py4DSTEM.import_file(
@@ -43,6 +43,12 @@ def load_file(self, filepath, mmap=False, binning=1):
             mem="MEMMAP" if mmap else "RAM",
             binfactor=binning,
         )
+
+    self.diffraction_scale_bar.pixel_size = self.datacube.calibration.get_Q_pixel_size()
+    self.diffraction_scale_bar.units = self.datacube.calibration.get_Q_pixel_units()
+
+    self.real_space_scale_bar.pixel_size = self.datacube.calibration.get_R_pixel_size()
+    self.real_space_scale_bar.units = self.datacube.calibration.get_R_pixel_units()
 
     self.update_diffraction_space_view(reset=True)
     self.update_real_space_view(reset=True)
