@@ -35,6 +35,16 @@ def load_file(self, filepath, mmap=False, binning=1):
             self.datacube = py4DSTEM.DataCube(
                 datacubes[0] if mmap else datacubes[0][()]
             )
+
+            R_size, R_units, Q_size, Q_units = find_calibrations(datacubes[0])
+
+            self.datacube.calibration.set_R_pixel_size(R_size)
+            self.datacube.calibration.set_R_pixel_units(R_units)
+            self.datacube.calibration.set_Q_pixel_size(Q_size)
+            self.datacube.calibration.set_Q_pixel_units(Q_units)
+
+        else:
+            raise ValueError("No 4D data detected in the H5 file!")
     elif extension in [".npy"]:
         self.datacube = py4DSTEM.DataCube(np.load(filepath))
     else:
@@ -195,3 +205,36 @@ def get_4D(f, datacubes=None):
         elif isinstance(f[k], h5py.Group):
             get_4D(f[k], datacubes)
     return datacubes
+
+
+def find_calibrations(dset: h5py.Dataset):
+    # Attempt to find calibrations from an H5 file
+    R_size, R_units, Q_size, Q_units = 1.0, "pixels", 1.0, "pixels"
+
+    # Does it look like a py4DSTEM file?
+    try:
+        if "emd_group_type" in dset.parent.attrs:
+            R_size = dset.parent["dim0"][1] - dset.parent["dim0"][0]
+            R_units = dset.parent["dim0"].attrs["units"]
+
+            Q_size = dset.parent["dim3"][1] - dset.parent["dim3"][0]
+            Q_units = dset.parent["dim3"].attrs["units"]
+    except:
+        print(
+            "This file looked like a py4DSTEM dataset but the dim vectors appear malformed..."
+        )
+
+    # Does it look like an abTEM file?
+    try:
+        if "sampling" in dset.parent and "units" in dset.parent:
+            R_size = dset.parent["sampling"][0]
+            R_units = dset.parent["units"][0].decode()
+
+            Q_size = dset.parent["sampling"][3]
+            Q_units = dset.parent["units"][3].decode()
+    except:
+        print(
+            "This file looked like an abTEM simulation but the calibrations aren't as expected..."
+        )
+
+    return R_size, R_units, Q_size, Q_units
