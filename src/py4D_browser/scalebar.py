@@ -6,6 +6,7 @@ from pyqtgraph import GraphicsObject
 from pyqtgraph import GraphicsWidgetAnchor
 from pyqtgraph import TextItem
 import numpy as np
+from sigfig import round
 
 __all__ = ["ScaleBar"]
 
@@ -24,7 +25,7 @@ class ScaleBar(GraphicsWidgetAnchor, GraphicsObject):
         brush=None,
         pen=None,
         offset=None,
-        nice_numbers=[1,2,5,10],
+        nice_numbers=[1, 2, 5, 10],
     ):
         GraphicsObject.__init__(self)
         GraphicsWidgetAnchor.__init__(self)
@@ -71,18 +72,20 @@ class ScaleBar(GraphicsWidgetAnchor, GraphicsObject):
         target_size = view_width * self._target_relative_size
 
         exponent = np.floor(np.log10(target_size))
-        mantissa = target_size / np.power(10,exponent)
+        mantissa = target_size / np.power(10, exponent)
 
         # Get the "nice" size of the scalebar
-        nice_size = self._nice_numbers[np.argmin(np.abs(mantissa - self._nice_numbers))] * 10**exponent
-
+        nice_size = (
+            self._nice_numbers[np.argmin(np.abs(mantissa - self._nice_numbers))]
+            * 10**exponent
+        )
 
         p1 = view.mapFromViewToItem(self, QtCore.QPointF(0, 0))
         p2 = view.mapFromViewToItem(self, QtCore.QPointF(nice_size, 0))
         w = (p2 - p1).x()
         self.bar.setRect(QtCore.QRectF(-w, 0, w, self._width))
         self.text.setPos(-w / 2.0, 0)
-        self.text.setText(f"{nice_size} {self.units}")
+        self.text.setText(f"{round(nice_size,sigfigs=1,output_type=str)} {self.units}")
 
     def boundingRect(self):
         return QtCore.QRectF()

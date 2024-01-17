@@ -23,6 +23,7 @@ dependencies = [
   "matplotlib >= 3.2.2",
   "PyQt5 >= 5.10",
   "pyqtgraph >= 0.11",
+  "sigfig",
 ]
 
 [project.scripts]

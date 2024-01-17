@@ -391,9 +391,9 @@ class DataViewer(QMainWindow):
         )
 
         # Scalebar, None by default
-        self.real_space_scale_bar = ScaleBar(pixel_size=1, units='px', width=20)
+        self.real_space_scale_bar = ScaleBar(pixel_size=1, units="px", width=20)
         self.real_space_scale_bar.setParentItem(self.real_space_widget.getView())
-        self.real_space_scale_bar.anchor((1,1),(1,1), offset=(-40,-40))
+        self.real_space_scale_bar.anchor((1, 1), (1, 1), offset=(-40, -40))
 
         # Name and return
         self.real_space_widget.setWindowTitle("Real Space")
