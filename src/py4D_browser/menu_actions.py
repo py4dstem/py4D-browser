@@ -50,6 +50,11 @@ def load_file(self, filepath, mmap=False, binning=1):
     self.real_space_scale_bar.pixel_size = self.datacube.calibration.get_R_pixel_size()
     self.real_space_scale_bar.units = self.datacube.calibration.get_R_pixel_units()
 
+    self.fft_scale_bar.pixel_size = (
+        1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
+    )
+    self.fft_scale_bar.units = f"1/{self.datacube.calibration.get_R_pixel_units()}"
+
     self.update_diffraction_space_view(reset=True)
     self.update_real_space_view(reset=True)
 

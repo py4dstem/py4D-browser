@@ -81,7 +81,9 @@ class ScaleBar(GraphicsWidgetAnchor, GraphicsObject):
         )
 
         p1 = view.mapFromViewToItem(self, QtCore.QPointF(0, 0))
-        p2 = view.mapFromViewToItem(self, QtCore.QPointF(nice_size, 0))
+        p2 = view.mapFromViewToItem(
+            self, QtCore.QPointF(nice_size / self.pixel_size, 0)
+        )
         w = (p2 - p1).x()
         self.bar.setRect(QtCore.QRectF(-w, 0, w, self._width))
         self.text.setPos(-w / 2.0, 0)
