@@ -214,11 +214,28 @@ def find_calibrations(dset: h5py.Dataset):
     # Does it look like a py4DSTEM file?
     try:
         if "emd_group_type" in dset.parent.attrs:
-            R_size = dset.parent["dim0"][1] - dset.parent["dim0"][0]
-            R_units = dset.parent["dim0"].attrs["units"]
+            # EMD files theoretically store this in the Array,
+            # but in practice seem to only keep the calibrations
+            # in the Metadata object, which is separate
 
-            Q_size = dset.parent["dim3"][1] - dset.parent["dim3"][0]
-            Q_units = dset.parent["dim3"].attrs["units"]
+            # R_size = dset.parent["dim0"][1] - dset.parent["dim0"][0]
+            # R_units = dset.parent["dim0"].attrs["units"]
+
+            # Q_size = dset.parent["dim3"][1] - dset.parent["dim3"][0]
+            # Q_units = dset.parent["dim3"].attrs["units"]
+            R_size = dset.parent.parent["metadatabundle"]["calibration"][
+                "R_pixel_size"
+            ][()]
+            R_units = dset.parent.parent["metadatabundle"]["calibration"][
+                "R_pixel_units"
+            ][()].decode()
+
+            Q_size = dset.parent.parent["metadatabundle"]["calibration"][
+                "Q_pixel_size"
+            ][()]
+            Q_units = dset.parent.parent["metadatabundle"]["calibration"][
+                "Q_pixel_units"
+            ][()].decode()
     except:
         print(
             "This file looked like a py4DSTEM dataset but the dim vectors appear malformed..."
