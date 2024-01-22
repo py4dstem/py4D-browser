@@ -367,7 +367,7 @@ class DataViewer(QMainWindow):
         )
 
         # Scalebar
-        self.diffraction_scale_bar = ScaleBar(pixel_size=1, units="px", width=20)
+        self.diffraction_scale_bar = ScaleBar(pixel_size=1, units="px", width=10)
         self.diffraction_scale_bar.setParentItem(
             self.diffraction_space_widget.getView()
         )
@@ -391,7 +391,7 @@ class DataViewer(QMainWindow):
         )
 
         # Scalebar, None by default
-        self.real_space_scale_bar = ScaleBar(pixel_size=1, units="px", width=20)
+        self.real_space_scale_bar = ScaleBar(pixel_size=1, units="px", width=10)
         self.real_space_scale_bar.setParentItem(self.real_space_widget.getView())
         self.real_space_scale_bar.anchor((1, 1), (1, 1), offset=(-40, -40))
 
@@ -410,7 +410,7 @@ class DataViewer(QMainWindow):
         self.fft_widget.setImage(np.zeros((512, 512)))
 
         # FFT scale bar is tricky because pixel sizes commonly vary in each direction
-        self.fft_scale_bar = ScaleBar(pixel_size=1, units="1/px", width=20)
+        self.fft_scale_bar = ScaleBar(pixel_size=1, units="1/px", width=10)
         self.fft_scale_bar.setParentItem(self.fft_widget.getView())
         self.fft_scale_bar.anchor((1, 1), (1, 1), offset=(-40, -40))
 
