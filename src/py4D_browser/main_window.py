@@ -452,11 +452,14 @@ class DataViewer(QMainWindow):
 
     def keyPressEvent(self, event):
         key = event.key()
+        modifier = event.modifiers()
+
+        speed = 5 if modifier == QtCore.Qt.ShiftModifier else 1
 
         if key in [QtCore.Qt.Key_W, QtCore.Qt.Key_A, QtCore.Qt.Key_S, QtCore.Qt.Key_D]:
             self.nudge_diffraction_selector(
-                dx=-1 if key == QtCore.Qt.Key_W else 1 if key == QtCore.Qt.Key_S else 0,
-                dy=-1 if key == QtCore.Qt.Key_A else 1 if key == QtCore.Qt.Key_D else 0,
+                dx=speed * (-1 if key == QtCore.Qt.Key_W else 1 if key == QtCore.Qt.Key_S else 0),
+                dy=speed * (-1 if key == QtCore.Qt.Key_A else 1 if key == QtCore.Qt.Key_D else 0),
             )
         elif key in [
             QtCore.Qt.Key_I,
@@ -465,6 +468,6 @@ class DataViewer(QMainWindow):
             QtCore.Qt.Key_L,
         ]:
             self.nudge_real_space_selector(
-                dx=-1 if key == QtCore.Qt.Key_I else 1 if key == QtCore.Qt.Key_K else 0,
-                dy=-1 if key == QtCore.Qt.Key_J else 1 if key == QtCore.Qt.Key_L else 0,
+                dx=speed*(-1 if key == QtCore.Qt.Key_I else 1 if key == QtCore.Qt.Key_K else 0),
+                dy=speed*(-1 if key == QtCore.Qt.Key_J else 1 if key == QtCore.Qt.Key_L else 0),
             )
