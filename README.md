@@ -14,7 +14,11 @@ The GUI is available on PyPI and conda-forge:
 ## Usage
 Run `py4DGUI` in your terminal to open the GUI. Then just drag and drop a 4D-STEM dataset into the window!
 
+Move the virtual detector and the real-space selector using the mouse or using the keyboard shortcuts: WASD moves the detector and IJKL moves the selector, holding down shift to move 5 pixels at a time. 
+
 ![Demonstration](/images/demo.gif)
+
+The keyboard map in the Help menu was made using [this tool](https://archie-adams.github.io/keyboard-shortcut-map-maker/) and the map file is in the top level of this repo.
 
 ## About 
 
