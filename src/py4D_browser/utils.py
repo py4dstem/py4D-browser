@@ -1,5 +1,13 @@
 import pyqtgraph as pg
 import numpy as np
+from PyQt5.QtWidgets import QFrame
+
+
+class VLine(QFrame):
+    # a simple vertical divider line
+    def __init__(self):
+        super(VLine, self).__init__()
+        self.setFrameShape(self.VLine | self.Sunken)
 
 
 def pg_point_roi(view_box):

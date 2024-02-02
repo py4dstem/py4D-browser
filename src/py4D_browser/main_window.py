@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QSplitter,
     QActionGroup,
+    QLabel,
 )
 
 import pyqtgraph as pg
@@ -17,7 +18,7 @@ from functools import partial
 from pathlib import Path
 import importlib
 
-from py4D_browser.utils import pg_point_roi
+from py4D_browser.utils import pg_point_roi, VLine
 from py4D_browser.scalebar import ScaleBar
 
 
@@ -82,7 +83,7 @@ class DataViewer(QMainWindow):
         self.setup_menus()
         self.setup_views()
 
-        self.resize(800, 400)
+        self.resize(1000, 800)
 
         self.show()
 
@@ -378,10 +379,7 @@ class DataViewer(QMainWindow):
         # Set up the diffraction space window.
         self.diffraction_space_widget = pg.ImageView()
         self.diffraction_space_widget.setImage(np.zeros((512, 512)))
-        self.diffraction_space_view_text = pg.TextItem(
-            "Slice", (200, 200, 200), None, (0, 1)
-        )
-        self.diffraction_space_widget.addItem(self.diffraction_space_view_text)
+        self.diffraction_space_view_text = QLabel("Slice")
 
         # Create virtual detector ROI selector
         self.virtual_detector_point = pg_point_roi(
@@ -404,10 +402,7 @@ class DataViewer(QMainWindow):
         # Set up the real space window.
         self.real_space_widget = pg.ImageView()
         self.real_space_widget.setImage(np.zeros((512, 512)))
-        self.real_space_view_text = pg.TextItem(
-            "Scan pos.", (200, 200, 200), None, (0, 1)
-        )
-        self.real_space_widget.addItem(self.real_space_view_text)
+        self.real_space_view_text = QLabel("Scan Position")
 
         # Add point selector connected to displayed diffraction pattern
         self.real_space_point_selector = pg_point_roi(self.real_space_widget.getView())
@@ -466,6 +461,11 @@ class DataViewer(QMainWindow):
         self.diffraction_space_widget.getView().setMenuEnabled(False)
         self.real_space_widget.getView().setMenuEnabled(False)
         self.fft_widget.getView().setMenuEnabled(False)
+
+        self.statusBar().addPermanentWidget(VLine())
+        self.statusBar().addPermanentWidget(self.diffraction_space_view_text)
+        self.statusBar().addPermanentWidget(VLine())
+        self.statusBar().addPermanentWidget(self.real_space_view_text)
 
     # Handle dragging and dropping a file on the window
     def dragEnterEvent(self, event):
