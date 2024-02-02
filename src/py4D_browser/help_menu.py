@@ -6,11 +6,14 @@ from PyQt5.QtWidgets import (
 )
 from pathlib import Path
 
+
 class KeyboardMapMenu(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
 
-        self.keymap = QtGui.QPixmap(str(Path(__file__).parent.absolute() / "py4DGUI-keymap.png")).scaledToWidth(1500)
+        self.keymap = QtGui.QPixmap(
+            str(Path(__file__).parent.absolute() / "py4DGUI-keymap.png")
+        ).scaledToWidth(1500)
         label = Label()
 
         label.setPixmap(self.keymap)
@@ -20,6 +23,7 @@ class KeyboardMapMenu(QDialog):
         self.setLayout(layout)
 
         self.resize(self.keymap.width(), self.keymap.height())
+
 
 # Widget that smoothly resizes Pixmap keeping aspect ratio
 class Label(QWidget):

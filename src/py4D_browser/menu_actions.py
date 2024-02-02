@@ -138,9 +138,11 @@ def export_virtual_image(self, im_format: str, im_type: str):
         with TiffWriter(filename) as tw:
             tw.write(vimg)
 
+
 def show_keyboard_map(self):
     keymap = KeyboardMapMenu(parent=self)
     keymap.open()
+
 
 def show_file_dialog(self) -> str:
     filename = QFileDialog.getOpenFileName(
