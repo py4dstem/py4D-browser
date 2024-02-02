@@ -1,6 +1,7 @@
 import pyqtgraph as pg
 import numpy as np
 import py4DSTEM
+from functools import partial
 
 from py4D_browser.utils import pg_point_roi, make_detector
 
@@ -168,13 +169,15 @@ def update_real_space_view(self, reset=False):
         new_view = np.sqrt(np.maximum(vimg, 0))
     else:
         raise ValueError("Mode not recognized")
-    self.real_space_widget.setImage(new_view.T, autoLevels=True)
+    self.real_space_widget.setImage(new_view.T, autoLevels=reset, autoRange=reset)
 
     # Update FFT view
     if self.fft_source_action_group.checkedAction().text() == "Virtual Image FFT":
         fft = np.abs(np.fft.fftshift(np.fft.fft2(new_view))) ** 0.5
         levels = (np.min(fft), np.percentile(fft, 99.9))
-        self.fft_widget.setImage(fft.T, autoLevels=False, levels=levels, autoRange=reset)
+        self.fft_widget.setImage(
+            fft.T, autoLevels=False, levels=levels, autoRange=reset
+        )
         self.fft_widget_text.setText("Vitual Image FFT")
 
 
@@ -237,10 +240,12 @@ def update_diffraction_space_view(self, reset=False):
     )
 
     if self.fft_source_action_group.checkedAction().text() == "EWPC":
-        log_clip = np.maximum(1e-10,np.percentile(np.maximum(DP,0.0), 0.1))
-        fft = np.abs(np.fft.fftshift(np.fft.fft2(np.log(np.maximum(DP,log_clip)))))
+        log_clip = np.maximum(1e-10, np.percentile(np.maximum(DP, 0.0), 0.1))
+        fft = np.abs(np.fft.fftshift(np.fft.fft2(np.log(np.maximum(DP, log_clip)))))
         levels = (np.min(fft), np.percentile(fft, 99.9))
-        self.fft_widget.setImage(fft.T, autoLevels=False, levels=levels, autoRange=reset)
+        self.fft_widget.setImage(
+            fft.T, autoLevels=False, levels=levels, autoRange=reset
+        )
         self.fft_widget_text.setText("EWPC")
 
 
@@ -271,7 +276,7 @@ def update_realspace_detector(self):
     if detector_shape == "Point":
         self.real_space_point_selector = pg_point_roi(self.real_space_widget.getView())
         self.real_space_point_selector.sigRegionChanged.connect(
-            self.update_diffraction_space_view
+            partial(self.update_diffraction_space_view, False)
         )
 
     elif detector_shape == "Rectangular":
@@ -280,13 +285,13 @@ def update_realspace_detector(self):
         )
         self.real_space_widget.getView().addItem(self.real_space_rect_selector)
         self.real_space_rect_selector.sigRegionChangeFinished.connect(
-            self.update_diffraction_space_view
+            partial(self.update_diffraction_space_view, False)
         )
 
     else:
         raise ValueError("Unknown detector shape! Got: {}".format(detector_shape))
 
-    self.update_diffraction_space_view()
+    self.update_diffraction_space_view(reset=True)
 
 
 def update_diffraction_detector(self):
@@ -328,7 +333,7 @@ def update_diffraction_detector(self):
             self.diffraction_space_widget.getView()
         )
         self.virtual_detector_point.sigRegionChanged.connect(
-            self.update_real_space_view
+            partial(self.update_real_space_view, False)
         )
 
     elif detector_shape == "Rectangular":
@@ -337,7 +342,7 @@ def update_diffraction_detector(self):
         )
         self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi)
         self.virtual_detector_roi.sigRegionChangeFinished.connect(
-            self.update_real_space_view
+            partial(self.update_real_space_view, False)
         )
 
     # Circular detector
@@ -347,7 +352,7 @@ def update_diffraction_detector(self):
         )
         self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi)
         self.virtual_detector_roi.sigRegionChangeFinished.connect(
-            self.update_real_space_view
+            partial(self.update_real_space_view, False)
         )
 
     # Annular dector
@@ -380,16 +385,16 @@ def update_diffraction_detector(self):
 
         # Connect to real space view update function
         self.virtual_detector_roi_outer.sigRegionChangeFinished.connect(
-            self.update_real_space_view
+            partial(self.update_real_space_view, False)
         )
         self.virtual_detector_roi_inner.sigRegionChangeFinished.connect(
-            self.update_real_space_view
+            partial(self.update_real_space_view, False)
         )
 
     else:
         raise ValueError("Unknown detector shape! Got: {}".format(detector_shape))
 
-    self.update_real_space_view()
+    self.update_real_space_view(reset=True)
 
 
 def nudge_real_space_selector(self, dx, dy):
