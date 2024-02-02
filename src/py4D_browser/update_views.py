@@ -171,9 +171,11 @@ def update_real_space_view(self, reset=False):
     self.real_space_widget.setImage(new_view.T, autoLevels=True)
 
     # Update FFT view
-    fft = np.abs(np.fft.fftshift(np.fft.fft2(new_view))) ** 0.5
-    levels = (np.min(fft), np.percentile(fft, 99.9))
-    self.fft_widget.setImage(fft.T, autoLevels=False, levels=levels, autoRange=reset)
+    if self.fft_source_action_group.checkedAction().text() == "Virtual Image FFT":
+        fft = np.abs(np.fft.fftshift(np.fft.fft2(new_view))) ** 0.5
+        levels = (np.min(fft), np.percentile(fft, 99.9))
+        self.fft_widget.setImage(fft.T, autoLevels=False, levels=levels, autoRange=reset)
+        self.fft_widget_text.setText("Vitual Image FFT")
 
 
 def update_diffraction_space_view(self, reset=False):
@@ -233,6 +235,13 @@ def update_diffraction_space_view(self, reset=False):
     self.diffraction_space_widget.setImage(
         new_view.T, autoLevels=reset, autoRange=reset
     )
+
+    if self.fft_source_action_group.checkedAction().text() == "EWPC":
+        log_clip = np.maximum(1e-10,np.percentile(np.maximum(DP,0.0), 0.1))
+        fft = np.abs(np.fft.fftshift(np.fft.fft2(np.log(np.maximum(DP,log_clip)))))
+        levels = (np.min(fft), np.percentile(fft, 99.9))
+        self.fft_widget.setImage(fft.T, autoLevels=False, levels=levels, autoRange=reset)
+        self.fft_widget_text.setText("EWPC")
 
 
 def update_realspace_detector(self):

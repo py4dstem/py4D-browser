@@ -350,6 +350,23 @@ class DataViewer(QMainWindow):
         rs_detector_shape_group.addAction(detector_rectangle_action)
         self.detector_shape_menu.addAction(detector_rectangle_action)
 
+        self.fft_menu = QMenu("FFT View", self)
+        self.menu_bar.addMenu(self.fft_menu)
+
+        self.fft_source_action_group = QActionGroup(self)
+        self.fft_source_action_group.setExclusive(True)
+        img_fft_action = QAction("Virtual Image FFT", self)
+        img_fft_action.setCheckable(True)
+        img_fft_action.setChecked(True)
+        self.fft_menu.addAction(img_fft_action)
+        self.fft_source_action_group.addAction(img_fft_action)
+        img_ewpc_action = QAction("EWPC", self)
+        img_ewpc_action.setCheckable(True)
+        self.fft_menu.addAction(img_ewpc_action)
+        self.fft_source_action_group.addAction(img_ewpc_action)
+        img_fft_action.triggered.connect(self.update_real_space_view)
+        img_ewpc_action.triggered.connect(self.update_diffraction_space_view)
+
         self.help_menu = QMenu("&Help", self)
         self.menu_bar.addMenu(self.help_menu)
 
@@ -424,7 +441,8 @@ class DataViewer(QMainWindow):
 
         # Name and return
         self.fft_widget.setWindowTitle("FFT of Virtual Image")
-        self.fft_widget.addItem(pg.TextItem("FFT", (200, 200, 200), None, (0, 1)))
+        self.fft_widget_text = pg.TextItem("FFT", (200, 200, 200), None, (0, 1))
+        self.fft_widget.addItem(self.fft_widget_text)
 
         self.fft_widget.setAcceptDrops(True)
         self.fft_widget.dragEnterEvent = self.dragEnterEvent
