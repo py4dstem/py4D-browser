@@ -39,6 +39,7 @@ class DataViewer(QMainWindow):
         get_savefile_name,
         export_datacube,
         export_virtual_image,
+        show_keyboard_map,
     )
 
     from py4D_browser.update_views import (
@@ -348,6 +349,13 @@ class DataViewer(QMainWindow):
         detector_rectangle_action.triggered.connect(self.update_realspace_detector)
         rs_detector_shape_group.addAction(detector_rectangle_action)
         self.detector_shape_menu.addAction(detector_rectangle_action)
+
+        self.help_menu = QMenu("&Help", self)
+        self.menu_bar.addMenu(self.help_menu)
+
+        self.keyboard_map_action = QAction("Show &Keyboard Map", self)
+        self.keyboard_map_action.triggered.connect(self.show_keyboard_map)
+        self.help_menu.addAction(self.keyboard_map_action)
 
     def setup_views(self):
         # Set up the diffraction space window.

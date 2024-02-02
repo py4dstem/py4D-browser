@@ -4,6 +4,7 @@ import h5py
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from py4D_browser.help_menu import KeyboardMapMenu
 
 
 def load_data_auto(self):
@@ -137,6 +138,9 @@ def export_virtual_image(self, im_format: str, im_type: str):
         with TiffWriter(filename) as tw:
             tw.write(vimg)
 
+def show_keyboard_map(self):
+    keymap = KeyboardMapMenu(parent=self)
+    keymap.open()
 
 def show_file_dialog(self) -> str:
     filename = QFileDialog.getOpenFileName(
