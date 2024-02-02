@@ -159,7 +159,7 @@ def update_real_space_view(self, reset=False):
                 raise ValueError("Mode logic gone haywire!")
 
         else:
-            raise ValueError("Oppsie")
+            raise ValueError("Oopsie")
 
     if scaling_mode == "Linear":
         new_view = vimg
