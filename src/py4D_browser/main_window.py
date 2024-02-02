@@ -463,6 +463,10 @@ class DataViewer(QMainWindow):
         widget.setLayout(layout)
         self.setCentralWidget(widget)
 
+        self.diffraction_space_widget.getView().setMenuEnabled(False)
+        self.real_space_widget.getView().setMenuEnabled(False)
+        self.fft_widget.getView().setMenuEnabled(False)
+
     # Handle dragging and dropping a file on the window
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
