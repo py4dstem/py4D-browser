@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (
     QSplitter,
     QActionGroup,
     QLabel,
+    QPushButton,
 )
 
 import pyqtgraph as pg
@@ -365,8 +366,10 @@ class DataViewer(QMainWindow):
         img_ewpc_action.setCheckable(True)
         self.fft_menu.addAction(img_ewpc_action)
         self.fft_source_action_group.addAction(img_ewpc_action)
-        img_fft_action.triggered.connect(self.update_real_space_view)
-        img_ewpc_action.triggered.connect(self.update_diffraction_space_view)
+        img_fft_action.triggered.connect(partial(self.update_real_space_view, False))
+        img_ewpc_action.triggered.connect(
+            partial(self.update_diffraction_space_view, False)
+        )
 
         self.help_menu = QMenu("&Help", self)
         self.menu_bar.addMenu(self.help_menu)
@@ -386,7 +389,7 @@ class DataViewer(QMainWindow):
             self.diffraction_space_widget.getView()
         )
         self.virtual_detector_point.sigRegionChanged.connect(
-            self.update_real_space_view
+            partial(self.update_real_space_view, False)
         )
 
         # Scalebar
@@ -462,10 +465,20 @@ class DataViewer(QMainWindow):
         self.real_space_widget.getView().setMenuEnabled(False)
         self.fft_widget.getView().setMenuEnabled(False)
 
+        # Setup Status Bar
         self.statusBar().addPermanentWidget(VLine())
         self.statusBar().addPermanentWidget(self.diffraction_space_view_text)
         self.statusBar().addPermanentWidget(VLine())
         self.statusBar().addPermanentWidget(self.real_space_view_text)
+        self.statusBar().addPermanentWidget(VLine())
+        diffraction_rescale_button = QPushButton("Autoscale Diffraction")
+        diffraction_rescale_button.clicked.connect(
+            self.diffraction_space_widget.autoLevels
+        )
+        self.statusBar().addPermanentWidget(diffraction_rescale_button)
+        realspace_rescale_button = QPushButton("Autoscale Real Space")
+        realspace_rescale_button.clicked.connect(self.real_space_widget.autoLevels)
+        self.statusBar().addPermanentWidget(realspace_rescale_button)
 
     # Handle dragging and dropping a file on the window
     def dragEnterEvent(self, event):
