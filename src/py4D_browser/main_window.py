@@ -140,7 +140,7 @@ class DataViewer(QMainWindow):
         # Submenu to export diffraction
         vdiff_export_menu = QMenu("Export Diffraction Pattern", self)
         self.file_menu.addMenu(vdiff_export_menu)
-        for method in ["PNG", "TIFF", "TIFF (raw)"]:
+        for method in ["PNG (display)", "TIFF (display)", "TIFF (raw)"]:
             menu_item = vdiff_export_menu.addAction(method)
             menu_item.triggered.connect(
                 partial(self.export_virtual_image, method, "diffraction")

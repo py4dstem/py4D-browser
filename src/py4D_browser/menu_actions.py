@@ -124,11 +124,11 @@ def export_virtual_image(self, im_format: str, im_type: str):
     vimg = view.image
     vmin, vmax = view.getLevels()
 
-    if im_format == "PNG":
+    if im_format == "PNG (display)":
         plt.imsave(
             fname=filename, arr=vimg, vmin=vmin, vmax=vmax, format="png", cmap="gray"
         )
-    elif im_format == "TIFF":
+    elif im_format == "TIFF (display)":
         plt.imsave(
             fname=filename, arr=vimg, vmin=vmin, vmax=vmax, format="tiff", cmap="gray"
         )
