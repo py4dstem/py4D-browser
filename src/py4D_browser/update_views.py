@@ -187,7 +187,7 @@ def update_real_space_view(self, reset=False):
         self.fft_widget.setImage(
             fft.T, autoLevels=False, levels=levels, autoRange=reset
         )
-        self.fft_widget_text.setText("Vitual Image FFT")
+        self.fft_widget_text.setText("Virtual Image FFT")
 
 
 def update_diffraction_space_view(self, reset=False):
