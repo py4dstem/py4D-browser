@@ -131,7 +131,7 @@ class DataViewer(QMainWindow):
         # Submenu to export virtual image
         vimg_export_menu = QMenu("Export Virtual Image", self)
         self.file_menu.addMenu(vimg_export_menu)
-        for method in ["PNG", "TIFF", "TIFF (raw)"]:
+        for method in ["PNG (display)", "TIFF (display)", "TIFF (raw)"]:
             menu_item = vimg_export_menu.addAction(method)
             menu_item.triggered.connect(
                 partial(self.export_virtual_image, method, "image")

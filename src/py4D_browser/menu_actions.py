@@ -121,7 +121,7 @@ def export_virtual_image(self, im_format: str, im_type: str):
         self.real_space_widget if im_type == "image" else self.diffraction_space_widget
     )
 
-    vimg = view.image
+    vimg = view.image.T
     vmin, vmax = view.getLevels()
 
     if im_format == "PNG (display)":
@@ -142,6 +142,8 @@ def export_virtual_image(self, im_format: str, im_type: str):
         )
         with TiffWriter(filename) as tw:
             tw.write(vimg)
+    else:
+        raise RuntimeError("Nothing saved! Format not recognized")
 
 
 def show_keyboard_map(self):
@@ -168,8 +170,8 @@ def get_savefile_name(self, file_format) -> str:
         "Raw float32": "RAW File (*.raw *.f32);;Any file (*)",
         "py4DSTEM HDF5": "HDF5 File (*.hdf5 *.h5 *.emd *.py4dstem);;Any file (*)",
         "Plain HDF5": "HDF5 File (*.hdf5 *.h5;;Any file (*)",
-        "PNG": "PNG File (*.png);;Any file (*)",
-        "TIFF": "TIFF File (*.tiff *.tif *.tff);;Any File (*)",
+        "PNG (display)": "PNG File (*.png);;Any file (*)",
+        "TIFF (display)": "TIFF File (*.tiff *.tif *.tff);;Any File (*)",
         "TIFF (raw)": "TIFF File (*.tiff *.tif *.tff);;Any File (*)",
     }
 
@@ -177,8 +179,8 @@ def get_savefile_name(self, file_format) -> str:
         "Raw float32": ".raw",
         "py4DSTEM HDF5": ".h5",
         "Plain HDF5": ".h5",
-        "PNG": ".png",
-        "TIFF": ".tiff",
+        "PNG (display)": ".png",
+        "TIFF (display)": ".tiff",
         "TIFF (raw)": ".tiff",
     }
 
