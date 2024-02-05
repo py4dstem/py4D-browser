@@ -171,6 +171,9 @@ def update_real_space_view(self, reset=False):
         new_view = np.sqrt(np.maximum(vimg, 0))
     else:
         raise ValueError("Mode not recognized")
+
+    self.unscaled_realspace_image = vimg
+
     self.real_space_widget.setImage(
         new_view.T,
         autoLevels=reset or self.realspace_rescale_button.latched,
@@ -231,6 +234,8 @@ def update_diffraction_space_view(self, reset=False):
 
     else:
         raise ValueError("Detector shape not recognized")
+
+    self.unscaled_diffraction_image = DP
 
     if scaling_mode == "Linear":
         new_view = DP

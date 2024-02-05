@@ -96,7 +96,7 @@ def export_datacube(self, save_format: str):
         )
 
         if response == QMessageBox.Cancel:
-            print("Cancelling due to user guilt")
+            self.statusBar().showMessage("Cancelling due to user guilt", 5_000)
             return
 
     filename = self.get_savefile_name(save_format)
@@ -135,6 +135,11 @@ def export_virtual_image(self, im_format: str, im_type: str):
     elif im_format == "TIFF (raw)":
         from tifffile import TiffWriter
 
+        vimg = (
+            self.unscaled_realspace_image
+            if im_type == "image"
+            else self.unscaled_diffraction_image
+        )
         with TiffWriter(filename) as tw:
             tw.write(vimg)
 
