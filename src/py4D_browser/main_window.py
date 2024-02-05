@@ -19,7 +19,7 @@ from functools import partial
 from pathlib import Path
 import importlib
 
-from py4D_browser.utils import pg_point_roi, VLine
+from py4D_browser.utils import pg_point_roi, VLine, LatchingButton
 from py4D_browser.scalebar import ScaleBar
 
 
@@ -471,14 +471,20 @@ class DataViewer(QMainWindow):
         self.statusBar().addPermanentWidget(VLine())
         self.statusBar().addPermanentWidget(self.real_space_view_text)
         self.statusBar().addPermanentWidget(VLine())
-        diffraction_rescale_button = QPushButton("Autoscale Diffraction")
-        diffraction_rescale_button.clicked.connect(
+        self.diffraction_rescale_button = LatchingButton(
+            "Autoscale Diffraction", status_bar=self.statusBar()
+        )
+        self.diffraction_rescale_button.activated.connect(
             self.diffraction_space_widget.autoLevels
         )
-        self.statusBar().addPermanentWidget(diffraction_rescale_button)
-        realspace_rescale_button = QPushButton("Autoscale Real Space")
-        realspace_rescale_button.clicked.connect(self.real_space_widget.autoLevels)
-        self.statusBar().addPermanentWidget(realspace_rescale_button)
+        self.statusBar().addPermanentWidget(self.diffraction_rescale_button)
+        self.realspace_rescale_button = LatchingButton(
+            "Autoscale Real Space", status_bar=self.statusBar()
+        )
+        self.realspace_rescale_button.activated.connect(
+            self.real_space_widget.autoLevels
+        )
+        self.statusBar().addPermanentWidget(self.realspace_rescale_button)
 
     # Handle dragging and dropping a file on the window
     def dragEnterEvent(self, event):

@@ -171,7 +171,11 @@ def update_real_space_view(self, reset=False):
         new_view = np.sqrt(np.maximum(vimg, 0))
     else:
         raise ValueError("Mode not recognized")
-    self.real_space_widget.setImage(new_view.T, autoLevels=reset, autoRange=reset)
+    self.real_space_widget.setImage(
+        new_view.T,
+        autoLevels=reset or self.realspace_rescale_button.latched,
+        autoRange=reset,
+    )
 
     # Update FFT view
     if self.fft_source_action_group.checkedAction().text() == "Virtual Image FFT":
@@ -238,7 +242,9 @@ def update_diffraction_space_view(self, reset=False):
         raise ValueError("Mode not recognized")
 
     self.diffraction_space_widget.setImage(
-        new_view.T, autoLevels=reset, autoRange=reset
+        new_view.T,
+        autoLevels=reset or self.diffraction_rescale_button.latched,
+        autoRange=reset,
     )
 
     if self.fft_source_action_group.checkedAction().text() == "EWPC":
