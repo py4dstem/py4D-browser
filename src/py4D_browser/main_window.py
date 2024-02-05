@@ -472,14 +472,18 @@ class DataViewer(QMainWindow):
         self.statusBar().addPermanentWidget(self.real_space_view_text)
         self.statusBar().addPermanentWidget(VLine())
         self.diffraction_rescale_button = LatchingButton(
-            "Autoscale Diffraction", status_bar=self.statusBar(), latched=True,
+            "Autoscale Diffraction",
+            status_bar=self.statusBar(),
+            latched=True,
         )
         self.diffraction_rescale_button.activated.connect(
             self.diffraction_space_widget.autoLevels
         )
         self.statusBar().addPermanentWidget(self.diffraction_rescale_button)
         self.realspace_rescale_button = LatchingButton(
-            "Autoscale Real Space", status_bar=self.statusBar(), latched=True,
+            "Autoscale Real Space",
+            status_bar=self.statusBar(),
+            latched=True,
         )
         self.realspace_rescale_button.activated.connect(
             self.real_space_widget.autoLevels
