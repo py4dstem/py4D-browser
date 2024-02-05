@@ -25,10 +25,13 @@ class LatchingButton(QPushButton):
 
     def __init__(self, *args, **kwargs):
         self.status_bar = kwargs.pop("status_bar", None)
+        self.latched = kwargs.pop("latched", False)
         super().__init__(*args, **kwargs)
         self.setCheckable(True)
         self.clicked.connect(self.on_click)
-        self.latched = False
+        if self.latched:
+            self.setChecked(True)
+            self.activated.emit()
 
     def on_click(self, *args):
         modifiers = QApplication.keyboardModifiers()
