@@ -16,7 +16,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-  "py4dstem >= 0.14.3",
+  "py4dstem >= 0.14.9",
   "emdfile >= 0.0.11",
   "h5py",
   "numpy >= 1.19",

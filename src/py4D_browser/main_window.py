@@ -352,7 +352,7 @@ class DataViewer(QMainWindow):
         rs_detector_shape_group.addAction(detector_rectangle_action)
         self.detector_shape_menu.addAction(detector_rectangle_action)
 
-        self.fft_menu = QMenu("FFT View", self)
+        self.fft_menu = QMenu("FF&T View", self)
         self.menu_bar.addMenu(self.fft_menu)
 
         self.fft_source_action_group = QActionGroup(self)

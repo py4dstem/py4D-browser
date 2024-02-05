@@ -149,7 +149,7 @@ def update_real_space_view(self, reset=False):
             elif detector_mode == "CoM Angle":
                 vimg = np.arctan2(CoMy, CoMx)
             elif detector_mode == "iCoM":
-                dpc = py4DSTEM.process.phase.DPCReconstruction(verbose=False)
+                dpc = py4DSTEM.process.phase.DPC(verbose=False)
                 dpc.preprocess(
                     force_com_measured=[CoMx, CoMy],
                     plot_rotation=False,
