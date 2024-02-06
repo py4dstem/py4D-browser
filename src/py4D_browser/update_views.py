@@ -189,7 +189,10 @@ def update_real_space_view(self, reset=False):
         self.fft_widget.setImage(
             fft.T, autoLevels=False, levels=levels, autoRange=mode_switch
         )
-        self.fft_widget.getImageItem().setRect(0,0,fft.shape[1],fft.shape[1])
+        self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
+        if mode_switch:
+            # Need to autorange after setRect
+            self.fft_widget.autoRange()
 
 
 def update_diffraction_space_view(self, reset=False):
