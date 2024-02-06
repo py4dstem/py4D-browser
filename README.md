@@ -14,7 +14,14 @@ The GUI is available on PyPI and conda-forge:
 ## Usage
 Run `py4DGUI` in your terminal to open the GUI. Then just drag and drop a 4D-STEM dataset into the window!
 
-Move the virtual detector and the real-space selector using the mouse or using the keyboard shortcuts: WASD moves the detector and IJKL moves the selector, holding down shift to move 5 pixels at a time. 
+### Controls
+* Move the virtual detector and the real-space selector using the mouse or using the keyboard shortcuts: WASD moves the detector and IJKL moves the selector, and holding down shift moves 5 pixels at a time. 
+* Auto scaling of both views is on by default. Press the "Autoscale" buttons in the bottom right to disable. Press either button to apply automatic scaling once, or Shift + click to lock autoscaling back on. 
+* Different shapes of virtual detector are available in the "Detector Shape" menu, and different detector responses are available in the "Detector Response" menu.
+* The information in the bottom bar contains the details of the virtual detector used to generate the images, and can be entered into py4DSTEM to generate the same image. 
+* The FFT pane can be switched between displaying the FFT of the virtual image and displaying the [exit wave power cepstrum](https://doi.org/10.1016/j.ultramic.2020.112994).
+* Virtual images can be exported either as the scaled and clipped displays shown in the GUI or as raw data. The exact datatype stored in the raw TIFF image depends on both the datatype of the dataset and the type of virtual image being displayed (in particular, integer datatypes are converted internally to floating point to prevent overflows when generating any synthesized virtual images).
+* If the [EMPAD-G2 Raw Reader](https://github.com/sezelt/empad2) is installed in the same environment, an extra menu will appear that allows the concatenated binary format data to be background subtracted and calibrated in the GUI. You can also save the calibrated data as an HDF5 file for later analysis. 
 
 ![Demonstration](/images/demo.gif)
 
