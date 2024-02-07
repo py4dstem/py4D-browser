@@ -432,7 +432,7 @@ class DataViewer(QMainWindow):
         self.fft_widget = pg.ImageView()
         self.fft_widget.setImage(np.zeros((512, 512)))
 
-        # FFT scale bar is tricky because pixel sizes commonly vary in each direction
+        # FFT scale bar
         self.fft_scale_bar = ScaleBar(pixel_size=1, units="1/px", width=10)
         self.fft_scale_bar.setParentItem(self.fft_widget.getView())
         self.fft_scale_bar.anchor((1, 1), (1, 1), offset=(-40, -40))
