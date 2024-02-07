@@ -8,6 +8,8 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QSplitter,
     QActionGroup,
+    QLabel,
+    QPushButton,
 )
 
 import pyqtgraph as pg
@@ -17,7 +19,8 @@ from functools import partial
 from pathlib import Path
 import importlib
 
-from py4D_browser.utils import pg_point_roi
+from py4D_browser.utils import pg_point_roi, VLine, LatchingButton
+from py4D_browser.scalebar import ScaleBar
 
 
 class DataViewer(QMainWindow):
@@ -38,6 +41,7 @@ class DataViewer(QMainWindow):
         get_savefile_name,
         export_datacube,
         export_virtual_image,
+        show_keyboard_map,
     )
 
     from py4D_browser.update_views import (
@@ -45,6 +49,8 @@ class DataViewer(QMainWindow):
         update_real_space_view,
         update_realspace_detector,
         update_diffraction_detector,
+        nudge_real_space_selector,
+        nudge_diffraction_selector,
         update_annulus_pos,
         update_annulus_radii,
     )
@@ -78,7 +84,7 @@ class DataViewer(QMainWindow):
         self.setup_menus()
         self.setup_views()
 
-        self.resize(800, 400)
+        self.resize(1000, 800)
 
         self.show()
 
@@ -125,7 +131,7 @@ class DataViewer(QMainWindow):
         # Submenu to export virtual image
         vimg_export_menu = QMenu("Export Virtual Image", self)
         self.file_menu.addMenu(vimg_export_menu)
-        for method in ["PNG", "TIFF", "TIFF (raw)"]:
+        for method in ["PNG (display)", "TIFF (display)", "TIFF (raw)"]:
             menu_item = vimg_export_menu.addAction(method)
             menu_item.triggered.connect(
                 partial(self.export_virtual_image, method, "image")
@@ -134,7 +140,7 @@ class DataViewer(QMainWindow):
         # Submenu to export diffraction
         vdiff_export_menu = QMenu("Export Diffraction Pattern", self)
         self.file_menu.addMenu(vdiff_export_menu)
-        for method in ["PNG", "TIFF", "TIFF (raw)"]:
+        for method in ["PNG (display)", "TIFF (display)", "TIFF (raw)"]:
             menu_item = vdiff_export_menu.addAction(method)
             menu_item.triggered.connect(
                 partial(self.export_virtual_image, method, "diffraction")
@@ -346,22 +352,52 @@ class DataViewer(QMainWindow):
         rs_detector_shape_group.addAction(detector_rectangle_action)
         self.detector_shape_menu.addAction(detector_rectangle_action)
 
+        self.fft_menu = QMenu("FF&T View", self)
+        self.menu_bar.addMenu(self.fft_menu)
+
+        self.fft_source_action_group = QActionGroup(self)
+        self.fft_source_action_group.setExclusive(True)
+        img_fft_action = QAction("Virtual Image FFT", self)
+        img_fft_action.setCheckable(True)
+        img_fft_action.setChecked(True)
+        self.fft_menu.addAction(img_fft_action)
+        self.fft_source_action_group.addAction(img_fft_action)
+        img_ewpc_action = QAction("EWPC", self)
+        img_ewpc_action.setCheckable(True)
+        self.fft_menu.addAction(img_ewpc_action)
+        self.fft_source_action_group.addAction(img_ewpc_action)
+        img_fft_action.triggered.connect(partial(self.update_real_space_view, False))
+        img_ewpc_action.triggered.connect(
+            partial(self.update_diffraction_space_view, False)
+        )
+
+        self.help_menu = QMenu("&Help", self)
+        self.menu_bar.addMenu(self.help_menu)
+
+        self.keyboard_map_action = QAction("Show &Keyboard Map", self)
+        self.keyboard_map_action.triggered.connect(self.show_keyboard_map)
+        self.help_menu.addAction(self.keyboard_map_action)
+
     def setup_views(self):
         # Set up the diffraction space window.
         self.diffraction_space_widget = pg.ImageView()
         self.diffraction_space_widget.setImage(np.zeros((512, 512)))
-        self.diffraction_space_view_text = pg.TextItem(
-            "Slice", (200, 200, 200), None, (0, 1)
-        )
-        self.diffraction_space_widget.addItem(self.diffraction_space_view_text)
+        self.diffraction_space_view_text = QLabel("Slice")
 
         # Create virtual detector ROI selector
         self.virtual_detector_point = pg_point_roi(
             self.diffraction_space_widget.getView()
         )
         self.virtual_detector_point.sigRegionChanged.connect(
-            self.update_real_space_view
+            partial(self.update_real_space_view, False)
         )
+
+        # Scalebar
+        self.diffraction_scale_bar = ScaleBar(pixel_size=1, units="px", width=10)
+        self.diffraction_scale_bar.setParentItem(
+            self.diffraction_space_widget.getView()
+        )
+        self.diffraction_scale_bar.anchor((1, 1), (1, 1), offset=(-40, -40))
 
         # Name and return
         self.diffraction_space_widget.setWindowTitle("Diffraction Space")
@@ -369,16 +405,18 @@ class DataViewer(QMainWindow):
         # Set up the real space window.
         self.real_space_widget = pg.ImageView()
         self.real_space_widget.setImage(np.zeros((512, 512)))
-        self.real_space_view_text = pg.TextItem(
-            "Scan pos.", (200, 200, 200), None, (0, 1)
-        )
-        self.real_space_widget.addItem(self.real_space_view_text)
+        self.real_space_view_text = QLabel("Scan Position")
 
         # Add point selector connected to displayed diffraction pattern
         self.real_space_point_selector = pg_point_roi(self.real_space_widget.getView())
         self.real_space_point_selector.sigRegionChanged.connect(
             partial(self.update_diffraction_space_view, False)
         )
+
+        # Scalebar, None by default
+        self.real_space_scale_bar = ScaleBar(pixel_size=1, units="px", width=10)
+        self.real_space_scale_bar.setParentItem(self.real_space_widget.getView())
+        self.real_space_scale_bar.anchor((1, 1), (1, 1), offset=(-40, -40))
 
         # Name and return
         self.real_space_widget.setWindowTitle("Real Space")
@@ -394,9 +432,15 @@ class DataViewer(QMainWindow):
         self.fft_widget = pg.ImageView()
         self.fft_widget.setImage(np.zeros((512, 512)))
 
+        # FFT scale bar
+        self.fft_scale_bar = ScaleBar(pixel_size=1, units="1/px", width=10)
+        self.fft_scale_bar.setParentItem(self.fft_widget.getView())
+        self.fft_scale_bar.anchor((1, 1), (1, 1), offset=(-40, -40))
+
         # Name and return
         self.fft_widget.setWindowTitle("FFT of Virtual Image")
-        self.fft_widget.addItem(pg.TextItem("FFT", (200, 200, 200), None, (0, 1)))
+        self.fft_widget_text = pg.TextItem("FFT", (200, 200, 200), None, (0, 1))
+        self.fft_widget.addItem(self.fft_widget_text)
 
         self.fft_widget.setAcceptDrops(True)
         self.fft_widget.dragEnterEvent = self.dragEnterEvent
@@ -417,6 +461,35 @@ class DataViewer(QMainWindow):
         widget.setLayout(layout)
         self.setCentralWidget(widget)
 
+        self.diffraction_space_widget.getView().setMenuEnabled(False)
+        self.real_space_widget.getView().setMenuEnabled(False)
+        self.fft_widget.getView().setMenuEnabled(False)
+
+        # Setup Status Bar
+        self.statusBar().addPermanentWidget(VLine())
+        self.statusBar().addPermanentWidget(self.diffraction_space_view_text)
+        self.statusBar().addPermanentWidget(VLine())
+        self.statusBar().addPermanentWidget(self.real_space_view_text)
+        self.statusBar().addPermanentWidget(VLine())
+        self.diffraction_rescale_button = LatchingButton(
+            "Autoscale Diffraction",
+            status_bar=self.statusBar(),
+            latched=True,
+        )
+        self.diffraction_rescale_button.activated.connect(
+            self.diffraction_space_widget.autoLevels
+        )
+        self.statusBar().addPermanentWidget(self.diffraction_rescale_button)
+        self.realspace_rescale_button = LatchingButton(
+            "Autoscale Real Space",
+            status_bar=self.statusBar(),
+            latched=True,
+        )
+        self.realspace_rescale_button.activated.connect(
+            self.real_space_widget.autoLevels
+        )
+        self.statusBar().addPermanentWidget(self.realspace_rescale_button)
+
     # Handle dragging and dropping a file on the window
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -429,3 +502,37 @@ class DataViewer(QMainWindow):
         if len(files) == 1:
             print(f"Reieving dropped file: {files[0]}")
             self.load_file(files[0])
+
+    def keyPressEvent(self, event):
+        key = event.key()
+        modifier = event.modifiers()
+
+        speed = 5 if modifier == QtCore.Qt.ShiftModifier else 1
+
+        if key in [QtCore.Qt.Key_W, QtCore.Qt.Key_A, QtCore.Qt.Key_S, QtCore.Qt.Key_D]:
+            self.nudge_diffraction_selector(
+                dx=speed
+                * (
+                    -1 if key == QtCore.Qt.Key_W else 1 if key == QtCore.Qt.Key_S else 0
+                ),
+                dy=speed
+                * (
+                    -1 if key == QtCore.Qt.Key_A else 1 if key == QtCore.Qt.Key_D else 0
+                ),
+            )
+        elif key in [
+            QtCore.Qt.Key_I,
+            QtCore.Qt.Key_J,
+            QtCore.Qt.Key_K,
+            QtCore.Qt.Key_L,
+        ]:
+            self.nudge_real_space_selector(
+                dx=speed
+                * (
+                    -1 if key == QtCore.Qt.Key_I else 1 if key == QtCore.Qt.Key_K else 0
+                ),
+                dy=speed
+                * (
+                    -1 if key == QtCore.Qt.Key_J else 1 if key == QtCore.Qt.Key_L else 0
+                ),
+            )

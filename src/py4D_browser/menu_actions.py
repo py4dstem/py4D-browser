@@ -4,6 +4,7 @@ import h5py
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from py4D_browser.help_menu import KeyboardMapMenu
 
 
 def load_data_auto(self):
@@ -35,7 +36,17 @@ def load_file(self, filepath, mmap=False, binning=1):
             self.datacube = py4DSTEM.DataCube(
                 datacubes[0] if mmap else datacubes[0][()]
             )
-    elif extension in [".npy", ".npz"]:
+
+            R_size, R_units, Q_size, Q_units = find_calibrations(datacubes[0])
+
+            self.datacube.calibration.set_R_pixel_size(R_size)
+            self.datacube.calibration.set_R_pixel_units(R_units)
+            self.datacube.calibration.set_Q_pixel_size(Q_size)
+            self.datacube.calibration.set_Q_pixel_units(Q_units)
+
+        else:
+            raise ValueError("No 4D data detected in the H5 file!")
+    elif extension in [".npy"]:
         self.datacube = py4DSTEM.DataCube(np.load(filepath))
     else:
         self.datacube = py4DSTEM.import_file(
@@ -43,6 +54,17 @@ def load_file(self, filepath, mmap=False, binning=1):
             mem="MEMMAP" if mmap else "RAM",
             binfactor=binning,
         )
+
+    self.diffraction_scale_bar.pixel_size = self.datacube.calibration.get_Q_pixel_size()
+    self.diffraction_scale_bar.units = self.datacube.calibration.get_Q_pixel_units()
+
+    self.real_space_scale_bar.pixel_size = self.datacube.calibration.get_R_pixel_size()
+    self.real_space_scale_bar.units = self.datacube.calibration.get_R_pixel_units()
+
+    self.fft_scale_bar.pixel_size = (
+        1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
+    )
+    self.fft_scale_bar.units = f"1/{self.datacube.calibration.get_R_pixel_units()}"
 
     self.update_diffraction_space_view(reset=True)
     self.update_real_space_view(reset=True)
@@ -74,7 +96,7 @@ def export_datacube(self, save_format: str):
         )
 
         if response == QMessageBox.Cancel:
-            print("Cancelling due to user guilt")
+            self.statusBar().showMessage("Cancelling due to user guilt", 5_000)
             return
 
     filename = self.get_savefile_name(save_format)
@@ -99,22 +121,34 @@ def export_virtual_image(self, im_format: str, im_type: str):
         self.real_space_widget if im_type == "image" else self.diffraction_space_widget
     )
 
-    vimg = view.image
+    vimg = view.image.T
     vmin, vmax = view.getLevels()
 
-    if im_format == "PNG":
+    if im_format == "PNG (display)":
         plt.imsave(
             fname=filename, arr=vimg, vmin=vmin, vmax=vmax, format="png", cmap="gray"
         )
-    elif im_format == "TIFF":
+    elif im_format == "TIFF (display)":
         plt.imsave(
             fname=filename, arr=vimg, vmin=vmin, vmax=vmax, format="tiff", cmap="gray"
         )
     elif im_format == "TIFF (raw)":
         from tifffile import TiffWriter
 
+        vimg = (
+            self.unscaled_realspace_image
+            if im_type == "image"
+            else self.unscaled_diffraction_image
+        )
         with TiffWriter(filename) as tw:
             tw.write(vimg)
+    else:
+        raise RuntimeError("Nothing saved! Format not recognized")
+
+
+def show_keyboard_map(self):
+    keymap = KeyboardMapMenu(parent=self)
+    keymap.open()
 
 
 def show_file_dialog(self) -> str:
@@ -136,8 +170,8 @@ def get_savefile_name(self, file_format) -> str:
         "Raw float32": "RAW File (*.raw *.f32);;Any file (*)",
         "py4DSTEM HDF5": "HDF5 File (*.hdf5 *.h5 *.emd *.py4dstem);;Any file (*)",
         "Plain HDF5": "HDF5 File (*.hdf5 *.h5;;Any file (*)",
-        "PNG": "PNG File (*.png);;Any file (*)",
-        "TIFF": "TIFF File (*.tiff *.tif *.tff);;Any File (*)",
+        "PNG (display)": "PNG File (*.png);;Any file (*)",
+        "TIFF (display)": "TIFF File (*.tiff *.tif *.tff);;Any File (*)",
         "TIFF (raw)": "TIFF File (*.tiff *.tif *.tff);;Any File (*)",
     }
 
@@ -145,8 +179,8 @@ def get_savefile_name(self, file_format) -> str:
         "Raw float32": ".raw",
         "py4DSTEM HDF5": ".h5",
         "Plain HDF5": ".h5",
-        "PNG": ".png",
-        "TIFF": ".tiff",
+        "PNG (display)": ".png",
+        "TIFF (display)": ".tiff",
         "TIFF (raw)": ".tiff",
     }
 
@@ -184,3 +218,53 @@ def get_4D(f, datacubes=None):
         elif isinstance(f[k], h5py.Group):
             get_4D(f[k], datacubes)
     return datacubes
+
+
+def find_calibrations(dset: h5py.Dataset):
+    # Attempt to find calibrations from an H5 file
+    R_size, R_units, Q_size, Q_units = 1.0, "pixels", 1.0, "pixels"
+
+    # Does it look like a py4DSTEM file?
+    try:
+        if "emd_group_type" in dset.parent.attrs:
+            # EMD files theoretically store this in the Array,
+            # but in practice seem to only keep the calibrations
+            # in the Metadata object, which is separate
+
+            # R_size = dset.parent["dim0"][1] - dset.parent["dim0"][0]
+            # R_units = dset.parent["dim0"].attrs["units"]
+
+            # Q_size = dset.parent["dim3"][1] - dset.parent["dim3"][0]
+            # Q_units = dset.parent["dim3"].attrs["units"]
+            R_size = dset.parent.parent["metadatabundle"]["calibration"][
+                "R_pixel_size"
+            ][()]
+            R_units = dset.parent.parent["metadatabundle"]["calibration"][
+                "R_pixel_units"
+            ][()].decode()
+
+            Q_size = dset.parent.parent["metadatabundle"]["calibration"][
+                "Q_pixel_size"
+            ][()]
+            Q_units = dset.parent.parent["metadatabundle"]["calibration"][
+                "Q_pixel_units"
+            ][()].decode()
+    except:
+        print(
+            "This file looked like a py4DSTEM dataset but the dim vectors appear malformed..."
+        )
+
+    # Does it look like an abTEM file?
+    try:
+        if "sampling" in dset.parent and "units" in dset.parent:
+            R_size = dset.parent["sampling"][0]
+            R_units = dset.parent["units"][0].decode()
+
+            Q_size = dset.parent["sampling"][3]
+            Q_units = dset.parent["units"][3].decode()
+    except:
+        print(
+            "This file looked like an abTEM simulation but the calibrations aren't as expected..."
+        )
+
+    return R_size, R_units, Q_size, Q_units

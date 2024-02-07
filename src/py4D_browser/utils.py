@@ -1,5 +1,55 @@
 import pyqtgraph as pg
 import numpy as np
+from PyQt5.QtWidgets import QFrame, QPushButton, QApplication
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import Qt
+
+
+class VLine(QFrame):
+    # a simple vertical divider line
+    def __init__(self):
+        super(VLine, self).__init__()
+        self.setFrameShape(self.VLine | self.Sunken)
+
+
+class LatchingButton(QPushButton):
+    """
+    Subclass of QPushButton that acts as a momentary button,
+    unless shift is held down during the click, in which case
+    it toggles on.
+    Emits the "activated" signal whenever triggered, and
+    maintains the "latched" state when latched down.
+    """
+
+    activated = pyqtSignal()
+
+    def __init__(self, *args, **kwargs):
+        self.status_bar = kwargs.pop("status_bar", None)
+        self.latched = kwargs.pop("latched", False)
+        super().__init__(*args, **kwargs)
+        self.setCheckable(True)
+        self.clicked.connect(self.on_click)
+        if self.latched:
+            self.setChecked(True)
+            self.activated.emit()
+
+    def on_click(self, *args):
+        modifiers = QApplication.keyboardModifiers()
+
+        if self.latched:
+            self.setChecked(False)
+            self.latched = False
+        else:
+            if modifiers == Qt.ShiftModifier:
+                self.setChecked(True)
+                self.latched = True
+                self.activated.emit()
+            else:
+                self.setChecked(False)
+                self.latched = False
+                self.activated.emit()
+                if self.status_bar is not None:
+                    self.status_bar.showMessage("Shift+click to keep on", 5_000)
 
 
 def pg_point_roi(view_box):

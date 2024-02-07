@@ -1,6 +1,7 @@
 import pyqtgraph as pg
 import numpy as np
 import py4DSTEM
+from functools import partial
 
 from py4D_browser.utils import pg_point_roi, make_detector
 
@@ -49,7 +50,7 @@ def update_real_space_view(self, reset=False):
 
         # update the label:
         self.diffraction_space_view_text.setText(
-            f"[{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
+            f"Diffraction Space Range: [{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
         )
 
         if detector_mode == "Integrating":
@@ -66,7 +67,9 @@ def update_real_space_view(self, reset=False):
         x0 = self.virtual_detector_roi.pos()[0] + R
         y0 = self.virtual_detector_roi.pos()[1] + R
 
-        self.diffraction_space_view_text.setText(f"[({x0:.0f},{y0:.0f}),{R:.0f}]")
+        self.diffraction_space_view_text.setText(
+            f"Detector Center: ({x0:.0f},{y0:.0f}), Radius: {R:.0f}"
+        )
 
         mask = make_detector(
             (self.datacube.Q_Nx, self.datacube.Q_Ny), "circle", ((x0, y0), R)
@@ -85,7 +88,7 @@ def update_real_space_view(self, reset=False):
             R_inner -= 1
 
         self.diffraction_space_view_text.setText(
-            f"[({x0:.0f},{y0:.0f}),({R_inner:.0f},{R_outer:.0f})]"
+            f"Detector Center: ({x0:.0f},{y0:.0f}), Radii: ({R_inner:.0f},{R_outer:.0f})"
         )
 
         mask = make_detector(
@@ -104,7 +107,7 @@ def update_real_space_view(self, reset=False):
         yc = np.clip(yc, 0, self.datacube.Q_Ny - 1)
         vimg = self.datacube.data[:, :, xc, yc]
 
-        self.diffraction_space_view_text.setText(f"[{xc},{yc}]")
+        self.diffraction_space_view_text.setText(f"Diffraction Pixel: [{xc},{yc}]")
 
     else:
         raise ValueError("Detector shape not recognized")
@@ -146,7 +149,7 @@ def update_real_space_view(self, reset=False):
             elif detector_mode == "CoM Angle":
                 vimg = np.arctan2(CoMy, CoMx)
             elif detector_mode == "iCoM":
-                dpc = py4DSTEM.process.phase.DPCReconstruction(verbose=False)
+                dpc = py4DSTEM.process.phase.DPC(verbose=False)
                 dpc.preprocess(
                     force_com_measured=[CoMx, CoMy],
                     plot_rotation=False,
@@ -158,7 +161,7 @@ def update_real_space_view(self, reset=False):
                 raise ValueError("Mode logic gone haywire!")
 
         else:
-            raise ValueError("Oppsie")
+            raise ValueError("Oopsie")
 
     if scaling_mode == "Linear":
         new_view = vimg
@@ -168,12 +171,28 @@ def update_real_space_view(self, reset=False):
         new_view = np.sqrt(np.maximum(vimg, 0))
     else:
         raise ValueError("Mode not recognized")
-    self.real_space_widget.setImage(new_view.T, autoLevels=True)
+
+    self.unscaled_realspace_image = vimg
+
+    self.real_space_widget.setImage(
+        new_view.T,
+        autoLevels=reset or self.realspace_rescale_button.latched,
+        autoRange=reset,
+    )
 
     # Update FFT view
-    fft = np.abs(np.fft.fftshift(np.fft.fft2(new_view))) ** 0.5
-    levels = (np.min(fft), np.percentile(fft, 99.9))
-    self.fft_widget.setImage(fft.T, autoLevels=False, levels=levels, autoRange=reset)
+    if self.fft_source_action_group.checkedAction().text() == "Virtual Image FFT":
+        fft = np.abs(np.fft.fftshift(np.fft.fft2(new_view))) ** 0.5
+        levels = (np.min(fft), np.percentile(fft, 99.9))
+        mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
+        self.fft_widget_text.setText("Virtual Image FFT")
+        self.fft_widget.setImage(
+            fft.T, autoLevels=False, levels=levels, autoRange=mode_switch
+        )
+        self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
+        if mode_switch:
+            # Need to autorange after setRect
+            self.fft_widget.autoRange()
 
 
 def update_diffraction_space_view(self, reset=False):
@@ -201,7 +220,7 @@ def update_diffraction_space_view(self, reset=False):
         xc = np.clip(xc, 0, self.datacube.R_Nx - 1)
         yc = np.clip(yc, 0, self.datacube.R_Ny - 1)
 
-        self.real_space_view_text.setText(f"[{xc},{yc}]")
+        self.real_space_view_text.setText(f"Real Space Pixel: [{xc},{yc}]")
 
         DP = self.datacube.data[xc, yc]
     elif detector_shape == "Rectangular":
@@ -213,20 +232,15 @@ def update_diffraction_space_view(self, reset=False):
 
         # update the label:
         self.real_space_view_text.setText(
-            f"[{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
+            f"Real Space Range: [{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
         )
 
         DP = np.sum(self.datacube.data[slice_x, slice_y], axis=(0, 1))
 
-        # if detector_mode == "Integrating":
-        #     vimg = np.sum(self.datacube.data[:, :, slice_x, slice_y], axis=(2, 3))
-        # elif detector_mode == "Maximum":
-        #     vimg = np.max(self.datacube.data[:, :, slice_x, slice_y], axis=(2, 3))
-        # else:
-        #     mask = np.zeros((self.datacube.Q_Nx, self.datacube.Q_Ny), dtype=np.bool_)
-        #     mask[slice_x, slice_y] = True
     else:
         raise ValueError("Detector shape not recognized")
+
+    self.unscaled_diffraction_image = DP
 
     if scaling_mode == "Linear":
         new_view = DP
@@ -238,8 +252,20 @@ def update_diffraction_space_view(self, reset=False):
         raise ValueError("Mode not recognized")
 
     self.diffraction_space_widget.setImage(
-        new_view.T, autoLevels=reset, autoRange=reset
+        new_view.T,
+        autoLevels=reset or self.diffraction_rescale_button.latched,
+        autoRange=reset,
     )
+
+    if self.fft_source_action_group.checkedAction().text() == "EWPC":
+        log_clip = np.maximum(1e-10, np.percentile(np.maximum(DP, 0.0), 0.1))
+        fft = np.abs(np.fft.fftshift(np.fft.fft2(np.log(np.maximum(DP, log_clip)))))
+        levels = (np.min(fft), np.percentile(fft, 99.9))
+        mode_switch = self.fft_widget_text.textItem.toPlainText() != "EWPC"
+        self.fft_widget_text.setText("EWPC")
+        self.fft_widget.setImage(
+            fft.T, autoLevels=False, levels=levels, autoRange=mode_switch
+        )
 
 
 def update_realspace_detector(self):
@@ -260,14 +286,16 @@ def update_realspace_detector(self):
     # Remove existing detector
     if hasattr(self, "real_space_point_selector"):
         self.real_space_widget.view.scene().removeItem(self.real_space_point_selector)
+        self.real_space_point_selector = None
     if hasattr(self, "real_space_rect_selector"):
         self.real_space_widget.view.scene().removeItem(self.real_space_rect_selector)
+        self.real_space_rect_selector = None
 
     # Rectangular detector
     if detector_shape == "Point":
         self.real_space_point_selector = pg_point_roi(self.real_space_widget.getView())
         self.real_space_point_selector.sigRegionChanged.connect(
-            self.update_diffraction_space_view
+            partial(self.update_diffraction_space_view, False)
         )
 
     elif detector_shape == "Rectangular":
@@ -276,13 +304,13 @@ def update_realspace_detector(self):
         )
         self.real_space_widget.getView().addItem(self.real_space_rect_selector)
         self.real_space_rect_selector.sigRegionChangeFinished.connect(
-            self.update_diffraction_space_view
+            partial(self.update_diffraction_space_view, False)
         )
 
     else:
         raise ValueError("Unknown detector shape! Got: {}".format(detector_shape))
 
-    self.update_diffraction_space_view()
+    self.update_diffraction_space_view(reset=True)
 
 
 def update_diffraction_detector(self):
@@ -303,16 +331,20 @@ def update_diffraction_detector(self):
         self.diffraction_space_widget.view.scene().removeItem(
             self.virtual_detector_point
         )
+        self.virtual_detector_point = None
     if hasattr(self, "virtual_detector_roi"):
         self.diffraction_space_widget.view.scene().removeItem(self.virtual_detector_roi)
+        self.virtual_detector_roi = None
     if hasattr(self, "virtual_detector_roi_inner"):
         self.diffraction_space_widget.view.scene().removeItem(
             self.virtual_detector_roi_inner
         )
+        self.virtual_detector_roi_inner = None
     if hasattr(self, "virtual_detector_roi_outer"):
         self.diffraction_space_widget.view.scene().removeItem(
             self.virtual_detector_roi_outer
         )
+        self.virtual_detector_roi_outer = None
 
     # Rectangular detector
     if detector_shape == "Point":
@@ -320,7 +352,7 @@ def update_diffraction_detector(self):
             self.diffraction_space_widget.getView()
         )
         self.virtual_detector_point.sigRegionChanged.connect(
-            self.update_real_space_view
+            partial(self.update_real_space_view, False)
         )
 
     elif detector_shape == "Rectangular":
@@ -329,7 +361,7 @@ def update_diffraction_detector(self):
         )
         self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi)
         self.virtual_detector_roi.sigRegionChangeFinished.connect(
-            self.update_real_space_view
+            partial(self.update_real_space_view, False)
         )
 
     # Circular detector
@@ -339,7 +371,7 @@ def update_diffraction_detector(self):
         )
         self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi)
         self.virtual_detector_roi.sigRegionChangeFinished.connect(
-            self.update_real_space_view
+            partial(self.update_real_space_view, False)
         )
 
     # Annular dector
@@ -360,28 +392,74 @@ def update_diffraction_detector(self):
         self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi_inner)
 
         # Connect size/position of inner and outer detectors
-        self.virtual_detector_roi_outer.sigRegionChangeFinished.connect(
+        self.virtual_detector_roi_outer.sigRegionChanged.connect(
             self.update_annulus_pos
         )
-        self.virtual_detector_roi_outer.sigRegionChangeFinished.connect(
+        self.virtual_detector_roi_outer.sigRegionChanged.connect(
             self.update_annulus_radii
         )
-        self.virtual_detector_roi_inner.sigRegionChangeFinished.connect(
+        self.virtual_detector_roi_inner.sigRegionChanged.connect(
             self.update_annulus_radii
         )
 
         # Connect to real space view update function
         self.virtual_detector_roi_outer.sigRegionChangeFinished.connect(
-            self.update_real_space_view
+            partial(self.update_real_space_view, False)
         )
         self.virtual_detector_roi_inner.sigRegionChangeFinished.connect(
-            self.update_real_space_view
+            partial(self.update_real_space_view, False)
         )
 
     else:
         raise ValueError("Unknown detector shape! Got: {}".format(detector_shape))
 
-    self.update_real_space_view()
+    self.update_real_space_view(reset=True)
+
+
+def nudge_real_space_selector(self, dx, dy):
+    if (
+        hasattr(self, "real_space_point_selector")
+        and self.real_space_point_selector is not None
+    ):
+        selector = self.real_space_point_selector
+    elif (
+        hasattr(self, "real_space_rect_selector")
+        and self.real_space_rect_selector is not None
+    ):
+        selector = self.real_space_rect_selector
+    else:
+        raise RuntimeError("Can't find the real space selector!")
+
+    position = selector.pos()
+    position[0] += dy
+    position[1] += dx
+
+    selector.setPos(position)
+
+
+def nudge_diffraction_selector(self, dx, dy):
+    if (
+        hasattr(self, "virtual_detector_point")
+        and self.virtual_detector_point is not None
+    ):
+        selector = self.virtual_detector_point
+    elif (
+        hasattr(self, "virtual_detector_roi") and self.virtual_detector_roi is not None
+    ):
+        selector = self.virtual_detector_roi
+    elif (
+        hasattr(self, "virtual_detector_roi_outer")
+        and self.virtual_detector_roi_outer is not None
+    ):
+        selector = self.virtual_detector_roi_outer
+    else:
+        raise RuntimeError("Can't find the diffraction space selector!")
+
+    position = selector.pos()
+    position[0] += dy
+    position[1] += dx
+
+    selector.setPos(position)
 
 
 def update_annulus_pos(self):
@@ -393,7 +471,7 @@ def update_annulus_pos(self):
     # Only outer annulus is draggable; when it moves, update position of inner annulus
     x0 = self.virtual_detector_roi_outer.pos().x() + R_outer
     y0 = self.virtual_detector_roi_outer.pos().y() + R_outer
-    self.virtual_detector_roi_inner.setPos(x0 - R_inner, y0 - R_inner)
+    self.virtual_detector_roi_inner.setPos(x0 - R_inner, y0 - R_inner, update=False)
 
 
 def update_annulus_radii(self):
@@ -402,5 +480,7 @@ def update_annulus_radii(self):
     if R_outer < R_inner:
         x0 = self.virtual_detector_roi_outer.pos().x() + R_outer
         y0 = self.virtual_detector_roi_outer.pos().y() + R_outer
-        self.virtual_detector_roi_outer.setSize(2 * R_inner + 6)
-        self.virtual_detector_roi_outer.setPos(x0 - R_inner - 3, y0 - R_inner - 3)
+        self.virtual_detector_roi_outer.setSize(2 * R_inner + 6, update=False)
+        self.virtual_detector_roi_outer.setPos(
+            x0 - R_inner - 3, y0 - R_inner - 3, update=False
+        )
