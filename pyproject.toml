@@ -4,25 +4,26 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "py4D_browser"
-version = "0.999995"
+version = "0.999999"
 authors = [
   { name="Steven Zeltmann", email="steven.zeltmann@lbl.gov" },
 ]
 description = "A 4D-STEM data browser built on py4DSTEM."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
 dependencies = [
-  "py4dstem >= 0.14.3",
+  "py4dstem >= 0.14.9",
   "emdfile >= 0.0.11",
   "h5py",
   "numpy >= 1.19",
   "matplotlib >= 3.2.2",
   "PyQt5 >= 5.10",
   "pyqtgraph >= 0.11",
+  "sigfig",
 ]
 
 [project.scripts]

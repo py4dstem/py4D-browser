@@ -5,6 +5,7 @@ import numpy as np
 
 def set_empad2_sensor(self, sensor_name):
     self.empad2_calibrations = empad2.load_calibration_data(sensor=sensor_name)
+    self.statusBar().showMessage(f"{sensor_name} calibrations loaded", 5_000)
 
 
 def load_empad2_background(self):
@@ -13,6 +14,7 @@ def load_empad2_background(self):
         self.empad2_background = empad2.load_background(
             filepath=filename, calibration_data=self.empad2_calibrations
         )
+        self.statusBar().showMessage("Background data loaded", 5_000)
     else:
         QMessageBox.warning(
             self, "No calibrations loaded!", "Please select a sensor first"
