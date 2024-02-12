@@ -1,6 +1,19 @@
 import empad2
-from PyQt5.QtWidgets import QFileDialog, QMessageBox
+from PyQt5.QtWidgets import QFileDialog, QMessageBox, QApplication
 import numpy as np
+
+
+class StatusBarWriter:
+    def __init__(self, statusBar):
+        self.statusBar = statusBar
+        self.app = app = QApplication.instance()
+
+    def write(self, message):
+        self.statusBar.showMessage(message, 1_000)
+        self.app.processEvents()
+
+    def flush(self):
+        pass
 
 
 def set_empad2_sensor(self, sensor_name):
@@ -41,7 +54,14 @@ def load_empad2_dataset(self):
 
         filename = raw_file_dialog(self)
         self.datacube = empad2.load_dataset(
-            filename, self.empad2_background, self.empad2_calibrations
+            filename,
+            self.empad2_background,
+            self.empad2_calibrations,
+            _tqdm_args={
+                "desc": "Loading",
+                "file": StatusBarWriter(self.statusBar()),
+                "mininterval": 1.0,
+            },
         )
 
         if dummy_data:
