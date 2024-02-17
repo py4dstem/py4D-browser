@@ -279,7 +279,7 @@ def update_realspace_detector(self):
     if self.datacube is None:
         return
 
-    x, y = self.datacube.shape[2:]
+    x, y = self.datacube.data.shape[:2]
     x0, y0 = x / 2, y / 2
     xr, yr = x / 10, y / 10
 
@@ -322,7 +322,7 @@ def update_diffraction_detector(self):
     if self.datacube is None:
         return
 
-    x, y = self.datacube.shape[2:]
+    x, y = self.datacube.data.shape[2:]
     x0, y0 = x / 2, y / 2
     xr, yr = x / 10, y / 10
 
