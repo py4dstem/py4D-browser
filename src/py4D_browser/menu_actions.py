@@ -23,6 +23,7 @@ def load_data_bin(self):
     filename = self.show_file_dialog()
     self.load_file(filename, mmap=False, binning=4)
 
+
 def load_data_arina(self):
     filename = self.show_file_dialog()
     dataset = read_arina(filename)
@@ -32,9 +33,13 @@ def load_data_arina(self):
     Nxy = np.sqrt(N_patterns)
     if np.abs(Nxy - np.round(Nxy)) <= 1e-10:
         Nxy = int(Nxy)
-        dataset.data = dataset.data.reshape(Nxy, Nxy, dataset.data.shape[2], dataset.data.shape[3])
+        dataset.data = dataset.data.reshape(
+            Nxy, Nxy, dataset.data.shape[2], dataset.data.shape[3]
+        )
     else:
-        self.statusBar().showMessage(f"The scan appears to not be square! Found {N_patterns} patterns", 5_000)
+        self.statusBar().showMessage(
+            f"The scan appears to not be square! Found {N_patterns} patterns", 5_000
+        )
 
     self.datacube = dataset
     self.diffraction_scale_bar.pixel_size = self.datacube.calibration.get_Q_pixel_size()
@@ -52,6 +57,7 @@ def load_data_arina(self):
     self.update_real_space_view(reset=True)
 
     self.setWindowTitle(filename)
+
 
 def load_file(self, filepath, mmap=False, binning=1):
     print(f"Loading file {filepath}")

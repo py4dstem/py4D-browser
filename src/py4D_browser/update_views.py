@@ -174,9 +174,16 @@ def update_real_space_view(self, reset=False):
 
     self.unscaled_realspace_image = vimg
 
+    auto_level = reset or self.realspace_rescale_button.latched
+
     self.real_space_widget.setImage(
         new_view.T,
-        autoLevels=reset or self.realspace_rescale_button.latched,
+        autoLevels=False,
+        levels=(
+            (np.percentile(new_view, 2), np.percentile(new_view, 98))
+            if auto_level
+            else None
+        ),
         autoRange=reset,
     )
 
@@ -251,9 +258,16 @@ def update_diffraction_space_view(self, reset=False):
     else:
         raise ValueError("Mode not recognized")
 
+    auto_level = reset or self.diffraction_rescale_button.latched
+
     self.diffraction_space_widget.setImage(
         new_view.T,
-        autoLevels=reset or self.diffraction_rescale_button.latched,
+        autoLevels=False,
+        levels=(
+            (np.percentile(new_view, 2), np.percentile(new_view, 98))
+            if auto_level
+            else None
+        ),
         autoRange=reset,
     )
 
