@@ -34,6 +34,7 @@ class DataViewer(QMainWindow):
 
     from py4D_browser.menu_actions import (
         load_file,
+        load_data_arina,
         load_data_auto,
         load_data_bin,
         load_data_mmap,
@@ -114,6 +115,10 @@ class DataViewer(QMainWindow):
         self.load_binned_action = QAction("Load Data &Binned...", self)
         self.load_binned_action.triggered.connect(self.load_data_bin)
         self.file_menu.addAction(self.load_binned_action)
+
+        self.load_arina_action = QAction("Load &Arina Data...", self)
+        self.load_arina_action.triggered.connect(self.load_data_arina)
+        self.file_menu.addAction(self.load_arina_action)
 
         self.file_menu.addSeparator()
 

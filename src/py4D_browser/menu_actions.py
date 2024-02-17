@@ -5,6 +5,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from py4D_browser.help_menu import KeyboardMapMenu
+from py4DSTEM.io.filereaders import read_arina
 
 
 def load_data_auto(self):
@@ -22,6 +23,35 @@ def load_data_bin(self):
     filename = self.show_file_dialog()
     self.load_file(filename, mmap=False, binning=4)
 
+def load_data_arina(self):
+    filename = self.show_file_dialog()
+    dataset = read_arina(filename)
+
+    # Try to reshape the data to be square
+    N_patterns = dataset.data.shape[1]
+    Nxy = np.sqrt(N_patterns)
+    if np.abs(Nxy - np.round(Nxy)) <= 1e-10:
+        Nxy = int(Nxy)
+        dataset.data = dataset.data.reshape(Nxy, Nxy, dataset.data.shape[2], dataset.data.shape[3])
+    else:
+        self.statusBar().showMessage(f"The scan appears to not be square! Found {N_patterns} patterns", 5_000)
+
+    self.datacube = dataset
+    self.diffraction_scale_bar.pixel_size = self.datacube.calibration.get_Q_pixel_size()
+    self.diffraction_scale_bar.units = self.datacube.calibration.get_Q_pixel_units()
+
+    self.real_space_scale_bar.pixel_size = self.datacube.calibration.get_R_pixel_size()
+    self.real_space_scale_bar.units = self.datacube.calibration.get_R_pixel_units()
+
+    self.fft_scale_bar.pixel_size = (
+        1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
+    )
+    self.fft_scale_bar.units = f"1/{self.datacube.calibration.get_R_pixel_units()}"
+
+    self.update_diffraction_space_view(reset=True)
+    self.update_real_space_view(reset=True)
+
+    self.setWindowTitle(filename)
 
 def load_file(self, filepath, mmap=False, binning=1):
     print(f"Loading file {filepath}")
