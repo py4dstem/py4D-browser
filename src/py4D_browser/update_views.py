@@ -200,7 +200,10 @@ def update_real_space_view(self, reset=False):
         if mode_switch:
             # Need to autorange after setRect
             self.fft_widget.autoRange()
-    elif self.fft_source_action_group.checkedAction().text() == "Virtual Image FFT (complex)":
+    elif (
+        self.fft_source_action_group.checkedAction().text()
+        == "Virtual Image FFT (complex)"
+    ):
         fft = np.fft.fftshift(np.fft.fft2(new_view))
         levels = (np.min(np.abs(fft)), np.percentile(np.abs(fft), 99.9))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
@@ -213,7 +216,10 @@ def update_real_space_view(self, reset=False):
             gamma=0.5,
         )
         self.fft_widget.setImage(
-            fft_img, autoLevels=False, autoRange=mode_switch, levels=(0,1),
+            fft_img,
+            autoLevels=False,
+            autoRange=mode_switch,
+            levels=(0, 1),
         )
 
         self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
