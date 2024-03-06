@@ -480,6 +480,12 @@ class DataViewer(QMainWindow):
         self.fft_widget.getView().setMenuEnabled(False)
 
         # Setup Status Bar
+        self.realspace_statistics_text = QLabel("Image Stats")
+        self.diffraction_statistics_text = QLabel("Diffraction Stats")
+        self.statusBar().addPermanentWidget(VLine())
+        self.statusBar().addPermanentWidget(self.realspace_statistics_text)
+        self.statusBar().addPermanentWidget(VLine())
+        self.statusBar().addPermanentWidget(self.diffraction_statistics_text)
         self.statusBar().addPermanentWidget(VLine())
         self.statusBar().addPermanentWidget(self.diffraction_space_view_text)
         self.statusBar().addPermanentWidget(VLine())

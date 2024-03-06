@@ -174,6 +174,10 @@ def update_real_space_view(self, reset=False):
 
     self.unscaled_realspace_image = vimg
 
+    self.realspace_statistics_text.setToolTip(
+        f"min\t{vimg.min():.5g}\nmax\t{vimg.max():.5g}\nmean\t{vimg.mean():.5g}\nsum\t{vimg.sum():.5g}\nstd\t{np.std(vimg):.5g}"
+    )
+
     auto_level = reset or self.realspace_rescale_button.latched
 
     self.real_space_widget.setImage(
@@ -283,6 +287,10 @@ def update_diffraction_space_view(self, reset=False):
         new_view = np.sqrt(np.maximum(DP, 0))
     else:
         raise ValueError("Mode not recognized")
+
+    self.diffraction_statistics_text.setToolTip(
+        f"min\t{DP.min():.5g}\nmax\t{DP.max():.5g}\nmean\t{DP.mean():.5g}\nsum\t{DP.sum():.5g}\nstd\t{np.std(DP):.5g}"
+    )
 
     auto_level = reset or self.diffraction_rescale_button.latched
 
