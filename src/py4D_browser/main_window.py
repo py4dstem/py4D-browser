@@ -365,13 +365,20 @@ class DataViewer(QMainWindow):
         img_fft_action = QAction("Virtual Image FFT", self)
         img_fft_action.setCheckable(True)
         img_fft_action.setChecked(True)
+        img_fft_action.triggered.connect(partial(self.update_real_space_view, False))
         self.fft_menu.addAction(img_fft_action)
         self.fft_source_action_group.addAction(img_fft_action)
+
+        img_complex_fft_action = QAction("Virtual Image FFT (complex)", self)
+        img_complex_fft_action.setCheckable(True)
+        self.fft_menu.addAction(img_complex_fft_action)
+        self.fft_source_action_group.addAction(img_complex_fft_action)
+        img_complex_fft_action.triggered.connect(partial(self.update_real_space_view, False))
+
         img_ewpc_action = QAction("EWPC", self)
         img_ewpc_action.setCheckable(True)
         self.fft_menu.addAction(img_ewpc_action)
         self.fft_source_action_group.addAction(img_ewpc_action)
-        img_fft_action.triggered.connect(partial(self.update_real_space_view, False))
         img_ewpc_action.triggered.connect(
             partial(self.update_diffraction_space_view, False)
         )
