@@ -43,6 +43,7 @@ class DataViewer(QMainWindow):
         export_datacube,
         export_virtual_image,
         show_keyboard_map,
+        reshape_data,
     )
 
     from py4D_browser.update_views import (
@@ -119,6 +120,10 @@ class DataViewer(QMainWindow):
         self.load_arina_action = QAction("Load &Arina Data...", self)
         self.load_arina_action.triggered.connect(self.load_data_arina)
         self.file_menu.addAction(self.load_arina_action)
+
+        self.reshape_data_action = QAction("&Reshape Data...", self)
+        self.reshape_data_action.triggered.connect(self.reshape_data)
+        self.file_menu.addAction(self.reshape_data_action)
 
         self.file_menu.addSeparator()
 

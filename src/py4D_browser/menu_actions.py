@@ -121,6 +121,18 @@ def load_file(self, filepath, mmap=False, binning=1):
     self.setWindowTitle(filepath)
 
 
+def reshape_data(self):
+    new_shape = ResizeDialog.get_new_size(self.datacube.shape[:2], parent=self)
+    self.datacube.data = self.datacube.data.reshape(
+        *new_shape, *self.datacube.data.shape[2:]
+    )
+
+    print(f"Reshaping data to {new_shape}")
+
+    self.update_diffraction_space_view(reset=True)
+    self.update_real_space_view(reset=True)
+
+
 def export_datacube(self, save_format: str):
     assert save_format in [
         "Raw float32",
