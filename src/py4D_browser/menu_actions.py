@@ -64,7 +64,7 @@ def load_file(self, filepath, mmap=False, binning=1):
     extension = os.path.splitext(filepath)[-1].lower()
     print(f"Type: {extension}")
     if extension in (".h5", ".hdf5", ".py4dstem", ".emd"):
-        datacubes = get_4D(h5py.File(filepath, "r"))
+        datacubes = get_ND(h5py.File(filepath, "r"))
         print(f"Found {len(datacubes)} 4D datasets inside the HDF5 file...")
         if len(datacubes) >= 1:
             # Read the first datacube in the HDF5 file into RAM
@@ -243,7 +243,8 @@ def get_savefile_name(self, file_format) -> str:
         raise ValueError("Could get save file")
 
 
-def get_4D(f, datacubes=None):
+def get_ND(f, datacubes=None, N=4):
+    # Traverse an h5py.File and look for Datasets with N dimensions
     if datacubes is None:
         datacubes = []
     for k in f.keys():
@@ -252,7 +253,7 @@ def get_4D(f, datacubes=None):
             if len(f[k].shape) == 4:
                 datacubes.append(f[k])
         elif isinstance(f[k], h5py.Group):
-            get_4D(f[k], datacubes)
+            get_ND(f[k], datacubes)
     return datacubes
 
 
