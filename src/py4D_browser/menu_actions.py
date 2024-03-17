@@ -1,3 +1,4 @@
+from numbers import Real
 import py4DSTEM
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 import h5py
@@ -5,6 +6,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from py4D_browser.help_menu import KeyboardMapMenu
+from py4D_browser.utils import ResizeDialog
 from py4DSTEM.io.filereaders import read_arina
 
 
@@ -63,8 +65,9 @@ def load_file(self, filepath, mmap=False, binning=1):
     print(f"Loading file {filepath}")
     extension = os.path.splitext(filepath)[-1].lower()
     print(f"Type: {extension}")
-    if extension in (".h5", ".hdf5", ".py4dstem", ".emd"):
-        datacubes = get_ND(h5py.File(filepath, "r"))
+    if extension in (".h5", ".hdf5", ".py4dstem", ".emd", ".mat"):
+        file = h5py.File(filepath, "r")
+        datacubes = get_ND(file)
         print(f"Found {len(datacubes)} 4D datasets inside the HDF5 file...")
         if len(datacubes) >= 1:
             # Read the first datacube in the HDF5 file into RAM
@@ -81,7 +84,17 @@ def load_file(self, filepath, mmap=False, binning=1):
             self.datacube.calibration.set_Q_pixel_units(Q_units)
 
         else:
-            raise ValueError("No 4D data detected in the H5 file!")
+            # if no 4D data was found, look for 3D data
+            datacubes = get_ND(file, N=3)
+            print(f"Found {len(datacubes)} 3D datasets inside the HDF5 file...")
+            if len(datacubes) >= 1:
+                array = datacubes[0] if mmap else datacubes[0][()]
+                new_shape = ResizeDialog.get_new_size([1, array.shape[0]], parent=self)
+                self.datacube = py4DSTEM.DataCube(
+                    array.reshape(*new_shape, *array.shape[1:])
+                )
+            else:
+                raise ValueError("No 4D (or even 3D) data detected in the H5 file!")
     elif extension in [".npy"]:
         self.datacube = py4DSTEM.DataCube(np.load(filepath))
     else:
@@ -192,7 +205,7 @@ def show_file_dialog(self) -> str:
         self,
         "Open 4D-STEM Data",
         "",
-        "4D-STEM Data (*.dm3 *.dm4 *.raw *.mib *.gtg *.h5 *.hdf5 *.emd *.py4dstem *.npy *.npz);;Any file (*)",
+        "4D-STEM Data (*.dm3 *.dm4 *.raw *.mib *.gtg *.h5 *.hdf5 *.emd *.py4dstem *.npy *.npz *.mat);;Any file (*)",
     )
     if filename is not None and len(filename[0]) > 0:
         return filename[0]
@@ -250,7 +263,7 @@ def get_ND(f, datacubes=None, N=4):
     for k in f.keys():
         if isinstance(f[k], h5py.Dataset):
             # we found data
-            if len(f[k].shape) == 4:
+            if len(f[k].shape) == N:
                 datacubes.append(f[k])
         elif isinstance(f[k], h5py.Group):
             get_ND(f[k], datacubes)
