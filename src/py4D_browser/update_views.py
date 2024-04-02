@@ -496,7 +496,6 @@ def update_probe_template_view(self, _=None):
 
     # Create a mask that is the same shape as the data and is 0 everywhere
     mask = np.zeros(self.datacube.Rshape, dtype=bool)
-    print(mask.shape)
 
     # Set the region of the mask under the ROI to 1
     mask[int(pos[1]):int(pos[1]+size[1]), int(pos[0]):int(pos[0]+size[0])] = 1
@@ -567,11 +566,15 @@ def update_disk_detection(self):
     print(braggpeaks)
     for qx, qy in zip(braggpeaks.qx, braggpeaks.qy):
         
-        disk_roi = pg.CircleROI((qy-self.alpha_pr/2, qx-self.alpha_pr/2), 
-                    (self.alpha_pr, self.alpha_pr), 
-                    movable=False,
-                    resizable=False,
-                    pen=pg.mkPen('r', width=2)
-                    )    
+        disk_roi = pg.CircleROI(
+            (qy-self.alpha_pr/2+0.5, qx-self.alpha_pr/2+0.5),
+            (self.alpha_pr, self.alpha_pr),
+            movable=False,
+            resizable=False,
+            pen=pg.mkPen('r', width=2)
+        )
+        h = disk_roi.addTranslateHandle((0, 0))
+        h.pen = pg.mkPen("r")
+        h.update()
         self.diffraction_space_widget.addItem(disk_roi)
  
