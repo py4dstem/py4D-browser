@@ -34,6 +34,7 @@ class DataViewer(QMainWindow):
 
     from py4D_browser.menu_actions import (
         load_file,
+        load_data_arina,
         load_data_auto,
         load_data_bin,
         load_data_mmap,
@@ -42,6 +43,7 @@ class DataViewer(QMainWindow):
         export_datacube,
         export_virtual_image,
         show_keyboard_map,
+        reshape_data,
     )
 
     from py4D_browser.update_views import (
@@ -114,6 +116,14 @@ class DataViewer(QMainWindow):
         self.load_binned_action = QAction("Load Data &Binned...", self)
         self.load_binned_action.triggered.connect(self.load_data_bin)
         self.file_menu.addAction(self.load_binned_action)
+
+        self.load_arina_action = QAction("Load &Arina Data...", self)
+        self.load_arina_action.triggered.connect(self.load_data_arina)
+        self.file_menu.addAction(self.load_arina_action)
+
+        self.reshape_data_action = QAction("&Reshape Data...", self)
+        self.reshape_data_action.triggered.connect(self.reshape_data)
+        self.file_menu.addAction(self.reshape_data_action)
 
         self.file_menu.addSeparator()
 
@@ -360,13 +370,22 @@ class DataViewer(QMainWindow):
         img_fft_action = QAction("Virtual Image FFT", self)
         img_fft_action.setCheckable(True)
         img_fft_action.setChecked(True)
+        img_fft_action.triggered.connect(partial(self.update_real_space_view, False))
         self.fft_menu.addAction(img_fft_action)
         self.fft_source_action_group.addAction(img_fft_action)
+
+        img_complex_fft_action = QAction("Virtual Image FFT (complex)", self)
+        img_complex_fft_action.setCheckable(True)
+        self.fft_menu.addAction(img_complex_fft_action)
+        self.fft_source_action_group.addAction(img_complex_fft_action)
+        img_complex_fft_action.triggered.connect(
+            partial(self.update_real_space_view, False)
+        )
+
         img_ewpc_action = QAction("EWPC", self)
         img_ewpc_action.setCheckable(True)
         self.fft_menu.addAction(img_ewpc_action)
         self.fft_source_action_group.addAction(img_ewpc_action)
-        img_fft_action.triggered.connect(partial(self.update_real_space_view, False))
         img_ewpc_action.triggered.connect(
             partial(self.update_diffraction_space_view, False)
         )
@@ -466,6 +485,12 @@ class DataViewer(QMainWindow):
         self.fft_widget.getView().setMenuEnabled(False)
 
         # Setup Status Bar
+        self.realspace_statistics_text = QLabel("Image Stats")
+        self.diffraction_statistics_text = QLabel("Diffraction Stats")
+        self.statusBar().addPermanentWidget(VLine())
+        self.statusBar().addPermanentWidget(self.realspace_statistics_text)
+        self.statusBar().addPermanentWidget(VLine())
+        self.statusBar().addPermanentWidget(self.diffraction_statistics_text)
         self.statusBar().addPermanentWidget(VLine())
         self.statusBar().addPermanentWidget(self.diffraction_space_view_text)
         self.statusBar().addPermanentWidget(VLine())

@@ -1,3 +1,4 @@
+from numbers import Real
 import py4DSTEM
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 import h5py
@@ -5,6 +6,8 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from py4D_browser.help_menu import KeyboardMapMenu
+from py4D_browser.utils import ResizeDialog
+from py4DSTEM.io.filereaders import read_arina
 
 
 def load_data_auto(self):
@@ -23,12 +26,48 @@ def load_data_bin(self):
     self.load_file(filename, mmap=False, binning=4)
 
 
+def load_data_arina(self):
+    filename = self.show_file_dialog()
+    dataset = read_arina(filename)
+
+    # Try to reshape the data to be square
+    N_patterns = dataset.data.shape[1]
+    Nxy = np.sqrt(N_patterns)
+    if np.abs(Nxy - np.round(Nxy)) <= 1e-10:
+        Nxy = int(Nxy)
+        dataset.data = dataset.data.reshape(
+            Nxy, Nxy, dataset.data.shape[2], dataset.data.shape[3]
+        )
+    else:
+        self.statusBar().showMessage(
+            f"The scan appears to not be square! Found {N_patterns} patterns", 5_000
+        )
+
+    self.datacube = dataset
+    self.diffraction_scale_bar.pixel_size = self.datacube.calibration.get_Q_pixel_size()
+    self.diffraction_scale_bar.units = self.datacube.calibration.get_Q_pixel_units()
+
+    self.real_space_scale_bar.pixel_size = self.datacube.calibration.get_R_pixel_size()
+    self.real_space_scale_bar.units = self.datacube.calibration.get_R_pixel_units()
+
+    self.fft_scale_bar.pixel_size = (
+        1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
+    )
+    self.fft_scale_bar.units = f"1/{self.datacube.calibration.get_R_pixel_units()}"
+
+    self.update_diffraction_space_view(reset=True)
+    self.update_real_space_view(reset=True)
+
+    self.setWindowTitle(filename)
+
+
 def load_file(self, filepath, mmap=False, binning=1):
     print(f"Loading file {filepath}")
     extension = os.path.splitext(filepath)[-1].lower()
     print(f"Type: {extension}")
-    if extension in (".h5", ".hdf5", ".py4dstem", ".emd"):
-        datacubes = get_4D(h5py.File(filepath, "r"))
+    if extension in (".h5", ".hdf5", ".py4dstem", ".emd", ".mat"):
+        file = h5py.File(filepath, "r")
+        datacubes = get_ND(file)
         print(f"Found {len(datacubes)} 4D datasets inside the HDF5 file...")
         if len(datacubes) >= 1:
             # Read the first datacube in the HDF5 file into RAM
@@ -45,7 +84,17 @@ def load_file(self, filepath, mmap=False, binning=1):
             self.datacube.calibration.set_Q_pixel_units(Q_units)
 
         else:
-            raise ValueError("No 4D data detected in the H5 file!")
+            # if no 4D data was found, look for 3D data
+            datacubes = get_ND(file, N=3)
+            print(f"Found {len(datacubes)} 3D datasets inside the HDF5 file...")
+            if len(datacubes) >= 1:
+                array = datacubes[0] if mmap else datacubes[0][()]
+                new_shape = ResizeDialog.get_new_size([1, array.shape[0]], parent=self)
+                self.datacube = py4DSTEM.DataCube(
+                    array.reshape(*new_shape, *array.shape[1:])
+                )
+            else:
+                raise ValueError("No 4D (or even 3D) data detected in the H5 file!")
     elif extension in [".npy"]:
         self.datacube = py4DSTEM.DataCube(np.load(filepath))
     else:
@@ -70,6 +119,18 @@ def load_file(self, filepath, mmap=False, binning=1):
     self.update_real_space_view(reset=True)
 
     self.setWindowTitle(filepath)
+
+
+def reshape_data(self):
+    new_shape = ResizeDialog.get_new_size(self.datacube.shape[:2], parent=self)
+    self.datacube.data = self.datacube.data.reshape(
+        *new_shape, *self.datacube.data.shape[2:]
+    )
+
+    print(f"Reshaping data to {new_shape}")
+
+    self.update_diffraction_space_view(reset=True)
+    self.update_real_space_view(reset=True)
 
 
 def export_datacube(self, save_format: str):
@@ -156,7 +217,7 @@ def show_file_dialog(self) -> str:
         self,
         "Open 4D-STEM Data",
         "",
-        "4D-STEM Data (*.dm3 *.dm4 *.raw *.mib *.gtg *.h5 *.hdf5 *.emd *.py4dstem *.npy *.npz);;Any file (*)",
+        "4D-STEM Data (*.dm3 *.dm4 *.raw *.mib *.gtg *.h5 *.hdf5 *.emd *.py4dstem *.npy *.npz *.mat);;Any file (*)",
     )
     if filename is not None and len(filename[0]) > 0:
         return filename[0]
@@ -207,16 +268,17 @@ def get_savefile_name(self, file_format) -> str:
         raise ValueError("Could get save file")
 
 
-def get_4D(f, datacubes=None):
+def get_ND(f, datacubes=None, N=4):
+    # Traverse an h5py.File and look for Datasets with N dimensions
     if datacubes is None:
         datacubes = []
     for k in f.keys():
         if isinstance(f[k], h5py.Dataset):
             # we found data
-            if len(f[k].shape) == 4:
+            if len(f[k].shape) == N:
                 datacubes.append(f[k])
         elif isinstance(f[k], h5py.Group):
-            get_4D(f[k], datacubes)
+            get_ND(f[k], datacubes)
     return datacubes
 
 

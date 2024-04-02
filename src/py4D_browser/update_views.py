@@ -3,7 +3,7 @@ import numpy as np
 import py4DSTEM
 from functools import partial
 
-from py4D_browser.utils import pg_point_roi, make_detector
+from py4D_browser.utils import pg_point_roi, make_detector, complex_to_Lab
 
 
 def update_real_space_view(self, reset=False):
@@ -174,9 +174,20 @@ def update_real_space_view(self, reset=False):
 
     self.unscaled_realspace_image = vimg
 
+    self.realspace_statistics_text.setToolTip(
+        f"min\t{vimg.min():.5g}\nmax\t{vimg.max():.5g}\nmean\t{vimg.mean():.5g}\nsum\t{vimg.sum():.5g}\nstd\t{np.std(vimg):.5g}"
+    )
+
+    auto_level = reset or self.realspace_rescale_button.latched
+
     self.real_space_widget.setImage(
         new_view.T,
-        autoLevels=reset or self.realspace_rescale_button.latched,
+        autoLevels=False,
+        levels=(
+            (np.percentile(new_view, 2), np.percentile(new_view, 98))
+            if auto_level
+            else None
+        ),
         autoRange=reset,
     )
 
@@ -189,6 +200,32 @@ def update_real_space_view(self, reset=False):
         self.fft_widget.setImage(
             fft.T, autoLevels=False, levels=levels, autoRange=mode_switch
         )
+        self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
+        if mode_switch:
+            # Need to autorange after setRect
+            self.fft_widget.autoRange()
+    elif (
+        self.fft_source_action_group.checkedAction().text()
+        == "Virtual Image FFT (complex)"
+    ):
+        fft = np.fft.fftshift(np.fft.fft2(new_view))
+        levels = (np.min(np.abs(fft)), np.percentile(np.abs(fft), 99.9))
+        mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
+        self.fft_widget_text.setText("Virtual Image FFT")
+        fft_img = complex_to_Lab(
+            fft.T,
+            amin=levels[0],
+            amax=levels[1],
+            ab_scale=128,
+            gamma=0.5,
+        )
+        self.fft_widget.setImage(
+            fft_img,
+            autoLevels=False,
+            autoRange=mode_switch,
+            levels=(0, 1),
+        )
+
         self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
         if mode_switch:
             # Need to autorange after setRect
@@ -251,9 +288,20 @@ def update_diffraction_space_view(self, reset=False):
     else:
         raise ValueError("Mode not recognized")
 
+    self.diffraction_statistics_text.setToolTip(
+        f"min\t{DP.min():.5g}\nmax\t{DP.max():.5g}\nmean\t{DP.mean():.5g}\nsum\t{DP.sum():.5g}\nstd\t{np.std(DP):.5g}"
+    )
+
+    auto_level = reset or self.diffraction_rescale_button.latched
+
     self.diffraction_space_widget.setImage(
         new_view.T,
-        autoLevels=reset or self.diffraction_rescale_button.latched,
+        autoLevels=False,
+        levels=(
+            (np.percentile(new_view, 2), np.percentile(new_view, 98))
+            if auto_level
+            else None
+        ),
         autoRange=reset,
     )
 
@@ -279,7 +327,7 @@ def update_realspace_detector(self):
     if self.datacube is None:
         return
 
-    x, y = self.datacube.shape[2:]
+    x, y = self.datacube.data.shape[:2]
     x0, y0 = x / 2, y / 2
     xr, yr = x / 10, y / 10
 
@@ -322,7 +370,7 @@ def update_diffraction_detector(self):
     if self.datacube is None:
         return
 
-    x, y = self.datacube.shape[2:]
+    x, y = self.datacube.data.shape[2:]
     x0, y0 = x / 2, y / 2
     xr, yr = x / 10, y / 10
 
