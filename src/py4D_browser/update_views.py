@@ -266,6 +266,15 @@ def update_diffraction_space_view(self, reset=False):
             fft.T, autoLevels=False, levels=levels, autoRange=mode_switch
         )
 
+    # remove ROIs if button is unlatched to return to the default view
+    if self.disk_group in self.diffraction_space_widget.view.allChildren():
+        self.diffraction_space_widget.removeItem(self.disk_group)
+    
+    # Continuously update disk positions as real space ROI moves when button
+    # is latched
+    if self.separate_window is not None:
+        if self.separate_window.run_all.isChecked():
+            self.update_disk_detection()
 
 def update_realspace_detector(self):
     # change the shape of the detector, then update the view
@@ -534,17 +543,11 @@ def update_disk_detection(self):
     Finds Bragg disks for the currently displayed diffraction pattern.
     """
     
-    if self.probe.kernel is None:
-        print("No kernel found for cross-correlation. Please generate a kernel first.")
-        return
-    
-    # Remove existing CircleROIs except for self.virtual_detector_point
-    # This logic is not great, will probably need to be changed
-    for item in self.diffraction_space_widget.getView().allChildren():
-        if isinstance(item, pg.CircleROI) and item.size()[0] == self.alpha_pr:
-            self.diffraction_space_widget.removeItem(item)
-    
-    # take current ROI position and turn it into pixel coordinates
+    # Remove existing CircleROIs
+    for item in self.disk_group.childItems():
+        self.disk_group.removeFromGroup(item)
+
+    # take current real space ROI position and turn it into pixel coordinates
     # this part was taken from one of the functions above
     roi_state = self.real_space_point_selector.saveState()
     y0, x0 = roi_state["pos"]
@@ -563,7 +566,6 @@ def update_disk_detection(self):
         **detection_params,
     )
     
-    print(braggpeaks)
     for qx, qy in zip(braggpeaks.qx, braggpeaks.qy):
         
         disk_roi = pg.CircleROI(
@@ -571,10 +573,9 @@ def update_disk_detection(self):
             (self.alpha_pr, self.alpha_pr),
             movable=False,
             resizable=False,
-            pen=pg.mkPen('r', width=2)
+            pen=pg.mkPen('r', width=2, cosmetic=True)
         )
-        h = disk_roi.addTranslateHandle((0, 0))
-        h.pen = pg.mkPen("r")
-        h.update()
-        self.diffraction_space_widget.addItem(disk_roi)
+        self.disk_group.addToGroup(disk_roi)
+    
+    self.diffraction_space_widget.addItem(self.disk_group)
  
