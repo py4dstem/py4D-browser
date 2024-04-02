@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import (
     QSpinBox, 
     QComboBox,
     QCheckBox,
+    QGraphicsItemGroup,
 )
 
 import pyqtgraph as pg
@@ -93,6 +94,8 @@ class DataViewer(QMainWindow):
         self.setAcceptDrops(True)
 
         self.datacube = None
+        self.separate_window = None
+        self.disk_group = QGraphicsItemGroup()
 
         self.setup_menus()
         self.setup_views()
@@ -686,7 +689,7 @@ class SeparateWindow(QWidget):
         
         button_layout = QHBoxLayout()
         self.run_current = QPushButton("Fit Current View")
-        self.run_all = QPushButton("Fit All")
+        self.run_all = LatchingButton('Enable/Disable Disk Detection')
         button_layout.addWidget(self.run_current)
         button_layout.addWidget(self.run_all)
         self.layout.addLayout(button_layout)
