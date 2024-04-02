@@ -5,7 +5,6 @@ from functools import partial
 
 from py4D_browser.utils import pg_point_roi, make_detector, complex_to_Lab
 
-
 def update_real_space_view(self, reset=False):
     scaling_mode = self.vimg_scaling_group.checkedAction().text().replace("&", "")
     assert scaling_mode in ["Linear", "Log", "Square Root"], scaling_mode
@@ -315,6 +314,15 @@ def update_diffraction_space_view(self, reset=False):
             fft.T, autoLevels=False, levels=levels, autoRange=mode_switch
         )
 
+    # remove ROIs if button is unlatched to return to the default view
+    if self.disk_group in self.diffraction_space_widget.view.allChildren():
+        self.diffraction_space_widget.removeItem(self.disk_group)
+    
+    # Continuously update disk positions as real space ROI moves when button
+    # is latched
+    if self.separate_window is not None:
+        if self.separate_window.run_all.isChecked():
+            self.update_disk_detection()
 
 def update_realspace_detector(self):
     # change the shape of the detector, then update the view
@@ -532,3 +540,90 @@ def update_annulus_radii(self):
         self.virtual_detector_roi_outer.setPos(
             x0 - R_inner - 3, y0 - R_inner - 3, update=False
         )
+
+def update_probe_template_view(self, _=None):
+        
+    if hasattr(self, "real_space_point_selector"):
+        roi = self.real_space_point_selector
+    if hasattr(self, "real_space_rect_selector"):
+        roi = self.real_space_rect_selector
+
+    pos = roi.pos()
+    size = roi.size()
+
+    # Create a mask that is the same shape as the data and is 0 everywhere
+    mask = np.zeros(self.datacube.Rshape, dtype=bool)
+
+    # Set the region of the mask under the ROI to 1
+    mask[int(pos[1]):int(pos[1]+size[1]), int(pos[0]):int(pos[0]+size[0])] = 1
+    print(np.count_nonzero(mask), "pixels in ROI")
+    # Use current ROI in real space to generate a probe template
+    self.probe = self.datacube.get_vacuum_probe(mask)
+    
+    self.probe_view.setImage(self.probe.probe)
+    
+    self.alpha_pr, self.qx0_pr, self.qy0_pr = self.datacube.get_probe_size(self.probe.probe)
+    print(f"Probe size: {self.alpha_pr} px"
+          f" at ({self.qx0_pr}, {self.qy0_pr}) px")
+
+def update_kernel_view(self):
+    # Update the kernel view
+    multiplier = self.kernel_radius.value()
+    self.probe.get_kernel(
+        mode='sigmoid',
+        origin=(self.qx0_pr, self.qy0_pr),
+        radii=(self.alpha_pr, multiplier*self.alpha_pr)   # the inner and outer radii of the 'trench'
+    )
+    
+    R = 24
+    kernel = self.probe.kernel
+    im_kernel = np.vstack(
+        [
+            np.hstack([kernel[-int(R) :, -int(R) :], kernel[-int(R) :, : int(R)]]),
+            np.hstack([kernel[: int(R), -int(R) :], kernel[: int(R), : int(R)]]),
+        ]
+    )
+    
+    self.kernel_view.setImage(im_kernel)
+
+def update_disk_detection(self):
+    """
+    Finds Bragg disks for the currently displayed diffraction pattern.
+    """
+    
+    # Remove existing CircleROIs
+    for item in self.disk_group.childItems():
+        self.disk_group.removeFromGroup(item)
+
+    # take current real space ROI position and turn it into pixel coordinates
+    # this part was taken from one of the functions above
+    roi_state = self.real_space_point_selector.saveState()
+    y0, x0 = roi_state["pos"]
+    xc, yc = int(x0 + 1), int(y0 + 1)
+
+    # Normalize coordinates
+    xc = np.clip(xc, 0, self.datacube.R_Nx - 1)
+    yc = np.clip(yc, 0, self.datacube.R_Ny - 1)
+    
+    # get parameters in dictionary form from the parameter window
+    detection_params = self.separate_window.get_params_as_dict()
+
+    braggpeaks = self.datacube.find_Bragg_disks(
+        data=(xc, yc),
+        template=self.probe.kernel,
+        **detection_params,
+    )
+    
+    for qx, qy in zip(braggpeaks.qx, braggpeaks.qy):
+        
+        disk_roi = pg.CircleROI(
+            (qy-self.alpha_pr/2+0.5, qx-self.alpha_pr/2+0.5),
+            (self.alpha_pr, self.alpha_pr),
+            movable=False,
+            resizable=False,
+            pen=pg.mkPen('r', width=2, cosmetic=True)
+        )
+        self.disk_group.addToGroup(disk_roi)
+    
+    self.diffraction_space_widget.addItem(self.disk_group)
+ 
