@@ -33,6 +33,13 @@ def update_real_space_view(self, reset=False):
         self.vimg_scale_linear_action.setChecked(True)
         scaling_mode = "Linear"
 
+    real_space_colormap = self.real_space_colormap_group.checkedAction().text().replace("&","").lower()
+    assert real_space_colormap in [
+        'grey',
+        'viridis',
+        'inferno',
+    ], real_space_colormap
+
     if self.datacube is None:
         return
 
@@ -190,6 +197,7 @@ def update_real_space_view(self, reset=False):
         ),
         autoRange=reset,
     )
+    self.real_space_widget.setPredefinedGradient(real_space_colormap)
 
     # Update FFT view
     if self.fft_source_action_group.checkedAction().text() == "Virtual Image FFT":
@@ -246,6 +254,13 @@ def update_diffraction_space_view(self, reset=False):
         "Point",
         "Rectangular",
     ], detector_shape
+
+    diffraction_colormap = self.diffraction_colormap_group.checkedAction().text().replace("&","").lower()
+    assert diffraction_colormap in [
+        'grey',
+        'viridis',
+        'inferno'
+    ], diffraction_colormap
 
     if detector_shape == "Point":
         roi_state = self.real_space_point_selector.saveState()
@@ -304,6 +319,7 @@ def update_diffraction_space_view(self, reset=False):
         ),
         autoRange=reset,
     )
+    self.diffraction_space_widget.setPredefinedGradient(diffraction_colormap)
 
     if self.fft_source_action_group.checkedAction().text() == "EWPC":
         log_clip = np.maximum(1e-10, np.percentile(np.maximum(DP, 0.0), 0.1))

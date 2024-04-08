@@ -341,7 +341,7 @@ class DataViewer(QMainWindow):
 
         self.detector_shape_menu.addSeparator()
 
-        diffraction_detector_separator = QAction("Real Space", self)
+        diffraction_detector_separator = QAction("Virtual Image", self)
         diffraction_detector_separator.setDisabled(True)
         self.detector_shape_menu.addAction(diffraction_detector_separator)
 
@@ -389,6 +389,64 @@ class DataViewer(QMainWindow):
         img_ewpc_action.triggered.connect(
             partial(self.update_diffraction_space_view, False)
         )
+
+#Color Mapping Menu
+        self.colormap_menu = QMenu("&Colormap", self)
+        self.menu_bar.addMenu(self.colormap_menu)
+
+        diffraction_colormap_group = QActionGroup(self)
+        diffraction_colormap_group.setExclusive(True)
+        self.diffraction_colormap_group = diffraction_colormap_group
+
+        diffraction_colormap_separator = QAction("Diffraction", self)
+        diffraction_colormap_separator.setDisabled(True)
+        self.colormap_menu.addAction(diffraction_colormap_separator)
+
+        diffraction_grey_action = QAction("&Grey", self)
+        diffraction_grey_action.setCheckable(True)
+        diffraction_grey_action.setChecked(True)
+        diffraction_grey_action.triggered.connect(self.update_diffraction_space_view)
+        diffraction_colormap_group.addAction(diffraction_grey_action)
+        self.colormap_menu.addAction(diffraction_grey_action)
+
+        diffraction_viridis_action = QAction("&Viridis", self)
+        diffraction_viridis_action.setCheckable(True)
+        diffraction_viridis_action.triggered.connect(self.update_diffraction_space_view)
+        diffraction_colormap_group.addAction(diffraction_viridis_action)
+        self.colormap_menu.addAction(diffraction_viridis_action)
+
+        diffraction_inferno_action = QAction("&Inferno", self)
+        diffraction_inferno_action.setCheckable(True)
+        diffraction_inferno_action.triggered.connect(self.update_diffraction_space_view)
+        diffraction_colormap_group.addAction(diffraction_inferno_action)
+        self.colormap_menu.addAction(diffraction_inferno_action)
+
+        real_space_colormap_group = QActionGroup(self)
+        real_space_colormap_group.setExclusive(True)
+        self.real_space_colormap_group = real_space_colormap_group
+
+        real_space_colormap_separator = QAction("Virtual Image", self)
+        real_space_colormap_separator.setDisabled(True)
+        self.colormap_menu.addAction(real_space_colormap_separator)
+
+        real_space_grey_action = QAction("Gre&y", self)
+        real_space_grey_action.setCheckable(True)
+        real_space_grey_action.setChecked(True)
+        real_space_grey_action.triggered.connect(self.update_real_space_view)
+        real_space_colormap_group.addAction(real_space_grey_action)
+        self.colormap_menu.addAction(real_space_grey_action)
+
+        real_space_viridis_action = QAction("Viridi&s", self)
+        real_space_viridis_action.setCheckable(True)
+        real_space_viridis_action.triggered.connect(self.update_real_space_view)
+        real_space_colormap_group.addAction(real_space_viridis_action)
+        self.colormap_menu.addAction(real_space_viridis_action)
+
+        real_space_inferno_action = QAction("Infern&o", self)
+        real_space_inferno_action.setCheckable(True)
+        real_space_inferno_action.triggered.connect(self.update_real_space_view)
+        real_space_colormap_group.addAction(real_space_inferno_action)
+        self.colormap_menu.addAction(real_space_inferno_action)
 
         self.help_menu = QMenu("&Help", self)
         self.menu_bar.addMenu(self.help_menu)
