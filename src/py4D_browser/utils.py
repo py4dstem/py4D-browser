@@ -2,7 +2,7 @@ import pyqtgraph as pg
 import numpy as np
 from PyQt5.QtWidgets import QFrame, QPushButton, QApplication, QLabel
 from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QObject
 from PyQt5.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout, QSpinBox
 
 
