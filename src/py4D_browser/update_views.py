@@ -518,7 +518,7 @@ def update_tooltip(self):
 
     if QtCore.Qt.ControlModifier == modifier_keys:
         pos = self.mapFromGlobal(QCursor.pos())
-        print(f"global: {QCursor.pos()}\tapplication: {pos}")
+        # print(f"global: {QCursor.pos()}\tapplication: {pos}")
 
         for scene in [
             self.diffraction_space_widget,
@@ -526,7 +526,7 @@ def update_tooltip(self):
             self.fft_widget,
         ]:
             pos_in_scene = scene.mapFromGlobal(QCursor.pos())
-            print(f"In view: {pos_in_scene}")
+            # print(f"In view: {pos_in_scene}")
             if scene.getView().rect().contains(pos_in_scene):
                 pos_in_data = scene.view.mapSceneToView(pos_in_scene)
                 print(f"Inside: {scene} at {pos_in_data}")

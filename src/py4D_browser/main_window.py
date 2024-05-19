@@ -94,6 +94,11 @@ class DataViewer(QMainWindow):
         self.setup_menus()
         self.setup_views()
 
+        # setup listener for tooltip
+        self.tooltip_timer = pg.ThreadsafeTimer()
+        self.tooltip_timer.timeout.connect(self.update_tooltip)
+        self.tooltip_timer.start(1000 // 30)  # run at 30 Hz
+
         self.resize(1000, 800)
 
         self.show()
@@ -429,22 +434,6 @@ class DataViewer(QMainWindow):
         self.diffraction_space_view_text = QLabel("Slice")
 
         self.diffraction_space_widget.setMouseTracking(True)
-
-        # def f(x):
-        #     import inspect
-        #     curframe = inspect.currentframe()
-        #     calframe = inspect.getouterframes(curframe, 2)
-        #     print('caller name:', calframe[1][3])
-
-        # self.tooltip_proxy = pg.SignalProxy(
-        #     signal=self.diffraction_space_widget.scene.sigMouseMoved,
-        #     slot=f,
-        #     rateLimit=5,
-        # )
-        self.tooltip_timer = pg.ThreadsafeTimer()
-        self.tooltip_timer.timeout.connect(self.update_tooltip)
-        self.tooltip_timer.start(1000 // 30)  # run at 30 Hz
-        # self.diffraction_space_widget.scene.sigMouseMoved.connect(f)
 
         # Create virtual detector ROI selector
         self.virtual_detector_point = pg_point_roi(
