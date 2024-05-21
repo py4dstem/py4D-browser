@@ -12,12 +12,14 @@ from PyQt5.QtWidgets import (
     QPushButton,
 )
 
+from matplotlib.backend_bases import tools
 import pyqtgraph as pg
 import numpy as np
 
 from functools import partial
 from pathlib import Path
 import importlib
+import os
 
 from py4D_browser.utils import pg_point_roi, VLine, LatchingButton
 from py4D_browser.scalebar import ScaleBar
@@ -46,6 +48,11 @@ class DataViewer(QMainWindow):
         reshape_data,
     )
 
+    from py4D_browser.reconstruct_actions import (
+        reconstruct_tcBF_manual,
+        reconstruct_tcBF_auto,
+    )
+
     from py4D_browser.update_views import (
         update_diffraction_space_view,
         update_real_space_view,
@@ -55,6 +62,7 @@ class DataViewer(QMainWindow):
         nudge_diffraction_selector,
         update_annulus_pos,
         update_annulus_radii,
+        update_tooltip,
     )
 
     HAS_EMPAD2 = importlib.util.find_spec("empad2") is not None
@@ -86,6 +94,11 @@ class DataViewer(QMainWindow):
         self.setup_menus()
         self.setup_views()
 
+        # setup listener for tooltip
+        self.tooltip_timer = pg.ThreadsafeTimer()
+        self.tooltip_timer.timeout.connect(self.update_tooltip)
+        self.tooltip_timer.start(1000 // 30)  # run at 30 Hz
+
         self.resize(1000, 800)
 
         self.show()
@@ -93,6 +106,10 @@ class DataViewer(QMainWindow):
         # If a file was passed on the command line, open it
         if len(argv) > 1:
             self.load_file(argv[1])
+
+        # launch pyqtgraph's debug console if environment variable exists
+        if os.environ.get("PY4DGUI_DEBUG"):
+            pg.dbg()
 
     def setup_menus(self):
         self.menu_bar = self.menuBar()
@@ -390,6 +407,19 @@ class DataViewer(QMainWindow):
             partial(self.update_diffraction_space_view, False)
         )
 
+        # Reconstructions menu
+        self.reconstruction_menu = QMenu("Reconstructions", self)
+        self.menu_bar.addMenu(self.reconstruction_menu)
+
+        tcBF_action_manual = QAction("tcBF (Manual)...", self)
+        tcBF_action_manual.triggered.connect(self.reconstruct_tcBF_manual)
+        self.reconstruction_menu.addAction(tcBF_action_manual)
+
+        tcBF_action_auto = QAction("tcBF (Auto)", self)
+        tcBF_action_auto.triggered.connect(self.reconstruct_tcBF_auto)
+        self.reconstruction_menu.addAction(tcBF_action_auto)
+
+        # Help menu
         self.help_menu = QMenu("&Help", self)
         self.menu_bar.addMenu(self.help_menu)
 
@@ -402,6 +432,8 @@ class DataViewer(QMainWindow):
         self.diffraction_space_widget = pg.ImageView()
         self.diffraction_space_widget.setImage(np.zeros((512, 512)))
         self.diffraction_space_view_text = QLabel("Slice")
+
+        self.diffraction_space_widget.setMouseTracking(True)
 
         # Create virtual detector ROI selector
         self.virtual_detector_point = pg_point_roi(

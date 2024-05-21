@@ -2,6 +2,9 @@ import pyqtgraph as pg
 import numpy as np
 import py4DSTEM
 from functools import partial
+from PyQt5.QtWidgets import QApplication
+from PyQt5 import QtCore
+from PyQt5.QtGui import QCursor
 
 from py4D_browser.utils import pg_point_roi, make_detector, complex_to_Lab
 
@@ -508,6 +511,25 @@ def nudge_diffraction_selector(self, dx, dy):
     position[1] += dx
 
     selector.setPos(position)
+
+
+def update_tooltip(self):
+    modifier_keys = QApplication.queryKeyboardModifiers()
+
+    if QtCore.Qt.ControlModifier == modifier_keys:
+        pos = self.mapFromGlobal(QCursor.pos())
+        # print(f"global: {QCursor.pos()}\tapplication: {pos}")
+
+        for scene in [
+            self.diffraction_space_widget,
+            self.real_space_widget,
+            self.fft_widget,
+        ]:
+            pos_in_scene = scene.mapFromGlobal(QCursor.pos())
+            # print(f"In view: {pos_in_scene}")
+            if scene.getView().rect().contains(pos_in_scene):
+                pos_in_data = scene.view.mapSceneToView(pos_in_scene)
+                print(f"Inside: {scene} at {pos_in_data}")
 
 
 def update_annulus_pos(self):
