@@ -2,7 +2,7 @@ import pyqtgraph as pg
 import numpy as np
 import py4DSTEM
 from functools import partial
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QToolTip
 from PyQt5 import QtCore
 from PyQt5.QtGui import QCursor
 
@@ -233,6 +233,7 @@ def update_real_space_view(self, reset=False):
         if mode_switch:
             # Need to autorange after setRect
             self.fft_widget.autoRange()
+    self.unscaled_fft_image = fft
 
 
 def update_diffraction_space_view(self, reset=False):
@@ -517,19 +518,26 @@ def update_tooltip(self):
     modifier_keys = QApplication.queryKeyboardModifiers()
 
     if QtCore.Qt.ControlModifier == modifier_keys:
-        pos = self.mapFromGlobal(QCursor.pos())
+        global_pos = QCursor.pos()
+        # pos = self.mapFromGlobal(global_pos)
         # print(f"global: {QCursor.pos()}\tapplication: {pos}")
 
-        for scene in [
-            self.diffraction_space_widget,
-            self.real_space_widget,
-            self.fft_widget,
+        for scene, data in [
+            (self.diffraction_space_widget, self.unscaled_diffraction_image),
+            (self.real_space_widget, self.unscaled_realspace_image),
+            (self.fft_widget, self.unscaled_fft_image),
         ]:
             pos_in_scene = scene.mapFromGlobal(QCursor.pos())
             # print(f"In view: {pos_in_scene}")
             if scene.getView().rect().contains(pos_in_scene):
                 pos_in_data = scene.view.mapSceneToView(pos_in_scene)
-                print(f"Inside: {scene} at {pos_in_data}")
+                # print(f"Inside: {scene} at {pos_in_data}")
+
+                y = int(np.clip(np.floor(pos_in_data.x()), 0, data.shape[0] - 1))
+                x = int(np.clip(np.floor(pos_in_data.y()), 0, data.shape[1] - 1))
+                display_text = f"[{x},{y}]: {data[x,y]:.5g}"
+
+                QToolTip.showText(global_pos, display_text)
 
 
 def update_annulus_pos(self):

@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
     QSplitter,
     QActionGroup,
     QLabel,
-    QPushButton,
+    QToolTip,
 )
 
 from matplotlib.backend_bases import tools
@@ -97,7 +97,10 @@ class DataViewer(QMainWindow):
         # setup listener for tooltip
         self.tooltip_timer = pg.ThreadsafeTimer()
         self.tooltip_timer.timeout.connect(self.update_tooltip)
-        self.tooltip_timer.start(1000 // 30)  # run at 30 Hz
+        self.tooltip_timer.start(1000 // 30)  # run tooltip at 30 Hz
+        font = QtGui.QFont(self.font())
+        font.setPointSize(10)
+        QToolTip.setFont(font)
 
         self.resize(1000, 800)
 
