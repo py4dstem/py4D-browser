@@ -58,6 +58,8 @@ class DataViewer(QMainWindow):
         update_real_space_view,
         update_realspace_detector,
         update_diffraction_detector,
+        set_diffraction_autoscale_range,
+        set_real_space_autoscale_range,
         nudge_real_space_selector,
         nudge_diffraction_selector,
         update_annulus_pos,
@@ -241,6 +243,28 @@ class DataViewer(QMainWindow):
 
         self.scaling_menu.addSeparator()
 
+        diff_autoscale_separator = QAction("Diffraction Autoscale", self)
+        diff_autoscale_separator.setDisabled(True)
+        self.scaling_menu.addAction(diff_autoscale_separator)
+
+        diff_range_group = QActionGroup(self)
+        diff_range_group.setExclusive(True)
+
+        for scale_range in [(0, 100), (0.1, 99.9), (1, 99), (2, 98), (5, 95)]:
+            action = QAction(f"{scale_range[0]}% - {scale_range[1]}%", self)
+            diff_range_group.addAction(action)
+            self.scaling_menu.addAction(action)
+            action.setCheckable(True)
+            action.triggered.connect(
+                partial(self.set_diffraction_autoscale_range, scale_range)
+            )
+            # set default
+            if scale_range[0] == 2 and scale_range[1] == 98:
+                action.setChecked(True)
+                self.set_diffraction_autoscale_range(scale_range, redraw=False)
+
+        self.scaling_menu.addSeparator()
+
         # Real space scaling
         vimg_scaling_group = QActionGroup(self)
         vimg_scaling_group.setExclusive(True)
@@ -275,6 +299,28 @@ class DataViewer(QMainWindow):
         )
         vimg_scaling_group.addAction(vimg_scale_sqrt_action)
         self.scaling_menu.addAction(vimg_scale_sqrt_action)
+
+        self.scaling_menu.addSeparator()
+
+        vimg_autoscale_separator = QAction("Virtual Image Autoscale", self)
+        vimg_autoscale_separator.setDisabled(True)
+        self.scaling_menu.addAction(vimg_autoscale_separator)
+
+        vimg_range_group = QActionGroup(self)
+        vimg_range_group.setExclusive(True)
+
+        for scale_range in [(0, 100), (0.1, 99.9), (1, 99), (2, 98), (5, 95)]:
+            action = QAction(f"{scale_range[0]}% - {scale_range[1]}%", self)
+            vimg_range_group.addAction(action)
+            self.scaling_menu.addAction(action)
+            action.setCheckable(True)
+            action.triggered.connect(
+                partial(self.set_real_space_autoscale_range, scale_range)
+            )
+            # set default
+            if scale_range[0] == 2 and scale_range[1] == 98:
+                action.setChecked(True)
+                self.set_real_space_autoscale_range(scale_range, redraw=False)
 
         # Detector Response Menu
         self.detector_menu = QMenu("&Detector Response", self)
@@ -361,7 +407,7 @@ class DataViewer(QMainWindow):
 
         self.detector_shape_menu.addSeparator()
 
-        diffraction_detector_separator = QAction("Real Space", self)
+        diffraction_detector_separator = QAction("Virtual Image", self)
         diffraction_detector_separator.setDisabled(True)
         self.detector_shape_menu.addAction(diffraction_detector_separator)
 
@@ -473,7 +519,7 @@ class DataViewer(QMainWindow):
         self.real_space_scale_bar.anchor((1, 1), (1, 1), offset=(-40, -40))
 
         # Name and return
-        self.real_space_widget.setWindowTitle("Real Space")
+        self.real_space_widget.setWindowTitle("Virtual Image")
 
         self.diffraction_space_widget.setAcceptDrops(True)
         self.real_space_widget.setAcceptDrops(True)
@@ -541,7 +587,7 @@ class DataViewer(QMainWindow):
         )
         self.statusBar().addPermanentWidget(self.diffraction_rescale_button)
         self.realspace_rescale_button = LatchingButton(
-            "Autoscale Real Space",
+            "Autoscale Virtual Image",
             status_bar=self.statusBar(),
             latched=True,
         )

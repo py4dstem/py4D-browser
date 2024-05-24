@@ -187,7 +187,10 @@ def update_real_space_view(self, reset=False):
         new_view.T,
         autoLevels=False,
         levels=(
-            (np.percentile(new_view, 2), np.percentile(new_view, 98))
+            (
+                np.percentile(new_view, self.real_space_autoscale_percentiles[0]),
+                np.percentile(new_view, self.real_space_autoscale_percentiles[1]),
+            )
             if auto_level
             else None
         ),
@@ -302,7 +305,10 @@ def update_diffraction_space_view(self, reset=False):
         new_view.T,
         autoLevels=False,
         levels=(
-            (np.percentile(new_view, 2), np.percentile(new_view, 98))
+            (
+                np.percentile(new_view, self.diffraction_autoscale_percentiles[0]),
+                np.percentile(new_view, self.diffraction_autoscale_percentiles[1]),
+            )
             if auto_level
             else None
         ),
@@ -468,6 +474,20 @@ def update_diffraction_detector(self):
     self.update_real_space_view(reset=True)
 
 
+def set_diffraction_autoscale_range(self, percentiles, redraw=True):
+    self.diffraction_autoscale_percentiles = percentiles
+
+    if redraw:
+        self.update_diffraction_space_view(reset=False)
+
+
+def set_real_space_autoscale_range(self, percentiles, redraw=True):
+    self.real_space_autoscale_percentiles = percentiles
+
+    if redraw:
+        self.update_real_space_view(reset=False)
+
+
 def nudge_real_space_selector(self, dx, dy):
     if (
         hasattr(self, "real_space_point_selector")
@@ -519,8 +539,6 @@ def update_tooltip(self):
 
     if QtCore.Qt.ControlModifier == modifier_keys:
         global_pos = QCursor.pos()
-        # pos = self.mapFromGlobal(global_pos)
-        # print(f"global: {QCursor.pos()}\tapplication: {pos}")
 
         for scene, data in [
             (self.diffraction_space_widget, self.unscaled_diffraction_image),
@@ -528,15 +546,15 @@ def update_tooltip(self):
             (self.fft_widget, self.unscaled_fft_image),
         ]:
             pos_in_scene = scene.mapFromGlobal(QCursor.pos())
-            # print(f"In view: {pos_in_scene}")
             if scene.getView().rect().contains(pos_in_scene):
                 pos_in_data = scene.view.mapSceneToView(pos_in_scene)
-                # print(f"Inside: {scene} at {pos_in_data}")
 
                 y = int(np.clip(np.floor(pos_in_data.x()), 0, data.shape[0] - 1))
                 x = int(np.clip(np.floor(pos_in_data.y()), 0, data.shape[1] - 1))
                 display_text = f"[{x},{y}]: {data[x,y]:.5g}"
 
+                # Clearing the tooltip forces it to move every tick, but it flickers
+                # QToolTip.showText(global_pos, "")
                 QToolTip.showText(global_pos, display_text)
 
 
