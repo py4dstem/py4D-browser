@@ -48,11 +48,6 @@ class DataViewer(QMainWindow):
         reshape_data,
     )
 
-    from py4D_browser.reconstruct_actions import (
-        reconstruct_tcBF_manual,
-        reconstruct_tcBF_auto,
-    )
-
     from py4D_browser.update_views import (
         update_diffraction_space_view,
         update_real_space_view,
@@ -457,18 +452,6 @@ class DataViewer(QMainWindow):
         img_ewpc_action.triggered.connect(
             partial(self.update_diffraction_space_view, False)
         )
-
-        # Reconstructions menu
-        self.reconstruction_menu = QMenu("Reconstructions", self)
-        self.menu_bar.addMenu(self.reconstruction_menu)
-
-        tcBF_action_manual = QAction("tcBF (Manual)...", self)
-        tcBF_action_manual.triggered.connect(self.reconstruct_tcBF_manual)
-        self.reconstruction_menu.addAction(tcBF_action_manual)
-
-        tcBF_action_auto = QAction("tcBF (Auto)", self)
-        tcBF_action_auto.triggered.connect(self.reconstruct_tcBF_auto)
-        self.reconstruction_menu.addAction(tcBF_action_auto)
 
         # Help menu
         self.help_menu = QMenu("&Help", self)
