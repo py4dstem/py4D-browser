@@ -285,7 +285,7 @@ class DataViewer(QMainWindow):
         diff_range_group.setExclusive(True)
 
         for scale_range in [(0, 100), (0.1, 99.9), (1, 99), (2, 98), (5, 95)]:
-            action = QAction(f"{scale_range[0]}% - {scale_range[1]}%", self)
+            action = QAction(f"{scale_range[0]}% – {scale_range[1]}%", self)
             diff_range_group.addAction(action)
             self.autorange_menu.addAction(action)
             action.setCheckable(True)
@@ -307,7 +307,7 @@ class DataViewer(QMainWindow):
         vimg_range_group.setExclusive(True)
 
         for scale_range in [(0, 100), (0.1, 99.9), (1, 99), (2, 98), (5, 95)]:
-            action = QAction(f"{scale_range[0]}% - {scale_range[1]}%", self)
+            action = QAction(f"{scale_range[0]}% – {scale_range[1]}%", self)
             vimg_range_group.addAction(action)
             self.autorange_menu.addAction(action)
             action.setCheckable(True)
