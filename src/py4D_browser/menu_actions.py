@@ -6,7 +6,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from py4D_browser.help_menu import KeyboardMapMenu
-from py4D_browser.utils import ResizeDialog
+from py4D_browser.dialogs import CalibrateDialog, ResizeDialog
 from py4DSTEM.io.filereaders import read_arina
 
 
@@ -104,21 +104,47 @@ def load_file(self, filepath, mmap=False, binning=1):
             binfactor=binning,
         )
 
-    self.diffraction_scale_bar.pixel_size = self.datacube.calibration.get_Q_pixel_size()
-    self.diffraction_scale_bar.units = self.datacube.calibration.get_Q_pixel_units()
-
-    self.real_space_scale_bar.pixel_size = self.datacube.calibration.get_R_pixel_size()
-    self.real_space_scale_bar.units = self.datacube.calibration.get_R_pixel_units()
-
-    self.fft_scale_bar.pixel_size = (
-        1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
-    )
-    self.fft_scale_bar.units = f"1/{self.datacube.calibration.get_R_pixel_units()}"
+    self.update_scalebars()
 
     self.update_diffraction_space_view(reset=True)
     self.update_real_space_view(reset=True)
 
     self.setWindowTitle(filepath)
+
+
+def update_scalebars(self):
+
+    realspace_translation = {
+        "A": "Å",
+    }
+    reciprocal_translation = {
+        "A^-1": "Å⁻¹",
+    }
+
+    self.diffraction_scale_bar.pixel_size = self.datacube.calibration.get_Q_pixel_size()
+    q_units = self.datacube.calibration.get_Q_pixel_units()
+    self.diffraction_scale_bar.units = (
+        reciprocal_translation[q_units]
+        if q_units in reciprocal_translation.keys()
+        else q_units
+    )
+
+    self.real_space_scale_bar.pixel_size = self.datacube.calibration.get_R_pixel_size()
+    r_units = self.datacube.calibration.get_R_pixel_units()
+    self.real_space_scale_bar.units = (
+        realspace_translation[r_units]
+        if r_units in realspace_translation.keys()
+        else r_units
+    )
+
+    self.fft_scale_bar.pixel_size = (
+        1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
+    )
+    self.fft_scale_bar.units = f"{self.datacube.calibration.get_R_pixel_units()}⁻¹"
+
+    self.diffraction_scale_bar.updateBar()
+    self.real_space_scale_bar.updateBar()
+    self.fft_scale_bar.updateBar()
 
 
 def reshape_data(self):
@@ -210,6 +236,11 @@ def export_virtual_image(self, im_format: str, im_type: str):
 def show_keyboard_map(self):
     keymap = KeyboardMapMenu(parent=self)
     keymap.open()
+
+
+def show_calibration_dialog(self):
+    dialog = CalibrateDialog(self.datacube, parent=self)
+    dialog.open()
 
 
 def show_file_dialog(self) -> str:

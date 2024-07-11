@@ -45,7 +45,9 @@ class DataViewer(QMainWindow):
         export_datacube,
         export_virtual_image,
         show_keyboard_map,
+        show_calibration_dialog,
         reshape_data,
+        update_scalebars,
     )
 
     from py4D_browser.update_views import (
@@ -452,6 +454,22 @@ class DataViewer(QMainWindow):
         img_ewpc_action.triggered.connect(
             partial(self.update_diffraction_space_view, False)
         )
+
+        # Processing menu
+        self.processing_menu = QMenu("&Processing", self)
+        self.menu_bar.addMenu(self.processing_menu)
+
+        calibrate_action = QAction("&Calibrate...", self)
+        calibrate_action.triggered.connect(self.show_calibration_dialog)
+        self.processing_menu.addAction(calibrate_action)
+
+        # tcBF_action_manual = QAction("tcBF (Manual)...", self)
+        # tcBF_action_manual.triggered.connect(self.reconstruct_tcBF_manual)
+        # self.processing_menu.addAction(tcBF_action_manual)
+
+        # tcBF_action_auto = QAction("tcBF (Auto)", self)
+        # tcBF_action_auto.triggered.connect(self.reconstruct_tcBF_auto)
+        # self.processing_menu.addAction(tcBF_action_auto)
 
         # Help menu
         self.help_menu = QMenu("&Help", self)

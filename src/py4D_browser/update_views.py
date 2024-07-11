@@ -536,7 +536,7 @@ def nudge_diffraction_selector(self, dx, dy):
 
 def update_tooltip(self):
     modifier_keys = QApplication.queryKeyboardModifiers()
-    print(self.isHidden())
+    # print(self.isHidden())
 
     if QtCore.Qt.ControlModifier == modifier_keys and self.datacube is not None:
         global_pos = QCursor.pos()
