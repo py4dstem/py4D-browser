@@ -299,48 +299,51 @@ def reconstruct_tcBF_auto(self):
     self.set_virtual_image(tcBF.recon_BF, reset=True)
 
 
-# def reconstruct_tcBF_manual(self):
-#     # tcBF requires an area detector for generating the mask
-#     detector_shape = self.detector_shape_group.checkedAction().text().replace("&", "")
-#     if detector_shape not in [
-#         "Rectangular",
-#         "Circle",
-#     ]:
-#         self.statusBar().showMessage("tcBF requires a selection of the BF disk", 5_000)
-#         return
+def reconstruct_tcBF_manual(self):
+    # tcBF requires an area detector for generating the mask
+    detector_shape = self.detector_shape_group.checkedAction().text().replace("&", "")
+    if detector_shape not in [
+        "Rectangular",
+        "Circle",
+    ]:
+        self.statusBar().showMessage("tcBF requires a selection of the BF disk", 5_000)
+        return
 
-#     if self.datacube.calibration.get_R_pixel_units == "pixels" or self.datacube.calibration.get_Q_pixel_units == "pixels":
-#         self.statusBar().showMessage("tcBF requires caibrated data", 5_000)
-#         return
+    if (
+        self.datacube.calibration.get_R_pixel_units == "pixels"
+        or self.datacube.calibration.get_Q_pixel_units == "pixels"
+    ):
+        self.statusBar().showMessage("tcBF requires caibrated data", 5_000)
+        return
 
-#     if detector_shape == "Rectangular":
-#         # Get slices corresponding to ROI
-#         slices, _ = self.virtual_detector_roi.getArraySlice(
-#             self.datacube.data[0, 0, :, :], self.diffraction_space_widget.getImageItem()
-#         )
-#         slice_y, slice_x = slices
+    if detector_shape == "Rectangular":
+        # Get slices corresponding to ROI
+        slices, _ = self.virtual_detector_roi.getArraySlice(
+            self.datacube.data[0, 0, :, :], self.diffraction_space_widget.getImageItem()
+        )
+        slice_y, slice_x = slices
 
-#         mask = np.zeros((self.datacube.Q_Nx, self.datacube.Q_Ny), dtype=np.bool_)
-#         mask[slice_x, slice_y] = True
+        mask = np.zeros((self.datacube.Q_Nx, self.datacube.Q_Ny), dtype=np.bool_)
+        mask[slice_x, slice_y] = True
 
-#     elif detector_shape == "Circle":
-#         R = self.virtual_detector_roi.size()[0] / 2.0
+    elif detector_shape == "Circle":
+        R = self.virtual_detector_roi.size()[0] / 2.0
 
-#         x0 = self.virtual_detector_roi.pos()[0] + R
-#         y0 = self.virtual_detector_roi.pos()[1] + R
+        x0 = self.virtual_detector_roi.pos()[0] + R
+        y0 = self.virtual_detector_roi.pos()[1] + R
 
-#         mask = make_detector(
-#             (self.datacube.Q_Nx, self.datacube.Q_Ny), "circle", ((x0, y0), R)
-#         )
-#     else:
-#         raise ValueError("idk how we got here...")
+        mask = make_detector(
+            (self.datacube.Q_Nx, self.datacube.Q_Ny), "circle", ((x0, y0), R)
+        )
+    else:
+        raise ValueError("idk how we got here...")
 
-#     # do tcBF!
-#     self.statusBar().showMessage("Reconstructing... (This may take a while)")
+    # do tcBF!
+    self.statusBar().showMessage("Reconstructing... (This may take a while)")
 
-#     recon = None
+    recon = None
 
-#     self.set_virtual_image(recon, reset=True)
+    self.set_virtual_image(recon, reset=True)
 
 
 def show_calibration_dialog(self):

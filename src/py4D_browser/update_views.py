@@ -167,19 +167,24 @@ def update_real_space_view(self, reset=False):
 
 
 def set_virtual_image(self, vimg, reset=False):
+    self.unscaled_realspace_image = vimg
+    self._render_virtual_image(reset=reset)
+
+
+def _render_virtual_image(self, reset=False):
+    vimg = self.unscaled_realspace_image
+
     scaling_mode = self.vimg_scaling_group.checkedAction().text().replace("&", "")
     assert scaling_mode in ["Linear", "Log", "Square Root"], scaling_mode
 
     if scaling_mode == "Linear":
-        new_view = vimg
+        new_view = vimg.copy()
     elif scaling_mode == "Log":
         new_view = np.log2(np.maximum(vimg, self.LOG_SCALE_MIN_VALUE))
     elif scaling_mode == "Square Root":
         new_view = np.sqrt(np.maximum(vimg, 0))
     else:
         raise ValueError("Mode not recognized")
-
-    self.unscaled_realspace_image = vimg
 
     self.realspace_statistics_text.setToolTip(
         f"min\t{vimg.min():.5g}\nmax\t{vimg.max():.5g}\nmean\t{vimg.mean():.5g}\nsum\t{vimg.sum():.5g}\nstd\t{np.std(vimg):.5g}"
@@ -203,11 +208,9 @@ def set_virtual_image(self, vimg, reset=False):
 
     # Update FFT view
     self.unscaled_fft_image = None
-    fft_window = (
-        np.hanning(new_view.shape[0])[:, None] * np.hanning(new_view.shape[1])[None, :]
-    )
+    fft_window = np.hanning(vimg.shape[0])[:, None] * np.hanning(vimg.shape[1])[None, :]
     if self.fft_source_action_group.checkedAction().text() == "Virtual Image FFT":
-        fft = np.abs(np.fft.fftshift(np.fft.fft2(new_view * fft_window))) ** 0.5
+        fft = np.abs(np.fft.fftshift(np.fft.fft2(vimg * fft_window))) ** 0.5
         levels = (np.min(fft), np.percentile(fft, 99.9))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
         self.fft_widget_text.setText("Virtual Image FFT")
@@ -223,7 +226,7 @@ def set_virtual_image(self, vimg, reset=False):
         self.fft_source_action_group.checkedAction().text()
         == "Virtual Image FFT (complex)"
     ):
-        fft = np.fft.fftshift(np.fft.fft2(new_view * fft_window))
+        fft = np.fft.fftshift(np.fft.fft2(vimg * fft_window))
         levels = (np.min(np.abs(fft)), np.percentile(np.abs(fft), 99.9))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
         self.fft_widget_text.setText("Virtual Image FFT")
@@ -294,13 +297,18 @@ def update_diffraction_space_view(self, reset=False):
 
 
 def set_diffraction_image(self, DP, reset=False):
+    self.unscaled_diffraction_image = DP
+    self._render_diffraction_image(reset=reset)
+
+
+def _render_diffraction_image(self, reset=False):
+    DP = self.unscaled_diffraction_image
+
     scaling_mode = self.diff_scaling_group.checkedAction().text().replace("&", "")
     assert scaling_mode in ["Linear", "Log", "Square Root"]
 
-    self.unscaled_diffraction_image = DP
-
     if scaling_mode == "Linear":
-        new_view = DP
+        new_view = DP.copy()
     elif scaling_mode == "Log":
         new_view = np.log2(np.maximum(DP, self.LOG_SCALE_MIN_VALUE))
     elif scaling_mode == "Square Root":
@@ -491,14 +499,14 @@ def set_diffraction_autoscale_range(self, percentiles, redraw=True):
     self.diffraction_autoscale_percentiles = percentiles
 
     if redraw:
-        self.update_diffraction_space_view(reset=False)
+        self._render_diffraction_image(reset=False)
 
 
 def set_real_space_autoscale_range(self, percentiles, redraw=True):
     self.real_space_autoscale_percentiles = percentiles
 
     if redraw:
-        self.update_real_space_view(reset=False)
+        self._render_virtual_image(reset=False)
 
 
 def nudge_real_space_selector(self, dx, dy):

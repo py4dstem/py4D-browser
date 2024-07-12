@@ -55,6 +55,8 @@ class DataViewer(QMainWindow):
     from py4D_browser.update_views import (
         set_virtual_image,
         set_diffraction_image,
+        _render_virtual_image,
+        _render_diffraction_image,
         update_diffraction_space_view,
         update_real_space_view,
         update_realspace_detector,
@@ -220,7 +222,7 @@ class DataViewer(QMainWindow):
         diff_scale_linear_action = QAction("Linear", self)
         diff_scale_linear_action.setCheckable(True)
         diff_scale_linear_action.triggered.connect(
-            partial(self.update_diffraction_space_view, True)
+            partial(self._render_diffraction_image, True)
         )
         diff_scaling_group.addAction(diff_scale_linear_action)
         self.scaling_menu.addAction(diff_scale_linear_action)
@@ -228,7 +230,7 @@ class DataViewer(QMainWindow):
         diff_scale_log_action = QAction("Log", self)
         diff_scale_log_action.setCheckable(True)
         diff_scale_log_action.triggered.connect(
-            partial(self.update_diffraction_space_view, True)
+            partial(self._render_diffraction_image, True)
         )
         diff_scaling_group.addAction(diff_scale_log_action)
         self.scaling_menu.addAction(diff_scale_log_action)
@@ -236,7 +238,7 @@ class DataViewer(QMainWindow):
         diff_scale_sqrt_action = QAction("Square Root", self)
         diff_scale_sqrt_action.setCheckable(True)
         diff_scale_sqrt_action.triggered.connect(
-            partial(self.update_diffraction_space_view, True)
+            partial(self._render_diffraction_image, True)
         )
         diff_scaling_group.addAction(diff_scale_sqrt_action)
         diff_scale_sqrt_action.setChecked(True)
@@ -258,7 +260,7 @@ class DataViewer(QMainWindow):
         vimg_scale_linear_action.setCheckable(True)
         vimg_scale_linear_action.setChecked(True)
         vimg_scale_linear_action.triggered.connect(
-            partial(self.update_real_space_view, True)
+            partial(self._render_virtual_image, True)
         )
         vimg_scaling_group.addAction(vimg_scale_linear_action)
         self.scaling_menu.addAction(vimg_scale_linear_action)
@@ -266,7 +268,7 @@ class DataViewer(QMainWindow):
         vimg_scale_log_action = QAction("Log", self)
         vimg_scale_log_action.setCheckable(True)
         vimg_scale_log_action.triggered.connect(
-            partial(self.update_real_space_view, True)
+            partial(self._render_virtual_image, True)
         )
         vimg_scaling_group.addAction(vimg_scale_log_action)
         self.scaling_menu.addAction(vimg_scale_log_action)
@@ -274,7 +276,7 @@ class DataViewer(QMainWindow):
         vimg_scale_sqrt_action = QAction("Square Root", self)
         vimg_scale_sqrt_action.setCheckable(True)
         vimg_scale_sqrt_action.triggered.connect(
-            partial(self.update_real_space_view, True)
+            partial(self._render_virtual_image, True)
         )
         vimg_scaling_group.addAction(vimg_scale_sqrt_action)
         self.scaling_menu.addAction(vimg_scale_sqrt_action)
