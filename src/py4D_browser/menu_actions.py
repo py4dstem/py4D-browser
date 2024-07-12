@@ -239,7 +239,15 @@ def show_keyboard_map(self):
 
 
 def show_calibration_dialog(self):
-    dialog = CalibrateDialog(self.datacube, parent=self)
+    # If the selector has a size, figure that out
+    if hasattr(self, "virtual_detector_roi") and self.virtual_detector_roi is not None:
+        selector_size = self.virtual_detector_roi.size()[0] / 2.0
+    else:
+        selector_size = None
+
+    dialog = CalibrateDialog(
+        self.datacube, parent=self, diffraction_selector_size=selector_size
+    )
     dialog.open()
 
 

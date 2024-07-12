@@ -225,7 +225,7 @@ class CalibrateDialog(QDialog):
 
         if self.diffraction_selector_size:
             sel_size = pix_size * self.diffraction_selector_size
-            self.diff_selection_box.setText(f"{sel_size:.g}")
+            self.diff_selection_box.setText(f"{sel_size:g}")
 
     def diffraction_fov_box_changed(self, new_text):
         fov = float(new_text)
@@ -235,21 +235,24 @@ class CalibrateDialog(QDialog):
 
         if self.diffraction_selector_size:
             sel_size = pix_size * self.diffraction_selector_size
-            self.diff_selection_box.setText(f"{sel_size:.g}")
+            self.diff_selection_box.setText(f"{sel_size:g}")
 
     def diffraction_selection_box_changed(self, new_text):
         if self.diffraction_selector_size:
             sel_size = float(new_text)
 
             pix_size = sel_size / self.diffraction_selector_size
-            fov = pix_size * self.Q_Nx
+            fov = pix_size * self.datacube.Q_Nx
             self.diff_pix_box.setText(f"{pix_size:g}")
             self.diff_fov_box.setText(f"{fov:g}")
 
             sel_size = pix_size * self.diffraction_selector_size
-            self.diff_selection_box.setText(f"{sel_size:.g}")
+            self.diff_selection_box.setText(f"{sel_size:g}")
 
     def set_and_close(self):
+
+        print("Old calibration")
+        print(self.datacube.calibration)
 
         realspace_text = self.realspace_pix_box.text()
         if realspace_text != "":
@@ -274,6 +277,7 @@ class CalibrateDialog(QDialog):
 
         self.parent.update_scalebars()
 
+        print("New calibration")
         print(self.datacube.calibration)
 
         self.close()
