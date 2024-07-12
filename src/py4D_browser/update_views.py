@@ -198,6 +198,7 @@ def update_real_space_view(self, reset=False):
     )
 
     # Update FFT view
+    self.unscaled_fft_image = None
     fft_window = (
         np.hanning(new_view.shape[0])[:, None] * np.hanning(new_view.shape[1])[None, :]
     )
@@ -213,6 +214,7 @@ def update_real_space_view(self, reset=False):
         if mode_switch:
             # Need to autorange after setRect
             self.fft_widget.autoRange()
+        self.unscaled_fft_image = fft
     elif (
         self.fft_source_action_group.checkedAction().text()
         == "Virtual Image FFT (complex)"
@@ -239,7 +241,7 @@ def update_real_space_view(self, reset=False):
         if mode_switch:
             # Need to autorange after setRect
             self.fft_widget.autoRange()
-    self.unscaled_fft_image = fft
+        self.unscaled_fft_image = fft
 
 
 def update_diffraction_space_view(self, reset=False):
