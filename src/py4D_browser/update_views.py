@@ -198,8 +198,11 @@ def update_real_space_view(self, reset=False):
     )
 
     # Update FFT view
+    fft_window = (
+        np.hanning(new_view.shape[0])[:, None] * np.hanning(new_view.shape[1])[None, :]
+    )
     if self.fft_source_action_group.checkedAction().text() == "Virtual Image FFT":
-        fft = np.abs(np.fft.fftshift(np.fft.fft2(new_view))) ** 0.5
+        fft = np.abs(np.fft.fftshift(np.fft.fft2(new_view * fft_window))) ** 0.5
         levels = (np.min(fft), np.percentile(fft, 99.9))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
         self.fft_widget_text.setText("Virtual Image FFT")
@@ -214,7 +217,7 @@ def update_real_space_view(self, reset=False):
         self.fft_source_action_group.checkedAction().text()
         == "Virtual Image FFT (complex)"
     ):
-        fft = np.fft.fftshift(np.fft.fft2(new_view))
+        fft = np.fft.fftshift(np.fft.fft2(new_view * fft_window))
         levels = (np.min(np.abs(fft)), np.percentile(np.abs(fft), 99.9))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
         self.fft_widget_text.setText("Virtual Image FFT")
