@@ -10,9 +10,6 @@ from py4D_browser.utils import pg_point_roi, make_detector, complex_to_Lab
 
 
 def update_real_space_view(self, reset=False):
-    scaling_mode = self.vimg_scaling_group.checkedAction().text().replace("&", "")
-    assert scaling_mode in ["Linear", "Log", "Square Root"], scaling_mode
-
     detector_shape = self.detector_shape_group.checkedAction().text().replace("&", "")
     assert detector_shape in [
         "Point",
@@ -166,6 +163,13 @@ def update_real_space_view(self, reset=False):
         else:
             raise ValueError("Oopsie")
 
+    self.set_virtual_image(vimg, reset=reset)
+
+
+def set_virtual_image(self, vimg, reset=False):
+    scaling_mode = self.vimg_scaling_group.checkedAction().text().replace("&", "")
+    assert scaling_mode in ["Linear", "Log", "Square Root"], scaling_mode
+
     if scaling_mode == "Linear":
         new_view = vimg
     elif scaling_mode == "Log":
@@ -245,9 +249,6 @@ def update_real_space_view(self, reset=False):
 
 
 def update_diffraction_space_view(self, reset=False):
-    scaling_mode = self.diff_scaling_group.checkedAction().text().replace("&", "")
-    assert scaling_mode in ["Linear", "Log", "Square Root"]
-
     if self.datacube is None:
         return
 
@@ -288,6 +289,13 @@ def update_diffraction_space_view(self, reset=False):
 
     else:
         raise ValueError("Detector shape not recognized")
+
+    self.set_diffraction_image(DP, reset=reset)
+
+
+def set_diffraction_image(self, DP, reset=False):
+    scaling_mode = self.diff_scaling_group.checkedAction().text().replace("&", "")
+    assert scaling_mode in ["Linear", "Log", "Square Root"]
 
     self.unscaled_diffraction_image = DP
 

@@ -112,7 +112,7 @@ def make_detector(shape: tuple, mode: str, geometry) -> np.ndarray:
 
 
 def complex_to_Lab(
-    im, amin=None, amax=None, gamma=1, L_scale=100, ab_scale=64, uniform_L=None
+    im, amin=None, amax=None, gamma=1.0, L_scale=100, ab_scale=64, uniform_L=None
 ):
     from skimage.color import lab2rgb
     from matplotlib.colors import Normalize
