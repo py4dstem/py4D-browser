@@ -15,7 +15,9 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QGroupBox,
     QGridLayout,
+    QCheckBox,
 )
+from py4D_browser.utils import make_detector
 
 
 class ResizeDialog(QDialog):
@@ -281,3 +283,93 @@ class CalibrateDialog(QDialog):
         print(self.datacube.calibration)
 
         self.close()
+
+
+class ManualTCBFDialog(QDialog):
+    def __init__(self, parent):
+        super().__init__(parent=parent)
+
+        self.parent = parent
+
+        layout = QVBoxLayout(self)
+
+        ####### LAYOUT ########
+
+        params_box = QGroupBox("Parameters")
+        layout.addWidget(params_box)
+
+        params_layout = QGridLayout()
+        params_box.setLayout(params_layout)
+
+        params_layout.addWidget(QLabel("Rotation [deg]"), 0, 0, Qt.AlignRight)
+        rotation_box = QLineEdit()
+        rotation_box.setValidator(QDoubleValidator())
+        params_layout.addWidget(rotation_box, 0, 1)
+
+        params_layout.addWidget(QLabel("Transpose x/y"), 1, 0, Qt.AlignRight)
+        transpose_box = QCheckBox()
+        params_layout.addWidget(transpose_box, 1, 1)
+
+        params_layout.addWidget(QLabel("Max Shift [px]"), 2, 0, Qt.AlignRight)
+        max_shift_box = QLineEdit()
+        max_shift_box.setValidator(QDoubleValidator())
+        params_layout.addWidget(max_shift_box, 2, 1)
+
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        cancel_button = QPushButton("Cancel")
+        cancel_button.pressed.connect(self.close)
+        button_layout.addWidget(cancel_button)
+        done_button = QPushButton("Reconstruct")
+        done_button.pressed.connect(self.reconstruct)
+        button_layout.addWidget(done_button)
+        layout.addLayout(button_layout)
+
+    def reconstruct(self):
+        # tcBF requires an area detector for generating the mask
+        detector_shape = (
+            self.parent.detector_shape_group.checkedAction().text().replace("&", "")
+        )
+        if detector_shape not in [
+            "Rectangular",
+            "Circle",
+        ]:
+            self.parent.statusBar().showMessage(
+                "tcBF requires a selection of the BF disk"
+            )
+            return
+
+        if detector_shape == "Rectangular":
+            # Get slices corresponding to ROI
+            slices, _ = self.parent.virtual_detector_roi.getArraySlice(
+                self.parent.datacube.data[0, 0, :, :],
+                self.parent.diffraction_space_widget.getImageItem(),
+            )
+            slice_y, slice_x = slices
+
+            mask = np.zeros(
+                (self.parent.datacube.Q_Nx, self.parent.datacube.Q_Ny), dtype=np.bool_
+            )
+            mask[slice_x, slice_y] = True
+
+        elif detector_shape == "Circle":
+            R = self.parent.virtual_detector_roi.size()[0] / 2.0
+
+            x0 = self.parent.virtual_detector_roi.pos()[0] + R
+            y0 = self.parent.virtual_detector_roi.pos()[1] + R
+
+            mask = make_detector(
+                (self.parent.datacube.Q_Nx, self.parent.datacube.Q_Ny),
+                "circle",
+                ((x0, y0), R),
+            )
+        else:
+            raise ValueError("idk how we got here...")
+
+        if self.max_shift_box.text() == "":
+            self.parent.statusBar().showMessage("Max Shift must be specified")
+            return
+
+        rotation = float(self.rotation_box.text() or 0.0)
+        transpose = self.transpose_box.checkState()
+        max_shift = float(self.max_shift_box.text())
