@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from py4D_browser.help_menu import KeyboardMapMenu
 from py4D_browser.dialogs import CalibrateDialog, ResizeDialog
+from py4D_browser.utils import make_detector
 from py4DSTEM.io.filereaders import read_arina
 
 
@@ -238,6 +239,110 @@ def show_keyboard_map(self):
     keymap.open()
 
 
+def reconstruct_tcBF_auto(self):
+    # tcBF requires an area detector for generating the mask
+    detector_shape = self.detector_shape_group.checkedAction().text().replace("&", "")
+    if detector_shape not in [
+        "Rectangular",
+        "Circle",
+    ]:
+        self.statusBar().showMessage("tcBF requires a selection of the BF disk", 5_000)
+        return
+
+    if (
+        self.datacube.calibration.get_R_pixel_units == "pixels"
+        or self.datacube.calibration.get_Q_pixel_units == "pixels"
+    ):
+        self.statusBar().showMessage("tcBF requires caibrated data", 5_000)
+        return
+
+    if detector_shape == "Rectangular":
+        # Get slices corresponding to ROI
+        slices, _ = self.virtual_detector_roi.getArraySlice(
+            self.datacube.data[0, 0, :, :], self.diffraction_space_widget.getImageItem()
+        )
+        slice_y, slice_x = slices
+
+        mask = np.zeros((self.datacube.Q_Nx, self.datacube.Q_Ny), dtype=np.bool_)
+        mask[slice_x, slice_y] = True
+
+    elif detector_shape == "Circle":
+        R = self.virtual_detector_roi.size()[0] / 2.0
+
+        x0 = self.virtual_detector_roi.pos()[0] + R
+        y0 = self.virtual_detector_roi.pos()[1] + R
+
+        mask = make_detector(
+            (self.datacube.Q_Nx, self.datacube.Q_Ny), "circle", ((x0, y0), R)
+        )
+    else:
+        raise ValueError("idk how we got here...")
+
+    # do tcBF!
+    self.statusBar().showMessage("Reconstructing... (This may take a while)")
+
+    tcBF = py4DSTEM.process.phase.Parallax(
+        energy=300e3,
+        datacube=self.datacube,
+    )
+    tcBF.preprocess(
+        dp_mask=mask,
+        plot_average_bf=False,
+        vectorized_com_calculation=False,
+        store_initial_arrays=False,
+    )
+    tcBF.reconstruct(
+        plot_aligned_bf=False,
+        plot_convergence=False,
+    )
+
+    self.set_virtual_image(tcBF.recon_BF, reset=True)
+
+
+# def reconstruct_tcBF_manual(self):
+#     # tcBF requires an area detector for generating the mask
+#     detector_shape = self.detector_shape_group.checkedAction().text().replace("&", "")
+#     if detector_shape not in [
+#         "Rectangular",
+#         "Circle",
+#     ]:
+#         self.statusBar().showMessage("tcBF requires a selection of the BF disk", 5_000)
+#         return
+
+#     if self.datacube.calibration.get_R_pixel_units == "pixels" or self.datacube.calibration.get_Q_pixel_units == "pixels":
+#         self.statusBar().showMessage("tcBF requires caibrated data", 5_000)
+#         return
+
+#     if detector_shape == "Rectangular":
+#         # Get slices corresponding to ROI
+#         slices, _ = self.virtual_detector_roi.getArraySlice(
+#             self.datacube.data[0, 0, :, :], self.diffraction_space_widget.getImageItem()
+#         )
+#         slice_y, slice_x = slices
+
+#         mask = np.zeros((self.datacube.Q_Nx, self.datacube.Q_Ny), dtype=np.bool_)
+#         mask[slice_x, slice_y] = True
+
+#     elif detector_shape == "Circle":
+#         R = self.virtual_detector_roi.size()[0] / 2.0
+
+#         x0 = self.virtual_detector_roi.pos()[0] + R
+#         y0 = self.virtual_detector_roi.pos()[1] + R
+
+#         mask = make_detector(
+#             (self.datacube.Q_Nx, self.datacube.Q_Ny), "circle", ((x0, y0), R)
+#         )
+#     else:
+#         raise ValueError("idk how we got here...")
+
+#     # do tcBF!
+#     self.statusBar().showMessage("Reconstructing... (This may take a while)")
+
+#     recon = None
+
+#     self.set_virtual_image(recon, reset=True)
+
+
 def show_calibration_dialog(self):
     # If the selector has a size, figure that out
     if hasattr(self, "virtual_detector_roi") and self.virtual_detector_roi is not None:
@@ -359,7 +464,7 @@ def find_calibrations(dset: h5py.Dataset):
     try:
         if "sampling" in dset.parent and "units" in dset.parent:
             R_size = dset.parent["sampling"][0]
-            R_units = dset.parent["units"][0].decode()
+            R_units = dset.parent["units"][0].decode().replace("Å", "A")
 
             Q_size = dset.parent["sampling"][3]
             Q_units = dset.parent["units"][3].decode()
