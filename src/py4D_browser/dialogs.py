@@ -1,4 +1,3 @@
-from cupy import real
 from py4DSTEM import DataCube, data
 import pyqtgraph as pg
 import numpy as np
