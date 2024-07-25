@@ -559,7 +559,11 @@ def update_tooltip(self):
     modifier_keys = QApplication.queryKeyboardModifiers()
     # print(self.isHidden())
 
-    if QtCore.Qt.ControlModifier == modifier_keys and self.datacube is not None:
+    if (
+        QtCore.Qt.ControlModifier == modifier_keys
+        and self.datacube is not None
+        and self.isActiveWindow()
+    ):
         global_pos = QCursor.pos()
 
         for scene, data in [
