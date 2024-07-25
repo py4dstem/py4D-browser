@@ -6,6 +6,19 @@ from PyQt5.QtCore import Qt, QObject
 from PyQt5.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout, QSpinBox
 
 
+class StatusBarWriter:
+    def __init__(self, statusBar):
+        self.statusBar = statusBar
+        self.app = app = QApplication.instance()
+
+    def write(self, message):
+        self.statusBar.showMessage(message, 1_000)
+        self.app.processEvents()
+
+    def flush(self):
+        pass
+
+
 class VLine(QFrame):
     # a simple vertical divider line
     def __init__(self):

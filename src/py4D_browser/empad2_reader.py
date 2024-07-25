@@ -1,19 +1,7 @@
 import empad2
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QApplication
 import numpy as np
-
-
-class StatusBarWriter:
-    def __init__(self, statusBar):
-        self.statusBar = statusBar
-        self.app = app = QApplication.instance()
-
-    def write(self, message):
-        self.statusBar.showMessage(message, 1_000)
-        self.app.processEvents()
-
-    def flush(self):
-        pass
+from py4D_browser.utils import StatusBarWriter
 
 
 def set_empad2_sensor(self, sensor_name):

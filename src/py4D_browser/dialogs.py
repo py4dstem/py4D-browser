@@ -310,9 +310,9 @@ class ManualTCBFDialog(QDialog):
         params_layout.addWidget(transpose_box, 1, 1)
 
         params_layout.addWidget(QLabel("Max Shift [px]"), 2, 0, Qt.AlignRight)
-        max_shift_box = QLineEdit()
-        max_shift_box.setValidator(QDoubleValidator())
-        params_layout.addWidget(max_shift_box, 2, 1)
+        self.max_shift_box = QLineEdit()
+        self.max_shift_box.setValidator(QDoubleValidator())
+        params_layout.addWidget(self.max_shift_box, 2, 1)
 
         button_layout = QHBoxLayout()
         button_layout.addStretch()
@@ -325,6 +325,8 @@ class ManualTCBFDialog(QDialog):
         layout.addLayout(button_layout)
 
     def reconstruct(self):
+        datacube = self.parent.datacube
+
         # tcBF requires an area detector for generating the mask
         detector_shape = (
             self.parent.detector_shape_group.checkedAction().text().replace("&", "")
@@ -372,3 +374,30 @@ class ManualTCBFDialog(QDialog):
         rotation = float(self.rotation_box.text() or 0.0)
         transpose = self.transpose_box.checkState()
         max_shift = float(self.max_shift_box.text())
+
+        x, y = np.meshgrid(
+            np.arange(datacube.Q_Nx), np.arange(datacube.Q_Ny), indexing="ij"
+        )
+
+        mask_comx = np.sum(mask * x) / np.sum(mask)
+        mask_comy = np.sum(mask * y) / np.sum(mask)
+
+        pix_coord_x = x - mask_comx
+        pix_coord_y = y - mask_comy
+
+        q_pix = np.hypot(pix_coord_x, pix_coord_y)
+        # unrotated shifts in scan pixels
+        shifts_pix_x = pix_coord_x / np.max(q_pix * mask) * max_shift
+        shifts_pix_y = pix_coord_y / np.max(q_pix * mask) * max_shift
+        # shifts_pix = np.
+
+        R = np.array(
+            [
+                [np.cos(rotation), -np.sin(rotation)],
+                [np.sin(rotation), np.cos(rotation)],
+            ]
+        )
+        T = np.array([[0.0, 1.0], [1.0, 0.0]])
+
+        if transpose:
+            R = T @ R
