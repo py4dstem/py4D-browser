@@ -472,6 +472,7 @@ class DataViewer(QMainWindow):
         tcBF_action_manual = QAction("tcBF (Manual)...", self)
         tcBF_action_manual.triggered.connect(self.reconstruct_tcBF_manual)
         self.processing_menu.addAction(tcBF_action_manual)
+        tcBF_action_manual.setEnabled(False)
 
         tcBF_action_auto = QAction("tcBF (Automatic)", self)
         tcBF_action_auto.triggered.connect(self.reconstruct_tcBF_auto)
