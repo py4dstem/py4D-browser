@@ -1,3 +1,4 @@
+from numbers import Real
 import py4DSTEM
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 import h5py
@@ -5,6 +6,9 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from py4D_browser.help_menu import KeyboardMapMenu
+from py4D_browser.dialogs import CalibrateDialog, ResizeDialog, ManualTCBFDialog
+from py4D_browser.utils import make_detector
+from py4DSTEM.io.filereaders import read_arina
 
 
 def load_data_auto(self):
@@ -23,12 +27,48 @@ def load_data_bin(self):
     self.load_file(filename, mmap=False, binning=4)
 
 
+def load_data_arina(self):
+    filename = self.show_file_dialog()
+    dataset = read_arina(filename)
+
+    # Try to reshape the data to be square
+    N_patterns = dataset.data.shape[1]
+    Nxy = np.sqrt(N_patterns)
+    if np.abs(Nxy - np.round(Nxy)) <= 1e-10:
+        Nxy = int(Nxy)
+        dataset.data = dataset.data.reshape(
+            Nxy, Nxy, dataset.data.shape[2], dataset.data.shape[3]
+        )
+    else:
+        self.statusBar().showMessage(
+            f"The scan appears to not be square! Found {N_patterns} patterns", 5_000
+        )
+
+    self.datacube = dataset
+    self.diffraction_scale_bar.pixel_size = self.datacube.calibration.get_Q_pixel_size()
+    self.diffraction_scale_bar.units = self.datacube.calibration.get_Q_pixel_units()
+
+    self.real_space_scale_bar.pixel_size = self.datacube.calibration.get_R_pixel_size()
+    self.real_space_scale_bar.units = self.datacube.calibration.get_R_pixel_units()
+
+    self.fft_scale_bar.pixel_size = (
+        1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
+    )
+    self.fft_scale_bar.units = f"1/{self.datacube.calibration.get_R_pixel_units()}"
+
+    self.update_diffraction_space_view(reset=True)
+    self.update_real_space_view(reset=True)
+
+    self.setWindowTitle(filename)
+
+
 def load_file(self, filepath, mmap=False, binning=1):
     print(f"Loading file {filepath}")
     extension = os.path.splitext(filepath)[-1].lower()
     print(f"Type: {extension}")
-    if extension in (".h5", ".hdf5", ".py4dstem", ".emd"):
-        datacubes = get_4D(h5py.File(filepath, "r"))
+    if extension in (".h5", ".hdf5", ".py4dstem", ".emd", ".mat"):
+        file = h5py.File(filepath, "r")
+        datacubes = get_ND(file)
         print(f"Found {len(datacubes)} 4D datasets inside the HDF5 file...")
         if len(datacubes) >= 1:
             # Read the first datacube in the HDF5 file into RAM
@@ -45,7 +85,17 @@ def load_file(self, filepath, mmap=False, binning=1):
             self.datacube.calibration.set_Q_pixel_units(Q_units)
 
         else:
-            raise ValueError("No 4D data detected in the H5 file!")
+            # if no 4D data was found, look for 3D data
+            datacubes = get_ND(file, N=3)
+            print(f"Found {len(datacubes)} 3D datasets inside the HDF5 file...")
+            if len(datacubes) >= 1:
+                array = datacubes[0] if mmap else datacubes[0][()]
+                new_shape = ResizeDialog.get_new_size([1, array.shape[0]], parent=self)
+                self.datacube = py4DSTEM.DataCube(
+                    array.reshape(*new_shape, *array.shape[1:])
+                )
+            else:
+                raise ValueError("No 4D (or even 3D) data detected in the H5 file!")
     elif extension in [".npy"]:
         self.datacube = py4DSTEM.DataCube(np.load(filepath))
     else:
@@ -55,21 +105,59 @@ def load_file(self, filepath, mmap=False, binning=1):
             binfactor=binning,
         )
 
-    self.diffraction_scale_bar.pixel_size = self.datacube.calibration.get_Q_pixel_size()
-    self.diffraction_scale_bar.units = self.datacube.calibration.get_Q_pixel_units()
-
-    self.real_space_scale_bar.pixel_size = self.datacube.calibration.get_R_pixel_size()
-    self.real_space_scale_bar.units = self.datacube.calibration.get_R_pixel_units()
-
-    self.fft_scale_bar.pixel_size = (
-        1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
-    )
-    self.fft_scale_bar.units = f"1/{self.datacube.calibration.get_R_pixel_units()}"
+    self.update_scalebars()
 
     self.update_diffraction_space_view(reset=True)
     self.update_real_space_view(reset=True)
 
     self.setWindowTitle(filepath)
+
+
+def update_scalebars(self):
+
+    realspace_translation = {
+        "A": "Å",
+    }
+    reciprocal_translation = {
+        "A^-1": "Å⁻¹",
+    }
+
+    self.diffraction_scale_bar.pixel_size = self.datacube.calibration.get_Q_pixel_size()
+    q_units = self.datacube.calibration.get_Q_pixel_units()
+    self.diffraction_scale_bar.units = (
+        reciprocal_translation[q_units]
+        if q_units in reciprocal_translation.keys()
+        else q_units
+    )
+
+    self.real_space_scale_bar.pixel_size = self.datacube.calibration.get_R_pixel_size()
+    r_units = self.datacube.calibration.get_R_pixel_units()
+    self.real_space_scale_bar.units = (
+        realspace_translation[r_units]
+        if r_units in realspace_translation.keys()
+        else r_units
+    )
+
+    self.fft_scale_bar.pixel_size = (
+        1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
+    )
+    self.fft_scale_bar.units = f"{self.datacube.calibration.get_R_pixel_units()}⁻¹"
+
+    self.diffraction_scale_bar.updateBar()
+    self.real_space_scale_bar.updateBar()
+    self.fft_scale_bar.updateBar()
+
+
+def reshape_data(self):
+    new_shape = ResizeDialog.get_new_size(self.datacube.shape[:2], parent=self)
+    self.datacube.data = self.datacube.data.reshape(
+        *new_shape, *self.datacube.data.shape[2:]
+    )
+
+    print(f"Reshaping data to {new_shape}")
+
+    self.update_diffraction_space_view(reset=True)
+    self.update_real_space_view(reset=True)
 
 
 def export_datacube(self, save_format: str):
@@ -151,12 +239,90 @@ def show_keyboard_map(self):
     keymap.open()
 
 
+def reconstruct_tcBF_auto(self):
+    # tcBF requires an area detector for generating the mask
+    detector_shape = self.detector_shape_group.checkedAction().text().replace("&", "")
+    if detector_shape not in [
+        "Rectangular",
+        "Circle",
+    ]:
+        self.statusBar().showMessage("tcBF requires a selection of the BF disk", 5_000)
+        return
+
+    if (
+        self.datacube.calibration.get_R_pixel_units == "pixels"
+        or self.datacube.calibration.get_Q_pixel_units == "pixels"
+    ):
+        self.statusBar().showMessage("tcBF requires caibrated data", 5_000)
+        return
+
+    if detector_shape == "Rectangular":
+        # Get slices corresponding to ROI
+        slices, _ = self.virtual_detector_roi.getArraySlice(
+            self.datacube.data[0, 0, :, :], self.diffraction_space_widget.getImageItem()
+        )
+        slice_y, slice_x = slices
+
+        mask = np.zeros((self.datacube.Q_Nx, self.datacube.Q_Ny), dtype=np.bool_)
+        mask[slice_x, slice_y] = True
+
+    elif detector_shape == "Circle":
+        R = self.virtual_detector_roi.size()[0] / 2.0
+
+        x0 = self.virtual_detector_roi.pos()[0] + R
+        y0 = self.virtual_detector_roi.pos()[1] + R
+
+        mask = make_detector(
+            (self.datacube.Q_Nx, self.datacube.Q_Ny), "circle", ((x0, y0), R)
+        )
+    else:
+        raise ValueError("idk how we got here...")
+
+    # do tcBF!
+    self.statusBar().showMessage("Reconstructing... (This may take a while)")
+
+    tcBF = py4DSTEM.process.phase.Parallax(
+        energy=300e3,
+        datacube=self.datacube,
+    )
+    tcBF.preprocess(
+        dp_mask=mask,
+        plot_average_bf=False,
+        vectorized_com_calculation=False,
+        store_initial_arrays=False,
+    )
+    tcBF.reconstruct(
+        plot_aligned_bf=False,
+        plot_convergence=False,
+    )
+
+    self.set_virtual_image(tcBF.recon_BF, reset=True)
+
+
+def reconstruct_tcBF_manual(self):
+    dialog = ManualTCBFDialog(parent=self)
+    dialog.show()
+
+
+def show_calibration_dialog(self):
+    # If the selector has a size, figure that out
+    if hasattr(self, "virtual_detector_roi") and self.virtual_detector_roi is not None:
+        selector_size = self.virtual_detector_roi.size()[0] / 2.0
+    else:
+        selector_size = None
+
+    dialog = CalibrateDialog(
+        self.datacube, parent=self, diffraction_selector_size=selector_size
+    )
+    dialog.open()
+
+
 def show_file_dialog(self) -> str:
     filename = QFileDialog.getOpenFileName(
         self,
         "Open 4D-STEM Data",
         "",
-        "4D-STEM Data (*.dm3 *.dm4 *.raw *.mib *.gtg *.h5 *.hdf5 *.emd *.py4dstem *.npy *.npz);;Any file (*)",
+        "4D-STEM Data (*.dm3 *.dm4 *.raw *.mib *.gtg *.h5 *.hdf5 *.emd *.py4dstem *.npy *.npz *.mat);;Any file (*)",
     )
     if filename is not None and len(filename[0]) > 0:
         return filename[0]
@@ -207,16 +373,17 @@ def get_savefile_name(self, file_format) -> str:
         raise ValueError("Could get save file")
 
 
-def get_4D(f, datacubes=None):
+def get_ND(f, datacubes=None, N=4):
+    # Traverse an h5py.File and look for Datasets with N dimensions
     if datacubes is None:
         datacubes = []
     for k in f.keys():
         if isinstance(f[k], h5py.Dataset):
             # we found data
-            if len(f[k].shape) == 4:
+            if len(f[k].shape) == N:
                 datacubes.append(f[k])
         elif isinstance(f[k], h5py.Group):
-            get_4D(f[k], datacubes)
+            get_ND(f[k], datacubes)
     return datacubes
 
 
@@ -258,7 +425,7 @@ def find_calibrations(dset: h5py.Dataset):
     try:
         if "sampling" in dset.parent and "units" in dset.parent:
             R_size = dset.parent["sampling"][0]
-            R_units = dset.parent["units"][0].decode()
+            R_units = dset.parent["units"][0].decode().replace("Å", "A")
 
             Q_size = dset.parent["sampling"][3]
             Q_units = dset.parent["units"][3].decode()
