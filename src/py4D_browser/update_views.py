@@ -5,6 +5,7 @@ from functools import partial
 from PyQt5.QtWidgets import QApplication, QToolTip
 from PyQt5 import QtCore
 from PyQt5.QtGui import QCursor
+import os
 
 from py4D_browser.utils import pg_point_roi, make_detector, complex_to_Lab
 
@@ -64,8 +65,8 @@ def update_real_space_view(self, reset=False):
     elif detector_shape == "Circle":
         R = self.virtual_detector_roi.size()[0] / 2.0
 
-        x0 = self.virtual_detector_roi.pos()[0] + R
-        y0 = self.virtual_detector_roi.pos()[1] + R
+        x0 = self.virtual_detector_roi.pos()[1] + R
+        y0 = self.virtual_detector_roi.pos()[0] + R
 
         self.diffraction_space_view_text.setText(
             f"Detector Center: ({x0:.0f},{y0:.0f}), Radius: {R:.0f}"
@@ -78,8 +79,8 @@ def update_real_space_view(self, reset=False):
         inner_pos = self.virtual_detector_roi_inner.pos()
         inner_size = self.virtual_detector_roi_inner.size()
         R_inner = inner_size[0] / 2.0
-        x0 = inner_pos[0] + R_inner
-        y0 = inner_pos[1] + R_inner
+        x0 = inner_pos[1] + R_inner
+        y0 = inner_pos[0] + R_inner
 
         outer_size = self.virtual_detector_roi_outer.size()
         R_outer = outer_size[0] / 2.0
@@ -113,10 +114,9 @@ def update_real_space_view(self, reset=False):
         raise ValueError("Detector shape not recognized")
 
     if mask is not None:
-        # For debugging masks:
-        # self.diffraction_space_widget.setImage(
-        #     mask.T, autoLevels=True, autoRange=True
-        # )
+        if "MASK_DEBUG" in os.environ:
+            self.set_diffraction_image(mask.astype(np.float32), reset=reset)
+            return
         mask = mask.astype(np.float32)
         vimg = np.zeros((self.datacube.R_Nx, self.datacube.R_Ny))
         iterator = py4DSTEM.tqdmnd(self.datacube.R_Nx, self.datacube.R_Ny, disable=True)
