@@ -331,6 +331,10 @@ class DataViewer(QMainWindow):
         self.detector_menu = QMenu("&Detector Response", self)
         self.menu_bar.addMenu(self.detector_menu)
 
+        detector_mode_separator = QAction("Diffraction", self)
+        detector_mode_separator.setDisabled(True)
+        self.detector_menu.addAction(detector_mode_separator)
+
         detector_mode_group = QActionGroup(self)
         detector_mode_group.setExclusive(True)
         self.detector_mode_group = detector_mode_group
@@ -371,6 +375,33 @@ class DataViewer(QMainWindow):
         detector_iCoM.triggered.connect(partial(self.update_real_space_view, True))
         detector_mode_group.addAction(detector_iCoM)
         self.detector_menu.addAction(detector_iCoM)
+
+        # Detector Response for realspace selector
+        self.detector_menu.addSeparator()
+        rs_detector_mode_separator = QAction("Diffraction", self)
+        rs_detector_mode_separator.setDisabled(True)
+        self.detector_menu.addAction(rs_detector_mode_separator)
+
+        realspace_detector_mode_group = QActionGroup(self)
+        realspace_detector_mode_group.setExclusive(True)
+        self.realspace_detector_mode_group = realspace_detector_mode_group
+
+        detector_integrating_action = QAction("&Integrating", self)
+        detector_integrating_action.setCheckable(True)
+        detector_integrating_action.setChecked(True)
+        detector_integrating_action.triggered.connect(
+            partial(self.update_diffraction_space_view, True)
+        )
+        realspace_detector_mode_group.addAction(detector_integrating_action)
+        self.detector_menu.addAction(detector_integrating_action)
+
+        detector_maximum_action = QAction("&Maximum", self)
+        detector_maximum_action.setCheckable(True)
+        detector_maximum_action.triggered.connect(
+            partial(self.update_diffraction_space_view, True)
+        )
+        realspace_detector_mode_group.addAction(detector_maximum_action)
+        self.detector_menu.addAction(detector_maximum_action)
 
         # Detector Shape Menu
         self.detector_shape_menu = QMenu("Detector &Shape", self)

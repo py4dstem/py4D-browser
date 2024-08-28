@@ -263,6 +263,11 @@ def update_diffraction_space_view(self, reset=False):
         "Rectangular",
     ], detector_shape
 
+    detector_response = (
+        self.realspace_detector_mode_group.checkedAction().text().replace("&", "")
+    )
+    assert detector_response in ["Integrating", "Maximum"], detector_response
+
     if detector_shape == "Point":
         roi_state = self.real_space_point_selector.saveState()
         y0, x0 = roi_state["pos"]
@@ -288,7 +293,12 @@ def update_diffraction_space_view(self, reset=False):
             f"Real Space Range: [{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
         )
 
-        DP = np.sum(self.datacube.data[slice_x, slice_y], axis=(0, 1))
+        if detector_response == "Integrating":
+            DP = np.sum(self.datacube.data[slice_x, slice_y], axis=(0, 1))
+        elif detector_response == "Maximum":
+            DP = np.max(self.datacube.data[slice_x, slice_y], axis=(0, 1))
+        else:
+            raise ValueError("Detector response problem")
 
     else:
         raise ValueError("Detector shape not recognized")
