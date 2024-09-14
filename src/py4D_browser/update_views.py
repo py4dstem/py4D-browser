@@ -51,7 +51,7 @@ def update_real_space_view(self, reset=False):
 
         # update the label:
         self.diffraction_space_view_text.setText(
-            f"Diffraction Space Range: [{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
+            f"Diffraction Slice: [{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
         )
 
         if detector_mode == "Integrating":
@@ -69,7 +69,7 @@ def update_real_space_view(self, reset=False):
         y0 = self.virtual_detector_roi.pos()[0] + R
 
         self.diffraction_space_view_text.setText(
-            f"Detector Center: ({x0:.0f},{y0:.0f}), Radius: {R:.0f}"
+            f"Diffraction Circle: Center ({x0:.0f},{y0:.0f}), Radius {R:.0f}"
         )
 
         mask = make_detector(
@@ -89,7 +89,7 @@ def update_real_space_view(self, reset=False):
             R_inner -= 1
 
         self.diffraction_space_view_text.setText(
-            f"Detector Center: ({x0:.0f},{y0:.0f}), Radii: ({R_inner:.0f},{R_outer:.0f})"
+            f"Diffraction Annulus: Center ({x0:.0f},{y0:.0f}), Radii ({R_inner:.0f},{R_outer:.0f})"
         )
 
         mask = make_detector(
@@ -108,7 +108,7 @@ def update_real_space_view(self, reset=False):
         yc = np.clip(yc, 0, self.datacube.Q_Ny - 1)
         vimg = self.datacube.data[:, :, xc, yc]
 
-        self.diffraction_space_view_text.setText(f"Diffraction Pixel: [{xc},{yc}]")
+        self.diffraction_space_view_text.setText(f"Diffraction Point: [{xc},{yc}]")
 
     else:
         raise ValueError("Detector shape not recognized")
@@ -285,7 +285,7 @@ def update_diffraction_space_view(self, reset=False):
         xc = np.clip(xc, 0, self.datacube.R_Nx - 1)
         yc = np.clip(yc, 0, self.datacube.R_Ny - 1)
 
-        self.real_space_view_text.setText(f"Real Space Pixel: [{xc},{yc}]")
+        self.real_space_view_text.setText(f"Virtual Image: Point [{xc},{yc}]")
 
         DP = self.datacube.data[xc, yc]
     elif detector_shape == "Rectangular":
@@ -297,7 +297,7 @@ def update_diffraction_space_view(self, reset=False):
 
         # update the label:
         self.real_space_view_text.setText(
-            f"Real Space Range: [{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
+            f"Virtual Image: Slice [{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
         )
 
         if detector_response == "Integrating":
