@@ -628,12 +628,13 @@ class DataViewer(QMainWindow):
             self.stats_menu.addAction(a)
 
         self.stats_button.setMenu(self.stats_menu)
-        self.statusBar().addPermanentWidget(self.stats_button)
 
         self.cursor_value_text = QLabel("")
 
-        self.statusBar().addPermanentWidget(VLine())
+        # self.statusBar().addPermanentWidget(VLine())
         self.statusBar().addPermanentWidget(self.cursor_value_text)
+        self.statusBar().addPermanentWidget(VLine())
+        self.statusBar().addPermanentWidget(self.stats_button)
         self.statusBar().addPermanentWidget(VLine())
         self.statusBar().addPermanentWidget(self.diffraction_space_view_text)
         self.statusBar().addPermanentWidget(VLine())
