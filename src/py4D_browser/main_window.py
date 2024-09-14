@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import (
     QActionGroup,
     QLabel,
     QToolTip,
+    QPushButton,
 )
 
 from matplotlib.backend_bases import tools
@@ -378,7 +379,7 @@ class DataViewer(QMainWindow):
 
         # Detector Response for realspace selector
         self.detector_menu.addSeparator()
-        rs_detector_mode_separator = QAction("Diffraction", self)
+        rs_detector_mode_separator = QAction("Virtual Image", self)
         rs_detector_mode_separator.setDisabled(True)
         self.detector_menu.addAction(rs_detector_mode_separator)
 
@@ -607,12 +608,32 @@ class DataViewer(QMainWindow):
         self.fft_widget.getView().setMenuEnabled(False)
 
         # Setup Status Bar
-        self.realspace_statistics_text = QLabel("Image Stats")
-        self.diffraction_statistics_text = QLabel("Diffraction Stats")
+        self.stats_button = QPushButton("Statistics")
+        self.stats_menu = QMenu()
+
+        self.realspace_title = QAction("Virtual Image")
+        self.realspace_title.setDisabled(False)
+        self.stats_menu.addAction(self.realspace_title)
+        self.realspace_statistics_actions = [QAction("") for i in range(5)]
+        for a in self.realspace_statistics_actions:
+            self.stats_menu.addAction(a)
+
+        self.stats_menu.addSeparator()
+
+        self.diffraction_title = QAction("Diffraction")
+        self.diffraction_title.setDisabled(False)
+        self.stats_menu.addAction(self.diffraction_title)
+        self.diffraction_statistics_actions = [QAction("") for i in range(5)]
+        for a in self.diffraction_statistics_actions:
+            self.stats_menu.addAction(a)
+
+        self.stats_button.setMenu(self.stats_menu)
+        self.statusBar().addPermanentWidget(self.stats_button)
+
+        self.cursor_value_text = QLabel("")
+
         self.statusBar().addPermanentWidget(VLine())
-        self.statusBar().addPermanentWidget(self.realspace_statistics_text)
-        self.statusBar().addPermanentWidget(VLine())
-        self.statusBar().addPermanentWidget(self.diffraction_statistics_text)
+        self.statusBar().addPermanentWidget(self.cursor_value_text)
         self.statusBar().addPermanentWidget(VLine())
         self.statusBar().addPermanentWidget(self.diffraction_space_view_text)
         self.statusBar().addPermanentWidget(VLine())
