@@ -522,7 +522,6 @@ class DataViewer(QMainWindow):
         # Set up the diffraction space window.
         self.diffraction_space_widget = pg.ImageView()
         self.diffraction_space_widget.setImage(np.zeros((512, 512)))
-        self.diffraction_space_view_text = QLabel("Slice")
 
         self.diffraction_space_widget.setMouseTracking(True)
 
@@ -547,7 +546,6 @@ class DataViewer(QMainWindow):
         # Set up the real space window.
         self.real_space_widget = pg.ImageView()
         self.real_space_widget.setImage(np.zeros((512, 512)))
-        self.real_space_view_text = QLabel("Scan Position")
 
         # Add point selector connected to displayed diffraction pattern
         self.real_space_point_selector = pg_point_roi(self.real_space_widget.getView())
@@ -630,6 +628,8 @@ class DataViewer(QMainWindow):
         self.stats_button.setMenu(self.stats_menu)
 
         self.cursor_value_text = QLabel("")
+        self.diffraction_space_view_text = QLabel("Slice")
+        self.real_space_view_text = QLabel("Scan Position")
 
         # self.statusBar().addPermanentWidget(VLine())
         self.statusBar().addPermanentWidget(self.cursor_value_text)
