@@ -375,7 +375,7 @@ class ManualTCBFDialog(QDialog):
             self.parent.statusBar().showMessage("Max Shift must be specified")
             return
 
-        rotation = float(self.rotation_box.text() or 0.0)
+        rotation = np.radians(float(self.rotation_box.text() or 0.0))
         transpose = self.transpose_box.checkState()
         max_shift = float(self.max_shift_box.text())
 
