@@ -280,6 +280,7 @@ def reconstruct_tcBF_auto(self):
 
     # do tcBF!
     self.statusBar().showMessage("Reconstructing... (This may take a while)")
+    self.app.processEvents()
 
     tcBF = py4DSTEM.process.phase.Parallax(
         energy=300e3,
