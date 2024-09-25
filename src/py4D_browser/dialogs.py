@@ -406,6 +406,9 @@ class ManualTCBFDialog(QDialog):
         if transpose:
             R = T @ R
 
+        shifts_pix = np.stack([shifts_pix_x, shifts_pix_y], axis=2) @ R
+        shifts_pix_x, shifts_pix_y = shifts_pix[..., 0], shifts_pix[..., 1]
+
         # generate image to accumulate reconstruction
         pad = self.pad_checkbox.checkState()
         pad_width = int(
