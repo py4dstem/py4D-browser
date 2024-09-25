@@ -108,7 +108,7 @@ def update_real_space_view(self, reset=False):
         yc = np.clip(yc, 0, self.datacube.Q_Ny - 1)
         vimg = self.datacube.data[:, :, xc, yc]
 
-        self.diffraction_space_view_text.setText(f"Diffraction Point: [{xc},{yc}]")
+        self.diffraction_space_view_text.setText(f"Diffraction: Point [{xc},{yc}]")
 
     else:
         raise ValueError("Detector shape not recognized")
