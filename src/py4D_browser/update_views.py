@@ -51,7 +51,7 @@ def update_real_space_view(self, reset=False):
 
         # update the label:
         self.diffraction_space_view_text.setText(
-            f"Diffraction Space Range: [{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
+            f"Diffraction Slice: [{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
         )
 
         if detector_mode == "Integrating":
@@ -69,7 +69,7 @@ def update_real_space_view(self, reset=False):
         y0 = self.virtual_detector_roi.pos()[0] + R
 
         self.diffraction_space_view_text.setText(
-            f"Detector Center: ({x0:.0f},{y0:.0f}), Radius: {R:.0f}"
+            f"Diffraction Circle: Center ({x0:.0f},{y0:.0f}), Radius {R:.0f}"
         )
 
         mask = make_detector(
@@ -89,7 +89,7 @@ def update_real_space_view(self, reset=False):
             R_inner -= 1
 
         self.diffraction_space_view_text.setText(
-            f"Detector Center: ({x0:.0f},{y0:.0f}), Radii: ({R_inner:.0f},{R_outer:.0f})"
+            f"Diffraction Annulus: Center ({x0:.0f},{y0:.0f}), Radii ({R_inner:.0f},{R_outer:.0f})"
         )
 
         mask = make_detector(
@@ -108,7 +108,7 @@ def update_real_space_view(self, reset=False):
         yc = np.clip(yc, 0, self.datacube.Q_Ny - 1)
         vimg = self.datacube.data[:, :, xc, yc]
 
-        self.diffraction_space_view_text.setText(f"Diffraction Pixel: [{xc},{yc}]")
+        self.diffraction_space_view_text.setText(f"Diffraction Point: [{xc},{yc}]")
 
     else:
         raise ValueError("Detector shape not recognized")
@@ -186,9 +186,16 @@ def _render_virtual_image(self, reset=False):
     else:
         raise ValueError("Mode not recognized")
 
-    self.realspace_statistics_text.setToolTip(
-        f"min\t{vimg.min():.5g}\nmax\t{vimg.max():.5g}\nmean\t{vimg.mean():.5g}\nsum\t{vimg.sum():.5g}\nstd\t{np.std(vimg):.5g}"
-    )
+    stats_text = [
+        f"Min:\t{vimg.min():.5g}",
+        f"Max:\t{vimg.max():.5g}",
+        f"Mean:\t{vimg.mean():.5g}",
+        f"Sum:\t{vimg.sum():.5g}",
+        f"Std:\t{np.std(vimg):.5g}",
+    ]
+
+    for t, m in zip(stats_text, self.realspace_statistics_actions):
+        m.setText(t)
 
     auto_level = reset or self.realspace_rescale_button.latched
 
@@ -278,7 +285,7 @@ def update_diffraction_space_view(self, reset=False):
         xc = np.clip(xc, 0, self.datacube.R_Nx - 1)
         yc = np.clip(yc, 0, self.datacube.R_Ny - 1)
 
-        self.real_space_view_text.setText(f"Real Space Pixel: [{xc},{yc}]")
+        self.real_space_view_text.setText(f"Virtual Image: Point [{xc},{yc}]")
 
         DP = self.datacube.data[xc, yc]
     elif detector_shape == "Rectangular":
@@ -290,7 +297,7 @@ def update_diffraction_space_view(self, reset=False):
 
         # update the label:
         self.real_space_view_text.setText(
-            f"Real Space Range: [{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
+            f"Virtual Image: Slice [{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
         )
 
         if detector_response == "Integrating":
@@ -326,9 +333,16 @@ def _render_diffraction_image(self, reset=False):
     else:
         raise ValueError("Mode not recognized")
 
-    self.diffraction_statistics_text.setToolTip(
-        f"min\t{DP.min():.5g}\nmax\t{DP.max():.5g}\nmean\t{DP.mean():.5g}\nsum\t{DP.sum():.5g}\nstd\t{np.std(DP):.5g}"
-    )
+    stats_text = [
+        f"Min:\t{DP.min():.5g}",
+        f"Max:\t{DP.max():.5g}",
+        f"Mean:\t{DP.mean():.5g}",
+        f"Sum:\t{DP.sum():.5g}",
+        f"Std:\t{np.std(DP):.5g}",
+    ]
+
+    for t, m in zip(stats_text, self.diffraction_statistics_actions):
+        m.setText(t)
 
     auto_level = reset or self.diffraction_rescale_button.latched
 
@@ -567,13 +581,8 @@ def nudge_diffraction_selector(self, dx, dy):
 
 def update_tooltip(self):
     modifier_keys = QApplication.queryKeyboardModifiers()
-    # print(self.isHidden())
 
-    if (
-        QtCore.Qt.ControlModifier == modifier_keys
-        and self.datacube is not None
-        and self.isActiveWindow()
-    ):
+    if self.datacube is not None and self.isActiveWindow():
         global_pos = QCursor.pos()
 
         for scene, data in [
@@ -589,9 +598,7 @@ def update_tooltip(self):
                 x = int(np.clip(np.floor(pos_in_data.y()), 0, data.shape[1] - 1))
                 display_text = f"[{x},{y}]: {data[x,y]:.5g}"
 
-                # Clearing the tooltip forces it to move every tick, but it flickers
-                # QToolTip.showText(global_pos, "")
-                QToolTip.showText(global_pos, display_text)
+                self.cursor_value_text.setText(display_text)
 
 
 def update_annulus_pos(self):
