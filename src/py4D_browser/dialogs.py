@@ -1,4 +1,4 @@
-from py4DSTEM import DataCube, data
+from py4DSTEM import DataCube, data, tqdmnd
 import pyqtgraph as pg
 import numpy as np
 from PyQt5.QtWidgets import QFrame, QPushButton, QApplication, QLabel
@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (
     QGridLayout,
     QCheckBox,
 )
-from py4D_browser.utils import make_detector
+from py4D_browser.utils import make_detector, StatusBarWriter
 
 
 class ResizeDialog(QDialog):
@@ -301,18 +301,22 @@ class ManualTCBFDialog(QDialog):
         params_box.setLayout(params_layout)
 
         params_layout.addWidget(QLabel("Rotation [deg]"), 0, 0, Qt.AlignRight)
-        rotation_box = QLineEdit()
-        rotation_box.setValidator(QDoubleValidator())
-        params_layout.addWidget(rotation_box, 0, 1)
+        self.rotation_box = QLineEdit()
+        self.rotation_box.setValidator(QDoubleValidator())
+        params_layout.addWidget(self.rotation_box, 0, 1)
 
         params_layout.addWidget(QLabel("Transpose x/y"), 1, 0, Qt.AlignRight)
-        transpose_box = QCheckBox()
-        params_layout.addWidget(transpose_box, 1, 1)
+        self.transpose_box = QCheckBox()
+        params_layout.addWidget(self.transpose_box, 1, 1)
 
         params_layout.addWidget(QLabel("Max Shift [px]"), 2, 0, Qt.AlignRight)
         self.max_shift_box = QLineEdit()
         self.max_shift_box.setValidator(QDoubleValidator())
         params_layout.addWidget(self.max_shift_box, 2, 1)
+
+        params_layout.addWidget(QLabel("Pad Images"), 3, 0, Qt.AlignRight)
+        self.pad_checkbox = QCheckBox()
+        params_layout.addWidget(self.pad_checkbox, 3, 1)
 
         button_layout = QHBoxLayout()
         button_layout.addStretch()
@@ -371,7 +375,7 @@ class ManualTCBFDialog(QDialog):
             self.parent.statusBar().showMessage("Max Shift must be specified")
             return
 
-        rotation = float(self.rotation_box.text() or 0.0)
+        rotation = np.radians(float(self.rotation_box.text() or 0.0))
         transpose = self.transpose_box.checkState()
         max_shift = float(self.max_shift_box.text())
 
@@ -389,7 +393,6 @@ class ManualTCBFDialog(QDialog):
         # unrotated shifts in scan pixels
         shifts_pix_x = pix_coord_x / np.max(q_pix * mask) * max_shift
         shifts_pix_y = pix_coord_y / np.max(q_pix * mask) * max_shift
-        # shifts_pix = np.
 
         R = np.array(
             [
@@ -401,3 +404,60 @@ class ManualTCBFDialog(QDialog):
 
         if transpose:
             R = T @ R
+
+        shifts_pix = np.stack([shifts_pix_x, shifts_pix_y], axis=2) @ R
+        shifts_pix_x, shifts_pix_y = shifts_pix[..., 0], shifts_pix[..., 1]
+
+        # generate image to accumulate reconstruction
+        pad = self.pad_checkbox.checkState()
+        pad_width = int(
+            np.maximum(np.abs(shifts_pix_x).max(), np.abs(shifts_pix_y).max())
+        )
+
+        reconstruction = (
+            np.zeros((datacube.R_Nx + 2 * pad_width, datacube.R_Ny + 2 * pad_width))
+            if pad
+            else np.zeros((datacube.R_Nx, datacube.R_Ny))
+        )
+
+        qx = np.fft.fftfreq(reconstruction.shape[0])
+        qy = np.fft.fftfreq(reconstruction.shape[1])
+
+        qx_operator, qy_operator = np.meshgrid(qx, qy, indexing="ij")
+        qx_operator = qx_operator * -2.0j * np.pi
+        qy_operator = qy_operator * -2.0j * np.pi
+
+        # loop over images and shift
+        for mx, my in tqdmnd(
+            *mask.shape,
+            desc="Shifting images",
+            file=StatusBarWriter(self.parent.statusBar()),
+            mininterval=1.0,
+        ):
+            if mask[mx, my]:
+                img_raw = datacube.data[:, :, mx, my]
+
+                if pad:
+                    img = np.zeros_like(reconstruction) + img_raw.mean()
+                    img[
+                        pad_width : img_raw.shape[0] + pad_width,
+                        pad_width : img_raw.shape[1] + pad_width,
+                    ] = img_raw
+                else:
+                    img = img_raw
+
+                reconstruction += np.real(
+                    np.fft.ifft2(
+                        np.fft.fft2(img)
+                        * np.exp(
+                            qx_operator * shifts_pix_x[mx, my]
+                            + qy_operator * shifts_pix_y[mx, my]
+                        )
+                    )
+                )
+
+        # crop away padding so the image lines up with the original
+        if pad:
+            reconstruction = reconstruction[pad_width:-pad_width, pad_width:-pad_width]
+
+        self.parent.set_virtual_image(reconstruction, reset=True)

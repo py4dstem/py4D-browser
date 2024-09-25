@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import (
     QActionGroup,
     QLabel,
     QToolTip,
+    QPushButton,
 )
 
 from matplotlib.backend_bases import tools
@@ -331,6 +332,10 @@ class DataViewer(QMainWindow):
         self.detector_menu = QMenu("&Detector Response", self)
         self.menu_bar.addMenu(self.detector_menu)
 
+        detector_mode_separator = QAction("Diffraction", self)
+        detector_mode_separator.setDisabled(True)
+        self.detector_menu.addAction(detector_mode_separator)
+
         detector_mode_group = QActionGroup(self)
         detector_mode_group.setExclusive(True)
         self.detector_mode_group = detector_mode_group
@@ -371,6 +376,33 @@ class DataViewer(QMainWindow):
         detector_iCoM.triggered.connect(partial(self.update_real_space_view, True))
         detector_mode_group.addAction(detector_iCoM)
         self.detector_menu.addAction(detector_iCoM)
+
+        # Detector Response for realspace selector
+        self.detector_menu.addSeparator()
+        rs_detector_mode_separator = QAction("Virtual Image", self)
+        rs_detector_mode_separator.setDisabled(True)
+        self.detector_menu.addAction(rs_detector_mode_separator)
+
+        realspace_detector_mode_group = QActionGroup(self)
+        realspace_detector_mode_group.setExclusive(True)
+        self.realspace_detector_mode_group = realspace_detector_mode_group
+
+        detector_integrating_action = QAction("&Integrating", self)
+        detector_integrating_action.setCheckable(True)
+        detector_integrating_action.setChecked(True)
+        detector_integrating_action.triggered.connect(
+            partial(self.update_diffraction_space_view, True)
+        )
+        realspace_detector_mode_group.addAction(detector_integrating_action)
+        self.detector_menu.addAction(detector_integrating_action)
+
+        detector_maximum_action = QAction("&Maximum", self)
+        detector_maximum_action.setCheckable(True)
+        detector_maximum_action.triggered.connect(
+            partial(self.update_diffraction_space_view, True)
+        )
+        realspace_detector_mode_group.addAction(detector_maximum_action)
+        self.detector_menu.addAction(detector_maximum_action)
 
         # Detector Shape Menu
         self.detector_shape_menu = QMenu("Detector &Shape", self)
@@ -472,11 +504,11 @@ class DataViewer(QMainWindow):
         tcBF_action_manual = QAction("tcBF (Manual)...", self)
         tcBF_action_manual.triggered.connect(self.reconstruct_tcBF_manual)
         self.processing_menu.addAction(tcBF_action_manual)
-        tcBF_action_manual.setEnabled(False)
 
         tcBF_action_auto = QAction("tcBF (Automatic)", self)
         tcBF_action_auto.triggered.connect(self.reconstruct_tcBF_auto)
         self.processing_menu.addAction(tcBF_action_auto)
+        # tcBF_action_auto.setEnabled(False)
 
         # Help menu
         self.help_menu = QMenu("&Help", self)
@@ -490,7 +522,6 @@ class DataViewer(QMainWindow):
         # Set up the diffraction space window.
         self.diffraction_space_widget = pg.ImageView()
         self.diffraction_space_widget.setImage(np.zeros((512, 512)))
-        self.diffraction_space_view_text = QLabel("Slice")
 
         self.diffraction_space_widget.setMouseTracking(True)
 
@@ -515,7 +546,6 @@ class DataViewer(QMainWindow):
         # Set up the real space window.
         self.real_space_widget = pg.ImageView()
         self.real_space_widget.setImage(np.zeros((512, 512)))
-        self.real_space_view_text = QLabel("Scan Position")
 
         # Add point selector connected to displayed diffraction pattern
         self.real_space_point_selector = pg_point_roi(self.real_space_widget.getView())
@@ -576,12 +606,35 @@ class DataViewer(QMainWindow):
         self.fft_widget.getView().setMenuEnabled(False)
 
         # Setup Status Bar
-        self.realspace_statistics_text = QLabel("Image Stats")
-        self.diffraction_statistics_text = QLabel("Diffraction Stats")
+        self.stats_button = QPushButton("Statistics")
+        self.stats_menu = QMenu()
+
+        self.realspace_title = QAction("Virtual Image")
+        self.realspace_title.setDisabled(False)
+        self.stats_menu.addAction(self.realspace_title)
+        self.realspace_statistics_actions = [QAction("") for i in range(5)]
+        for a in self.realspace_statistics_actions:
+            self.stats_menu.addAction(a)
+
+        self.stats_menu.addSeparator()
+
+        self.diffraction_title = QAction("Diffraction")
+        self.diffraction_title.setDisabled(False)
+        self.stats_menu.addAction(self.diffraction_title)
+        self.diffraction_statistics_actions = [QAction("") for i in range(5)]
+        for a in self.diffraction_statistics_actions:
+            self.stats_menu.addAction(a)
+
+        self.stats_button.setMenu(self.stats_menu)
+
+        self.cursor_value_text = QLabel("")
+        self.diffraction_space_view_text = QLabel("Slice")
+        self.real_space_view_text = QLabel("Scan Position")
+
+        # self.statusBar().addPermanentWidget(VLine())
+        self.statusBar().addPermanentWidget(self.cursor_value_text)
         self.statusBar().addPermanentWidget(VLine())
-        self.statusBar().addPermanentWidget(self.realspace_statistics_text)
-        self.statusBar().addPermanentWidget(VLine())
-        self.statusBar().addPermanentWidget(self.diffraction_statistics_text)
+        self.statusBar().addPermanentWidget(self.stats_button)
         self.statusBar().addPermanentWidget(VLine())
         self.statusBar().addPermanentWidget(self.diffraction_space_view_text)
         self.statusBar().addPermanentWidget(VLine())
