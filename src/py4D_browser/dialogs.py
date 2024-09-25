@@ -393,7 +393,6 @@ class ManualTCBFDialog(QDialog):
         # unrotated shifts in scan pixels
         shifts_pix_x = pix_coord_x / np.max(q_pix * mask) * max_shift
         shifts_pix_y = pix_coord_y / np.max(q_pix * mask) * max_shift
-        # shifts_pix = np.
 
         R = np.array(
             [
