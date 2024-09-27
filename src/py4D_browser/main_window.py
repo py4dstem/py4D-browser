@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QToolTip,
     QPushButton,
+    QShortcut,
 )
 
 from matplotlib.backend_bases import tools
@@ -134,6 +135,7 @@ class DataViewer(QMainWindow):
         self.load_auto_action = QAction("&Load Data...", self)
         self.load_auto_action.triggered.connect(self.load_data_auto)
         self.file_menu.addAction(self.load_auto_action)
+        self.load_auto_action.setShortcut(QtGui.QKeySequence("Ctrl+O"))
 
         self.load_mmap_action = QAction("Load &Memory Map...", self)
         self.load_mmap_action.triggered.connect(self.load_data_mmap)
@@ -163,6 +165,8 @@ class DataViewer(QMainWindow):
         for method in ["Raw float32", "py4DSTEM HDF5", "Plain HDF5"]:
             menu_item = datacube_export_menu.addAction(method)
             menu_item.triggered.connect(partial(self.export_datacube, method))
+            if method == "py4DSTEM HDF5":
+                menu_item.setShortcut(QtGui.QKeySequence("Ctrl+S"))
 
         # Submenu to export virtual image
         vimg_export_menu = QMenu("Export Virtual Image", self)
