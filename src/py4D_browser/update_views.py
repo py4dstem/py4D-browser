@@ -521,6 +521,7 @@ def update_diffraction_detector(self):
 
 def set_diffraction_autoscale_range(self, percentiles, redraw=True):
     self.diffraction_autoscale_percentiles = percentiles
+    self.settings.setValue("last_state/diffraction_autorange", list(percentiles))
 
     if redraw:
         self._render_diffraction_image(reset=False)
@@ -528,6 +529,7 @@ def set_diffraction_autoscale_range(self, percentiles, redraw=True):
 
 def set_real_space_autoscale_range(self, percentiles, redraw=True):
     self.real_space_autoscale_percentiles = percentiles
+    self.settings.setValue("last_state/realspace_autorange", list(percentiles))
 
     if redraw:
         self._render_virtual_image(reset=False)

@@ -22,6 +22,7 @@ from functools import partial
 from pathlib import Path
 import importlib
 import os
+import platformdirs
 
 from py4D_browser.utils import pg_point_roi, VLine, LatchingButton
 from py4D_browser.scalebar import ScaleBar
@@ -98,6 +99,21 @@ class DataViewer(QMainWindow):
 
         self.datacube = None
 
+        # Load settings from cofig file
+        config_path = os.path.join(
+            platformdirs.user_config_dir("py4DGUI", "py4DSTEM"), "GUI_config.ini"
+        )
+        print(f"Loading configuration from {config_path}")
+        QtCore.QCoreApplication.setOrganizationName("py4DSTEM")
+        QtCore.QCoreApplication.setOrganizationDomain("py4DSTEM.com")
+        QtCore.QCoreApplication.setApplicationName("py4DGUI")
+        self.settings = QtCore.QSettings(config_path, QtCore.QSettings.Format.IniFormat)
+
+        # Reset stored state if so asked:
+        if os.environ.get("PY4DGUI_RESET"):
+            self.settings.remove("last_state")
+            print("Cleared saved state, using defaults...")
+
         self.setup_menus()
         self.setup_views()
 
@@ -109,7 +125,9 @@ class DataViewer(QMainWindow):
         font.setPointSize(10)
         QToolTip.setFont(font)
 
-        self.resize(1000, 800)
+        self.resize(
+            self.settings.value("last_state/window_size", QtCore.QSize(1000, 800)),
+        )
 
         self.show()
 
@@ -297,6 +315,9 @@ class DataViewer(QMainWindow):
         diff_range_group = QActionGroup(self)
         diff_range_group.setExclusive(True)
 
+        scale_range_default = self.settings.value(
+            "last_state/diffraction_autorange", [0.1, 99.9], type=float
+        )
         for scale_range in [(0, 100), (0.1, 99.9), (1, 99), (2, 98), (5, 95)]:
             action = QAction(f"{scale_range[0]}% – {scale_range[1]}%", self)
             diff_range_group.addAction(action)
@@ -306,7 +327,10 @@ class DataViewer(QMainWindow):
                 partial(self.set_diffraction_autoscale_range, scale_range)
             )
             # set default
-            if scale_range[0] == 2 and scale_range[1] == 98:
+            if (
+                scale_range[0] == scale_range_default[0]
+                and scale_range[1] == scale_range_default[1]
+            ):
                 action.setChecked(True)
                 self.set_diffraction_autoscale_range(scale_range, redraw=False)
 
@@ -319,6 +343,9 @@ class DataViewer(QMainWindow):
         vimg_range_group = QActionGroup(self)
         vimg_range_group.setExclusive(True)
 
+        scale_range_default = self.settings.value(
+            "last_state/realspace_autorange", [0.1, 99.9], type=float
+        )
         for scale_range in [(0, 100), (0.1, 99.9), (1, 99), (2, 98), (5, 95)]:
             action = QAction(f"{scale_range[0]}% – {scale_range[1]}%", self)
             vimg_range_group.addAction(action)
@@ -328,7 +355,10 @@ class DataViewer(QMainWindow):
                 partial(self.set_real_space_autoscale_range, scale_range)
             )
             # set default
-            if scale_range[0] == 2 and scale_range[1] == 98:
+            if (
+                scale_range[0] == scale_range_default[0]
+                and scale_range[1] == scale_range_default[1]
+            ):
                 action.setChecked(True)
                 self.set_real_space_autoscale_range(scale_range, redraw=False)
 
@@ -662,6 +692,10 @@ class DataViewer(QMainWindow):
             self.real_space_widget.autoLevels
         )
         self.statusBar().addPermanentWidget(self.realspace_rescale_button)
+
+    def resizeEvent(self, event):
+        # Store window size for next run
+        self.settings.setValue("last_state/window_size", event.size())
 
     # Handle dragging and dropping a file on the window
     def dragEnterEvent(self, event):
