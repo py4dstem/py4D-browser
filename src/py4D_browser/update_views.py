@@ -29,6 +29,7 @@ def update_real_space_view(self, reset=False):
     ], detector_mode
 
     # If a CoM method is checked, ensure linear scaling
+    scaling_mode = self.vimg_scaling_group.checkedAction().text().replace("&", "")
     if detector_mode in ["CoM Magnitude", "CoM Angle"] and scaling_mode != "Linear":
         print("Warning! Setting linear scaling for CoM image")
         self.vimg_scale_linear_action.setChecked(True)
@@ -383,7 +384,7 @@ def update_realspace_detector(self):
         return
 
     x, y = self.datacube.data.shape[:2]
-    x0, y0 = x / 2, y / 2
+    x0, y0 = x // 2, y // 2
     xr, yr = x / 10, y / 10
 
     # Remove existing detector
@@ -396,7 +397,10 @@ def update_realspace_detector(self):
 
     # Rectangular detector
     if detector_shape == "Point":
-        self.real_space_point_selector = pg_point_roi(self.real_space_widget.getView())
+        self.real_space_point_selector = pg_point_roi(
+            self.real_space_widget.getView(),
+            center=(x0 - 0.5, y0 - 0.5),
+        )
         self.real_space_point_selector.sigRegionChanged.connect(
             partial(self.update_diffraction_space_view, False)
         )
@@ -426,7 +430,7 @@ def update_diffraction_detector(self):
         return
 
     x, y = self.datacube.data.shape[2:]
-    x0, y0 = x / 2, y / 2
+    x0, y0 = x // 2, y // 2
     xr, yr = x / 10, y / 10
 
     # Remove existing detector
@@ -449,15 +453,17 @@ def update_diffraction_detector(self):
         )
         self.virtual_detector_roi_outer = None
 
-    # Rectangular detector
+    # Point detector
     if detector_shape == "Point":
         self.virtual_detector_point = pg_point_roi(
-            self.diffraction_space_widget.getView()
+            self.diffraction_space_widget.getView(),
+            center=(x0 - 0.5, y0 - 0.5),
         )
         self.virtual_detector_point.sigRegionChanged.connect(
             partial(self.update_real_space_view, False)
         )
 
+    # Rectangular detector
     elif detector_shape == "Rectangular":
         self.virtual_detector_roi = pg.RectROI(
             [int(x0 - xr / 2), int(y0 - yr / 2)], [int(xr), int(yr)], pen=(3, 9)

@@ -66,12 +66,12 @@ class LatchingButton(QPushButton):
                     self.status_bar.showMessage("Shift+click to keep on", 5_000)
 
 
-def pg_point_roi(view_box):
+def pg_point_roi(view_box, center=(-0.5, -0.5)):
     """
     Point selection.  Based in pyqtgraph, and returns a pyqtgraph CircleROI object.
     This object has a sigRegionChanged.connect() signal method to connect to other functions.
     """
-    circ_roi = pg.CircleROI((-0.5, -0.5), (2, 2), movable=True, pen=(0, 9))
+    circ_roi = pg.CircleROI(center, (2, 2), movable=True, pen=(0, 9))
     h = circ_roi.addTranslateHandle((0.5, 0.5))
     h.pen = pg.mkPen("r")
     h.update()
