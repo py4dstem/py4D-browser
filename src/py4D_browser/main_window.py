@@ -391,19 +391,11 @@ class DataViewer(QMainWindow):
         detector_mode_group.addAction(detector_maximum_action)
         self.detector_menu.addAction(detector_maximum_action)
 
-        detector_CoM_magnitude = QAction("CoM Ma&gnitude", self)
-        detector_CoM_magnitude.setCheckable(True)
-        detector_CoM_magnitude.triggered.connect(
-            partial(self.update_real_space_view, True)
-        )
-        detector_mode_group.addAction(detector_CoM_magnitude)
-        self.detector_menu.addAction(detector_CoM_magnitude)
-
-        detector_CoM_angle = QAction("CoM &Angle", self)
-        detector_CoM_angle.setCheckable(True)
-        detector_CoM_angle.triggered.connect(partial(self.update_real_space_view, True))
-        detector_mode_group.addAction(detector_CoM_angle)
-        self.detector_menu.addAction(detector_CoM_angle)
+        detector_CoM = QAction("C&oM", self)
+        detector_CoM.setCheckable(True)
+        detector_CoM.triggered.connect(partial(self.update_real_space_view, True))
+        detector_mode_group.addAction(detector_CoM)
+        self.detector_menu.addAction(detector_CoM)
 
         detector_iCoM = QAction("i&CoM", self)
         detector_iCoM.setCheckable(True)
