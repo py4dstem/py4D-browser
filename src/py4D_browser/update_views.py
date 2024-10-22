@@ -7,7 +7,12 @@ from PyQt5 import QtCore
 from PyQt5.QtGui import QCursor
 import os
 
-from py4D_browser.utils import pg_point_roi, make_detector, complex_to_Lab
+from py4D_browser.utils import (
+    pg_point_roi,
+    make_detector,
+    complex_to_Lab,
+    StatusBarWriter,
+)
 
 
 def update_real_space_view(self, reset=False):
@@ -119,7 +124,12 @@ def update_real_space_view(self, reset=False):
             return
         mask = mask.astype(np.float32)
         vimg = np.zeros((self.datacube.R_Nx, self.datacube.R_Ny))
-        iterator = py4DSTEM.tqdmnd(self.datacube.R_Nx, self.datacube.R_Ny, disable=True)
+        iterator = py4DSTEM.tqdmnd(
+            self.datacube.R_Nx,
+            self.datacube.R_Ny,
+            file=StatusBarWriter(self.statusBar()),
+            mininterval=0.1,
+        )
 
         if detector_mode == "Integrating":
             for rx, ry in iterator:
