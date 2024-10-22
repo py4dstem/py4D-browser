@@ -1,6 +1,7 @@
-from py4DSTEM import DataCube, data, tqdmnd
+from py4DSTEM import DataCube, data
 import pyqtgraph as pg
 import numpy as np
+from tqdm import tqdm
 from PyQt5.QtWidgets import QFrame, QPushButton, QApplication, QLabel
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import Qt, QObject
@@ -428,8 +429,9 @@ class ManualTCBFDialog(QDialog):
         qy_operator = qy_operator * -2.0j * np.pi
 
         # loop over images and shift
-        for mx, my in tqdmnd(
-            *mask.shape,
+        img_indices = np.argwhere(mask)
+        for mx, my in tqdm(
+            img_indices,
             desc="Shifting images",
             file=StatusBarWriter(self.parent.statusBar()),
             mininterval=1.0,
