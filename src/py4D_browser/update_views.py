@@ -29,6 +29,8 @@ def update_real_space_view(self, reset=False):
         "Integrating",
         "Maximum",
         "CoM",
+        "CoM X",
+        "CoM Y",
         "iCoM",
     ], detector_mode
 
@@ -156,6 +158,10 @@ def update_real_space_view(self, reset=False):
 
             if detector_mode == "CoM":
                 vimg = CoMx + 1.0j * CoMy
+            elif detector_mode == "CoM X":
+                vimg = CoMx
+            elif detector_mode == "CoM Y":
+                vimg = CoMy
             elif detector_mode == "iCoM":
                 dpc = py4DSTEM.process.phase.DPC(verbose=False)
                 dpc.preprocess(
@@ -402,11 +408,12 @@ def update_realspace_detector(self):
     assert detector_shape in ["Point", "Rectangular"], detector_shape
 
     if self.datacube is None:
-        return
-
-    x, y = self.datacube.data.shape[:2]
-    x0, y0 = x // 2, y // 2
-    xr, yr = x / 10, y / 10
+        x0, y0 = 0, 0
+        xr, yr = 4, 4
+    else:
+        x, y = self.datacube.data.shape[2:]
+        x0, y0 = x // 2, y // 2
+        xr, yr = x / 10, y / 10
 
     # Remove existing detector
     if hasattr(self, "real_space_point_selector"):
@@ -447,12 +454,18 @@ def update_diffraction_detector(self):
     detector_shape = self.detector_shape_group.checkedAction().text().strip("&")
     assert detector_shape in ["Point", "Rectangular", "Circle", "Annulus"]
 
-    if self.datacube is None:
-        return
+    main_pen = {"color": "g", "width": 6}
+    handle_pen = {"color": "r", "width": 9}
+    hover_pen = {"color": "c", "width": 6}
+    hover_handle = {"color": "c", "width": 9}
 
-    x, y = self.datacube.data.shape[2:]
-    x0, y0 = x // 2, y // 2
-    xr, yr = x / 10, y / 10
+    if self.datacube is None:
+        x0, y0 = 0, 0
+        xr, yr = 4, 4
+    else:
+        x, y = self.datacube.data.shape[2:]
+        x0, y0 = x // 2, y // 2
+        xr, yr = x / 10, y / 10
 
     # Remove existing detector
     if hasattr(self, "virtual_detector_point"):
@@ -479,6 +492,8 @@ def update_diffraction_detector(self):
         self.virtual_detector_point = pg_point_roi(
             self.diffraction_space_widget.getView(),
             center=(x0 - 0.5, y0 - 0.5),
+            pen=main_pen,
+            hoverPen=hover_pen,
         )
         self.virtual_detector_point.sigRegionChanged.connect(
             partial(self.update_real_space_view, False)
@@ -487,7 +502,12 @@ def update_diffraction_detector(self):
     # Rectangular detector
     elif detector_shape == "Rectangular":
         self.virtual_detector_roi = pg.RectROI(
-            [int(x0 - xr / 2), int(y0 - yr / 2)], [int(xr), int(yr)], pen=(3, 9)
+            [int(x0 - xr / 2), int(y0 - yr / 2)],
+            [int(xr), int(yr)],
+            pen=main_pen,
+            handlePen=handle_pen,
+            hoverPen=hover_pen,
+            handleHoverPen=hover_handle,
         )
         self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi)
         self.virtual_detector_roi.sigRegionChangeFinished.connect(
@@ -497,7 +517,12 @@ def update_diffraction_detector(self):
     # Circular detector
     elif detector_shape == "Circle":
         self.virtual_detector_roi = pg.CircleROI(
-            [int(x0 - xr / 2), int(y0 - yr / 2)], [int(xr), int(yr)], pen=(3, 9)
+            [int(x0 - xr / 2), int(y0 - yr / 2)],
+            [int(xr), int(yr)],
+            pen=main_pen,
+            handlePen=handle_pen,
+            hoverPen=hover_pen,
+            handleHoverPen=hover_handle,
         )
         self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi)
         self.virtual_detector_roi.sigRegionChangeFinished.connect(
@@ -508,7 +533,12 @@ def update_diffraction_detector(self):
     elif detector_shape == "Annulus":
         # Make outer detector
         self.virtual_detector_roi_outer = pg.CircleROI(
-            [int(x0 - xr), int(y0 - yr)], [int(2 * xr), int(2 * yr)], pen=(3, 9)
+            [int(x0 - xr), int(y0 - yr)],
+            [int(2 * xr), int(2 * yr)],
+            pen=main_pen,
+            handlePen=handle_pen,
+            hoverPen=hover_pen,
+            handleHoverPen=hover_handle,
         )
         self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi_outer)
 
@@ -516,7 +546,10 @@ def update_diffraction_detector(self):
         self.virtual_detector_roi_inner = pg.CircleROI(
             [int(x0 - xr / 2), int(y0 - yr / 2)],
             [int(xr), int(yr)],
-            pen=(4, 9),
+            pen=main_pen,
+            hoverPen=hover_pen,
+            handlePen=handle_pen,
+            handleHoverPen=hover_handle,
             movable=False,
         )
         self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi_inner)
