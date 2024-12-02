@@ -408,13 +408,18 @@ def update_realspace_detector(self):
     )
     assert detector_shape in ["Point", "Rectangular"], detector_shape
 
+    main_pen = {"color": "g", "width": 6}
+    handle_pen = {"color": "r", "width": 9}
+    hover_pen = {"color": "c", "width": 6}
+    hover_handle = {"color": "c", "width": 9}
+
     if self.datacube is None:
         x0, y0 = 0, 0
         xr, yr = 4, 4
     else:
         x, y = self.datacube.data.shape[2:]
-        x0, y0 = x // 2, y // 2
-        xr, yr = x / 10, y / 10
+        y0, x0 = x // 2, y // 2
+        xr, yr = (np.minimum(x, y) / 10,) * 2
 
     # Remove existing detector
     if hasattr(self, "real_space_point_selector"):
@@ -424,19 +429,27 @@ def update_realspace_detector(self):
         self.real_space_widget.view.scene().removeItem(self.real_space_rect_selector)
         self.real_space_rect_selector = None
 
-    # Rectangular detector
+    # Point detector
     if detector_shape == "Point":
         self.real_space_point_selector = pg_point_roi(
             self.real_space_widget.getView(),
             center=(x0 - 0.5, y0 - 0.5),
+            pen=main_pen,
+            hoverPen=hover_pen,
         )
         self.real_space_point_selector.sigRegionChanged.connect(
             partial(self.update_diffraction_space_view, False)
         )
 
+    # Rectangular detector
     elif detector_shape == "Rectangular":
         self.real_space_rect_selector = pg.RectROI(
-            [int(x0 - xr / 2), int(y0 - yr / 2)], [int(xr), int(yr)], pen=(3, 9)
+            [int(x0 - xr / 2), int(y0 - yr / 2)],
+            [int(xr), int(yr)],
+            pen=main_pen,
+            handlePen=handle_pen,
+            hoverPen=hover_pen,
+            handleHoverPen=hover_handle,
         )
         self.real_space_widget.getView().addItem(self.real_space_rect_selector)
         self.real_space_rect_selector.sigRegionChangeFinished.connect(
@@ -465,8 +478,8 @@ def update_diffraction_detector(self):
         xr, yr = 4, 4
     else:
         x, y = self.datacube.data.shape[2:]
-        x0, y0 = x // 2, y // 2
-        xr, yr = x / 10, y / 10
+        y0, x0 = x // 2, y // 2
+        xr, yr = (np.minimum(x, y) / 10,) * 2
 
     # Remove existing detector
     if hasattr(self, "virtual_detector_point"):
