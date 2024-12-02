@@ -397,6 +397,18 @@ class DataViewer(QMainWindow):
         detector_mode_group.addAction(detector_CoM)
         self.detector_menu.addAction(detector_CoM)
 
+        detector_CoMx = QAction("CoM &X", self)
+        detector_CoMx.setCheckable(True)
+        detector_CoMx.triggered.connect(partial(self.update_real_space_view, True))
+        detector_mode_group.addAction(detector_CoMx)
+        self.detector_menu.addAction(detector_CoMx)
+
+        detector_CoMy = QAction("CoM &Y", self)
+        detector_CoMy.setCheckable(True)
+        detector_CoMy.triggered.connect(partial(self.update_real_space_view, True))
+        detector_mode_group.addAction(detector_CoMy)
+        self.detector_menu.addAction(detector_CoMy)
+
         detector_iCoM = QAction("i&CoM", self)
         detector_iCoM.setCheckable(True)
         detector_iCoM.triggered.connect(partial(self.update_real_space_view, True))
@@ -552,12 +564,7 @@ class DataViewer(QMainWindow):
         self.diffraction_space_widget.setMouseTracking(True)
 
         # Create virtual detector ROI selector
-        self.virtual_detector_point = pg_point_roi(
-            self.diffraction_space_widget.getView()
-        )
-        self.virtual_detector_point.sigRegionChanged.connect(
-            partial(self.update_real_space_view, False)
-        )
+        self.update_diffraction_detector()
 
         # Scalebar
         self.diffraction_scale_bar = ScaleBar(pixel_size=1, units="px", width=10)
@@ -574,10 +581,7 @@ class DataViewer(QMainWindow):
         self.real_space_widget.setImage(np.zeros((512, 512)))
 
         # Add point selector connected to displayed diffraction pattern
-        self.real_space_point_selector = pg_point_roi(self.real_space_widget.getView())
-        self.real_space_point_selector.sigRegionChanged.connect(
-            partial(self.update_diffraction_space_view, False)
-        )
+        self.update_realspace_detector()
 
         # Scalebar, None by default
         self.real_space_scale_bar = ScaleBar(pixel_size=1, units="px", width=10)
