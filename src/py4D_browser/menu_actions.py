@@ -196,7 +196,7 @@ def export_datacube(self, save_format: str):
         py4DSTEM.save(filename, self.datacube, mode="o")
 
     elif save_format == "Plain HDF5":
-        with h5py.File(filename, "o") as f:
+        with h5py.File(filename, "w") as f:
             f["array"] = self.datacube.data
 
 
