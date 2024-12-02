@@ -7,7 +7,12 @@ from PyQt5 import QtCore
 from PyQt5.QtGui import QCursor
 import os
 
-from py4D_browser.utils import pg_point_roi, make_detector, complex_to_Lab
+from py4D_browser.utils import (
+    pg_point_roi,
+    make_detector,
+    complex_to_Lab,
+    StatusBarWriter,
+)
 
 
 def update_real_space_view(self, reset=False):
@@ -23,14 +28,16 @@ def update_real_space_view(self, reset=False):
     assert detector_mode in [
         "Integrating",
         "Maximum",
-        "CoM Magnitude",
-        "CoM Angle",
+        "CoM",
+        "CoM X",
+        "CoM Y",
         "iCoM",
     ], detector_mode
 
     # If a CoM method is checked, ensure linear scaling
-    if detector_mode in ["CoM Magnitude", "CoM Angle"] and scaling_mode != "Linear":
-        print("Warning! Setting linear scaling for CoM image")
+    scaling_mode = self.vimg_scaling_group.checkedAction().text().replace("&", "")
+    if detector_mode == "CoM" and scaling_mode != "Linear":
+        self.statusBar().showMessage("Warning! Setting linear scaling for CoM image")
         self.vimg_scale_linear_action.setChecked(True)
         scaling_mode = "Linear"
 
@@ -45,7 +52,8 @@ def update_real_space_view(self, reset=False):
     if detector_shape == "Rectangular":
         # Get slices corresponding to ROI
         slices, transforms = self.virtual_detector_roi.getArraySlice(
-            self.datacube.data[0, 0, :, :], self.diffraction_space_widget.getImageItem()
+            self.datacube.data[0, 0, :, :].T,
+            self.diffraction_space_widget.getImageItem(),
         )
         slice_y, slice_x = slices
 
@@ -119,7 +127,12 @@ def update_real_space_view(self, reset=False):
             return
         mask = mask.astype(np.float32)
         vimg = np.zeros((self.datacube.R_Nx, self.datacube.R_Ny))
-        iterator = py4DSTEM.tqdmnd(self.datacube.R_Nx, self.datacube.R_Ny, disable=True)
+        iterator = py4DSTEM.tqdmnd(
+            self.datacube.R_Nx,
+            self.datacube.R_Ny,
+            file=StatusBarWriter(self.statusBar()),
+            mininterval=0.1,
+        )
 
         if detector_mode == "Integrating":
             for rx, ry in iterator:
@@ -144,10 +157,12 @@ def update_real_space_view(self, reset=False):
             CoMx -= np.mean(CoMx)
             CoMy -= np.mean(CoMy)
 
-            if detector_mode == "CoM Magnitude":
-                vimg = np.hypot(CoMx, CoMy)
-            elif detector_mode == "CoM Angle":
-                vimg = np.arctan2(CoMy, CoMx)
+            if detector_mode == "CoM":
+                vimg = CoMx + 1.0j * CoMy
+            elif detector_mode == "CoM X":
+                vimg = CoMx
+            elif detector_mode == "CoM Y":
+                vimg = CoMy
             elif detector_mode == "iCoM":
                 dpc = py4DSTEM.process.phase.DPC(verbose=False)
                 dpc.preprocess(
@@ -174,17 +189,44 @@ def set_virtual_image(self, vimg, reset=False):
 def _render_virtual_image(self, reset=False):
     vimg = self.unscaled_realspace_image
 
-    scaling_mode = self.vimg_scaling_group.checkedAction().text().replace("&", "")
-    assert scaling_mode in ["Linear", "Log", "Square Root"], scaling_mode
+    # for 2D images, use the scaling set by the user
+    # for RGB (3D) images, always scale linear
+    if np.isrealobj(vimg):
+        scaling_mode = self.vimg_scaling_group.checkedAction().text().replace("&", "")
+        assert scaling_mode in ["Linear", "Log", "Square Root"], scaling_mode
 
-    if scaling_mode == "Linear":
-        new_view = vimg.copy()
-    elif scaling_mode == "Log":
-        new_view = np.log2(np.maximum(vimg, self.LOG_SCALE_MIN_VALUE))
-    elif scaling_mode == "Square Root":
-        new_view = np.sqrt(np.maximum(vimg, 0))
+        if scaling_mode == "Linear":
+            new_view = vimg.copy()
+        elif scaling_mode == "Log":
+            new_view = np.log2(np.maximum(vimg, self.LOG_SCALE_MIN_VALUE))
+        elif scaling_mode == "Square Root":
+            new_view = np.sqrt(np.maximum(vimg, 0))
+        else:
+            raise ValueError("Mode not recognized")
+
+        auto_level = reset or self.realspace_rescale_button.latched
+
+        self.real_space_widget.setImage(
+            new_view.T,
+            autoLevels=False,
+            levels=(
+                (
+                    np.percentile(new_view, self.real_space_autoscale_percentiles[0]),
+                    np.percentile(new_view, self.real_space_autoscale_percentiles[1]),
+                )
+                if auto_level
+                else None
+            ),
+            autoRange=reset,
+        )
     else:
-        raise ValueError("Mode not recognized")
+        new_view = complex_to_Lab(vimg)
+        self.real_space_widget.setImage(
+            np.transpose(new_view, (1, 0, 2)),  # flip x/y but keep RGB ordering
+            autoLevels=False,
+            levels=(0, 1),
+            autoRange=reset,
+        )
 
     stats_text = [
         f"Min:\t{vimg.min():.5g}",
@@ -197,27 +239,14 @@ def _render_virtual_image(self, reset=False):
     for t, m in zip(stats_text, self.realspace_statistics_actions):
         m.setText(t)
 
-    auto_level = reset or self.realspace_rescale_button.latched
-
-    self.real_space_widget.setImage(
-        new_view.T,
-        autoLevels=False,
-        levels=(
-            (
-                np.percentile(new_view, self.real_space_autoscale_percentiles[0]),
-                np.percentile(new_view, self.real_space_autoscale_percentiles[1]),
-            )
-            if auto_level
-            else None
-        ),
-        autoRange=reset,
-    )
-
     # Update FFT view
     self.unscaled_fft_image = None
-    fft_window = np.hanning(vimg.shape[0])[:, None] * np.hanning(vimg.shape[1])[None, :]
+    vimg_2D = vimg if np.isrealobj(vimg) else np.abs(vimg)
+    fft_window = (
+        np.hanning(vimg_2D.shape[0])[:, None] * np.hanning(vimg_2D.shape[1])[None, :]
+    )
     if self.fft_source_action_group.checkedAction().text() == "Virtual Image FFT":
-        fft = np.abs(np.fft.fftshift(np.fft.fft2(vimg * fft_window))) ** 0.5
+        fft = np.abs(np.fft.fftshift(np.fft.fft2(vimg_2D * fft_window))) ** 0.5
         levels = (np.min(fft), np.percentile(fft, 99.9))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
         self.fft_widget_text.setText("Virtual Image FFT")
@@ -233,7 +262,7 @@ def _render_virtual_image(self, reset=False):
         self.fft_source_action_group.checkedAction().text()
         == "Virtual Image FFT (complex)"
     ):
-        fft = np.fft.fftshift(np.fft.fft2(vimg * fft_window))
+        fft = np.fft.fftshift(np.fft.fft2(vimg_2D * fft_window))
         levels = (np.min(np.abs(fft)), np.percentile(np.abs(fft), 99.9))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
         self.fft_widget_text.setText("Virtual Image FFT")
@@ -291,7 +320,7 @@ def update_diffraction_space_view(self, reset=False):
     elif detector_shape == "Rectangular":
         # Get slices corresponding to ROI
         slices, _ = self.real_space_rect_selector.getArraySlice(
-            np.zeros((self.datacube.Rshape)), self.real_space_widget.getImageItem()
+            np.zeros((self.datacube.Rshape)).T, self.real_space_widget.getImageItem()
         )
         slice_y, slice_x = slices
 
@@ -379,12 +408,18 @@ def update_realspace_detector(self):
     )
     assert detector_shape in ["Point", "Rectangular"], detector_shape
 
-    if self.datacube is None:
-        return
+    main_pen = {"color": "g", "width": 6}
+    handle_pen = {"color": "r", "width": 9}
+    hover_pen = {"color": "c", "width": 6}
+    hover_handle = {"color": "c", "width": 9}
 
-    x, y = self.datacube.data.shape[:2]
-    x0, y0 = x / 2, y / 2
-    xr, yr = x / 10, y / 10
+    if self.datacube is None:
+        x0, y0 = 0, 0
+        xr, yr = 4, 4
+    else:
+        x, y = self.datacube.data.shape[2:]
+        y0, x0 = x // 2, y // 2
+        xr, yr = (np.minimum(x, y) / 10,) * 2
 
     # Remove existing detector
     if hasattr(self, "real_space_point_selector"):
@@ -394,16 +429,27 @@ def update_realspace_detector(self):
         self.real_space_widget.view.scene().removeItem(self.real_space_rect_selector)
         self.real_space_rect_selector = None
 
-    # Rectangular detector
+    # Point detector
     if detector_shape == "Point":
-        self.real_space_point_selector = pg_point_roi(self.real_space_widget.getView())
+        self.real_space_point_selector = pg_point_roi(
+            self.real_space_widget.getView(),
+            center=(x0 - 0.5, y0 - 0.5),
+            pen=main_pen,
+            hoverPen=hover_pen,
+        )
         self.real_space_point_selector.sigRegionChanged.connect(
             partial(self.update_diffraction_space_view, False)
         )
 
+    # Rectangular detector
     elif detector_shape == "Rectangular":
         self.real_space_rect_selector = pg.RectROI(
-            [int(x0 - xr / 2), int(y0 - yr / 2)], [int(xr), int(yr)], pen=(3, 9)
+            [int(x0 - xr / 2), int(y0 - yr / 2)],
+            [int(xr), int(yr)],
+            pen=main_pen,
+            handlePen=handle_pen,
+            hoverPen=hover_pen,
+            handleHoverPen=hover_handle,
         )
         self.real_space_widget.getView().addItem(self.real_space_rect_selector)
         self.real_space_rect_selector.sigRegionChangeFinished.connect(
@@ -422,12 +468,18 @@ def update_diffraction_detector(self):
     detector_shape = self.detector_shape_group.checkedAction().text().strip("&")
     assert detector_shape in ["Point", "Rectangular", "Circle", "Annulus"]
 
-    if self.datacube is None:
-        return
+    main_pen = {"color": "g", "width": 6}
+    handle_pen = {"color": "r", "width": 9}
+    hover_pen = {"color": "c", "width": 6}
+    hover_handle = {"color": "c", "width": 9}
 
-    x, y = self.datacube.data.shape[2:]
-    x0, y0 = x / 2, y / 2
-    xr, yr = x / 10, y / 10
+    if self.datacube is None:
+        x0, y0 = 0, 0
+        xr, yr = 4, 4
+    else:
+        x, y = self.datacube.data.shape[2:]
+        y0, x0 = x // 2, y // 2
+        xr, yr = (np.minimum(x, y) / 10,) * 2
 
     # Remove existing detector
     if hasattr(self, "virtual_detector_point"):
@@ -449,18 +501,27 @@ def update_diffraction_detector(self):
         )
         self.virtual_detector_roi_outer = None
 
-    # Rectangular detector
+    # Point detector
     if detector_shape == "Point":
         self.virtual_detector_point = pg_point_roi(
-            self.diffraction_space_widget.getView()
+            self.diffraction_space_widget.getView(),
+            center=(x0 - 0.5, y0 - 0.5),
+            pen=main_pen,
+            hoverPen=hover_pen,
         )
         self.virtual_detector_point.sigRegionChanged.connect(
             partial(self.update_real_space_view, False)
         )
 
+    # Rectangular detector
     elif detector_shape == "Rectangular":
         self.virtual_detector_roi = pg.RectROI(
-            [int(x0 - xr / 2), int(y0 - yr / 2)], [int(xr), int(yr)], pen=(3, 9)
+            [int(x0 - xr / 2), int(y0 - yr / 2)],
+            [int(xr), int(yr)],
+            pen=main_pen,
+            handlePen=handle_pen,
+            hoverPen=hover_pen,
+            handleHoverPen=hover_handle,
         )
         self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi)
         self.virtual_detector_roi.sigRegionChangeFinished.connect(
@@ -470,7 +531,12 @@ def update_diffraction_detector(self):
     # Circular detector
     elif detector_shape == "Circle":
         self.virtual_detector_roi = pg.CircleROI(
-            [int(x0 - xr / 2), int(y0 - yr / 2)], [int(xr), int(yr)], pen=(3, 9)
+            [int(x0 - xr / 2), int(y0 - yr / 2)],
+            [int(xr), int(yr)],
+            pen=main_pen,
+            handlePen=handle_pen,
+            hoverPen=hover_pen,
+            handleHoverPen=hover_handle,
         )
         self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi)
         self.virtual_detector_roi.sigRegionChangeFinished.connect(
@@ -481,7 +547,12 @@ def update_diffraction_detector(self):
     elif detector_shape == "Annulus":
         # Make outer detector
         self.virtual_detector_roi_outer = pg.CircleROI(
-            [int(x0 - xr), int(y0 - yr)], [int(2 * xr), int(2 * yr)], pen=(3, 9)
+            [int(x0 - xr), int(y0 - yr)],
+            [int(2 * xr), int(2 * yr)],
+            pen=main_pen,
+            handlePen=handle_pen,
+            hoverPen=hover_pen,
+            handleHoverPen=hover_handle,
         )
         self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi_outer)
 
@@ -489,7 +560,10 @@ def update_diffraction_detector(self):
         self.virtual_detector_roi_inner = pg.CircleROI(
             [int(x0 - xr / 2), int(y0 - yr / 2)],
             [int(xr), int(yr)],
-            pen=(4, 9),
+            pen=main_pen,
+            hoverPen=hover_pen,
+            handlePen=handle_pen,
+            handleHoverPen=hover_handle,
             movable=False,
         )
         self.diffraction_space_widget.getView().addItem(self.virtual_detector_roi_inner)
@@ -521,6 +595,7 @@ def update_diffraction_detector(self):
 
 def set_diffraction_autoscale_range(self, percentiles, redraw=True):
     self.diffraction_autoscale_percentiles = percentiles
+    self.settings.setValue("last_state/diffraction_autorange", list(percentiles))
 
     if redraw:
         self._render_diffraction_image(reset=False)
@@ -528,6 +603,7 @@ def set_diffraction_autoscale_range(self, percentiles, redraw=True):
 
 def set_real_space_autoscale_range(self, percentiles, redraw=True):
     self.real_space_autoscale_percentiles = percentiles
+    self.settings.setValue("last_state/realspace_autorange", list(percentiles))
 
     if redraw:
         self._render_virtual_image(reset=False)
@@ -594,9 +670,13 @@ def update_tooltip(self):
             if scene.getView().rect().contains(pos_in_scene):
                 pos_in_data = scene.view.mapSceneToView(pos_in_scene)
 
-                y = int(np.clip(np.floor(pos_in_data.x()), 0, data.shape[0] - 1))
-                x = int(np.clip(np.floor(pos_in_data.y()), 0, data.shape[1] - 1))
-                display_text = f"[{x},{y}]: {data[x,y]:.5g}"
+                y = int(np.clip(np.floor(pos_in_data.x()), 0, data.shape[1] - 1))
+                x = int(np.clip(np.floor(pos_in_data.y()), 0, data.shape[0] - 1))
+
+                if np.isrealobj(data):
+                    display_text = f"[{x},{y}]: {data[x,y]:.5g}"
+                else:
+                    display_text = f"[{x},{y}]: |z|={np.abs(data[x,y]):.5g}, ϕ={np.degrees(np.angle(data[x,y])):.5g}°"
 
                 self.cursor_value_text.setText(display_text)
 
