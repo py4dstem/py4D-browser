@@ -52,7 +52,8 @@ def update_real_space_view(self, reset=False):
     if detector_shape == "Rectangular":
         # Get slices corresponding to ROI
         slices, transforms = self.virtual_detector_roi.getArraySlice(
-            self.datacube.data[0, 0, :, :], self.diffraction_space_widget.getImageItem()
+            self.datacube.data[0, 0, :, :].T,
+            self.diffraction_space_widget.getImageItem(),
         )
         slice_y, slice_x = slices
 
