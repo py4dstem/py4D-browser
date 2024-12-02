@@ -319,7 +319,7 @@ def update_diffraction_space_view(self, reset=False):
     elif detector_shape == "Rectangular":
         # Get slices corresponding to ROI
         slices, _ = self.real_space_rect_selector.getArraySlice(
-            np.zeros((self.datacube.Rshape)), self.real_space_widget.getImageItem()
+            np.zeros((self.datacube.Rshape)).T, self.real_space_widget.getImageItem()
         )
         slice_y, slice_x = slices
 
@@ -656,8 +656,8 @@ def update_tooltip(self):
             if scene.getView().rect().contains(pos_in_scene):
                 pos_in_data = scene.view.mapSceneToView(pos_in_scene)
 
-                y = int(np.clip(np.floor(pos_in_data.x()), 0, data.shape[0] - 1))
-                x = int(np.clip(np.floor(pos_in_data.y()), 0, data.shape[1] - 1))
+                y = int(np.clip(np.floor(pos_in_data.x()), 0, data.shape[1] - 1))
+                x = int(np.clip(np.floor(pos_in_data.y()), 0, data.shape[0] - 1))
 
                 if np.isrealobj(data):
                     display_text = f"[{x},{y}]: {data[x,y]:.5g}"
