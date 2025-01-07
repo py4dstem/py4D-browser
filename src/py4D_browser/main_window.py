@@ -75,14 +75,6 @@ class DataViewer(QMainWindow):
 
     from py4D_browser.plugins import load_plugins
 
-    HAS_EMPAD2 = importlib.util.find_spec("empad2") is not None
-    if HAS_EMPAD2:
-        from py4D_browser.empad2_reader import (
-            set_empad2_sensor,
-            load_empad2_background,
-            load_empad2_dataset,
-        )
-
     def __init__(self, argv):
         super().__init__()
         # Define this as the QApplication object
@@ -207,32 +199,6 @@ class DataViewer(QMainWindow):
             menu_item = vdiff_export_menu.addAction(method)
             menu_item.triggered.connect(
                 partial(self.export_virtual_image, method, "diffraction")
-            )
-
-        # EMPAD2 menu
-        if self.HAS_EMPAD2:
-            self.empad2_calibrations = None
-            self.empad2_background = None
-
-            self.empad2_menu = QMenu("&EMPAD-G2", self)
-            self.menu_bar.addMenu(self.empad2_menu)
-
-            sensor_menu = self.empad2_menu.addMenu("&Sensor")
-            calibration_action_group = QActionGroup(self)
-            calibration_action_group.setExclusive(True)
-            from empad2 import SENSORS
-
-            for name, sensor in SENSORS.items():
-                menu_item = sensor_menu.addAction(sensor["display-name"])
-                calibration_action_group.addAction(menu_item)
-                menu_item.setCheckable(True)
-                menu_item.triggered.connect(partial(self.set_empad2_sensor, name))
-
-            self.empad2_menu.addAction("Load &Background...").triggered.connect(
-                self.load_empad2_background
-            )
-            self.empad2_menu.addAction("Load &Dataset...").triggered.connect(
-                self.load_empad2_dataset
             )
 
         # Scaling Menu
