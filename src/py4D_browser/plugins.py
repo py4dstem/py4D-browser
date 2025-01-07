@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import QMenu
 __all__ = ["load_plugins", "unload_plugins"]
 
 
-def load_plugins(self, argv):
+def load_plugins(self):
     """
     The py4D_browser plugin mechanics are inspired by Nion Swift:
     https://nionswift.readthedocs.io/en/stable/api/plugins.html

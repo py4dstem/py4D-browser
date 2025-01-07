@@ -124,7 +124,7 @@ class DataViewer(QMainWindow):
         )
 
         # (Potentially) load plugins
-        self.load_plugins(argv)
+        self.load_plugins()
 
         self.show()
 
