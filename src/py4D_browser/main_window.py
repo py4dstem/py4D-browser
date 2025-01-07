@@ -21,7 +21,7 @@ import numpy as np
 from functools import partial
 from pathlib import Path
 import importlib
-import os
+import os, sys
 import platformdirs
 
 from py4D_browser.utils import pg_point_roi, VLine, LatchingButton
@@ -72,6 +72,8 @@ class DataViewer(QMainWindow):
         update_annulus_radii,
         update_tooltip,
     )
+
+    from py4D_browser.plugins import load_plugins
 
     HAS_EMPAD2 = importlib.util.find_spec("empad2") is not None
     if HAS_EMPAD2:
@@ -128,6 +130,9 @@ class DataViewer(QMainWindow):
         self.resize(
             self.settings.value("last_state/window_size", QtCore.QSize(1000, 800)),
         )
+
+        # (Potentially) load plugins
+        self.load_plugins(argv)
 
         self.show()
 
@@ -532,7 +537,7 @@ class DataViewer(QMainWindow):
         )
 
         # Processing menu
-        self.processing_menu = QMenu("&Processing", self)
+        self.processing_menu = QMenu("&Plugins", self)
         self.menu_bar.addMenu(self.processing_menu)
 
         calibrate_action = QAction("&Calibrate...", self)
