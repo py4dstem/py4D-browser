@@ -16,7 +16,8 @@ def load_plugins(self, argv):
     and should define a class with the `plugin_id` attribute
 
     On loading the class is initialized using
-        ExamplePlugin(parent=self, argv=argv)
+        ExamplePlugin(parent=self)
+    with additional arguments potentially passed as kwargs
 
 
     """
@@ -43,9 +44,7 @@ def load_plugins(self, argv):
                 )
                 if plugin_menu:
                     self.processing_menu.addMenu(plugin_menu)
-                self.loaded_plugins.append(
-                    member(parent=self, argv=argv, plugin_menu=plugin_menu)
-                )
+                self.loaded_plugins.append(member(parent=self, plugin_menu=plugin_menu))
 
 
 def unload_plugins(self):
@@ -67,11 +66,8 @@ class ExamplePlugin:
     uses_plugin_menu = False
     display_name = "Example Plugin"
 
-    def __init__(self, parent, argv, *args, **kwargs):
+    def __init__(self, parent, *args, **kwargs):
         self.parent = parent
-
-        if "--do-stuff" in argv:
-            pass
 
     def close(self):
         pass  # perform any shutdown activities
