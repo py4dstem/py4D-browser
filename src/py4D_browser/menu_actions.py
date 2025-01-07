@@ -113,6 +113,15 @@ def load_file(self, filepath, mmap=False, binning=1):
     self.setWindowTitle(filepath)
 
 
+def set_datacube(self, datacube, window_title):
+    self.update_scalebars()
+
+    self.update_diffraction_space_view(reset=True)
+    self.update_real_space_view(reset=True)
+
+    self.setWindowTitle(window_title)
+
+
 def update_scalebars(self):
 
     realspace_translation = {

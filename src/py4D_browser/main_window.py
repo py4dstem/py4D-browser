@@ -50,6 +50,7 @@ class DataViewer(QMainWindow):
         show_keyboard_map,
         show_calibration_dialog,
         reshape_data,
+        set_datacube,
         update_scalebars,
         reconstruct_tcBF_auto,
         reconstruct_tcBF_manual,
