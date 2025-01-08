@@ -114,6 +114,8 @@ def load_file(self, filepath, mmap=False, binning=1):
 
 
 def set_datacube(self, datacube, window_title):
+    self.datacube = datacube
+
     self.update_scalebars()
 
     self.update_diffraction_space_view(reset=True)
