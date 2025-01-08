@@ -37,14 +37,19 @@ def load_plugins(self):
 
             if plugin_id:
                 print(f"Loading plugin: {plugin_id}")
-                plugin_menu = (
-                    QMenu(getattr(member, "display_name", "DEFAULT_NAME"))
-                    if getattr(member, "uses_plugin_menu", False)
-                    else None
-                )
-                if plugin_menu:
-                    self.processing_menu.addMenu(plugin_menu)
-                self.loaded_plugins.append(member(parent=self, plugin_menu=plugin_menu))
+                try:
+                    plugin_menu = (
+                        QMenu(getattr(member, "display_name", "DEFAULT_NAME"))
+                        if getattr(member, "uses_plugin_menu", False)
+                        else None
+                    )
+                    if plugin_menu:
+                        self.processing_menu.addMenu(plugin_menu)
+                    self.loaded_plugins.append(
+                        member(parent=self, plugin_menu=plugin_menu)
+                    )
+                except Exception as exc:
+                    print(f"Failed to load plugin.\n{exc}")
 
 
 def unload_plugins(self):
@@ -66,7 +71,7 @@ class ExamplePlugin:
     uses_plugin_menu = False
     display_name = "Example Plugin"
 
-    def __init__(self, parent, *args, **kwargs):
+    def __init__(self, parent, **kwargs):
         self.parent = parent
 
     def close(self):

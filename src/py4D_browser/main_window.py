@@ -52,8 +52,6 @@ class DataViewer(QMainWindow):
         reshape_data,
         set_datacube,
         update_scalebars,
-        reconstruct_tcBF_auto,
-        reconstruct_tcBF_manual,
     )
 
     from py4D_browser.update_views import (
@@ -510,15 +508,6 @@ class DataViewer(QMainWindow):
         calibrate_action = QAction("&Calibrate...", self)
         calibrate_action.triggered.connect(self.show_calibration_dialog)
         self.processing_menu.addAction(calibrate_action)
-
-        tcBF_action_manual = QAction("tcBF (Manual)...", self)
-        tcBF_action_manual.triggered.connect(self.reconstruct_tcBF_manual)
-        self.processing_menu.addAction(tcBF_action_manual)
-
-        tcBF_action_auto = QAction("tcBF (Automatic)", self)
-        tcBF_action_auto.triggered.connect(self.reconstruct_tcBF_auto)
-        self.processing_menu.addAction(tcBF_action_auto)
-        # tcBF_action_auto.setEnabled(False)
 
         # Help menu
         self.help_menu = QMenu("&Help", self)
