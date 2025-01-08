@@ -19,7 +19,7 @@ class ExamplePlugin:
     uses_plugin_menu = False 
     display_name = "Example Plugin"
 
-    def __init__(self, parent, *args, **kwargs):
+    def __init__(self, parent, **kwargs):
         self.parent = parent
 
     def close(self):
@@ -32,7 +32,7 @@ On loading the class is initialized using
 ```python
 ExamplePlugin(parent=self, [...])
 ```
-where `self` is the `DataViewer` instance (the main window object) 
+where `self` is the `DataViewer` instance (the main window object). All arguments will always be passed as keywords.
 
 The current implementation of the plugin interface is thus extremely simple: the plugin object gets a reference to the main window, and can in theory do whatever artitrarily stupid things it wants with it, and there are no guarantees on compatibility between different versions of the browser and plugins. Swift solves this using the API Broker, which interposes all actions taken by the plugin. While we may adopt such an interface in version 2.0, for now we simply have the following design guidelines that should ensure compatibility:
 

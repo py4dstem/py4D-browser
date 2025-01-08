@@ -29,7 +29,6 @@ class tcBFPlugin(QWidget):
         super().__init__()
 
         self.parent = parent
-        self.plugin_menu = plugin_menu
 
         manual_action = plugin_menu.addAction("Manual tcBF...")
         manual_action.triggered.connect(self.launch_manual)

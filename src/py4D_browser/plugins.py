@@ -24,7 +24,7 @@ def load_plugins(self):
 
     import py4d_browser_plugin
 
-    self.loaded_plugins = []
+    self.loaded_plugins = []  # we need to hold on to these objects to keep them alive
 
     for module_info in pkgutil.iter_modules(getattr(py4d_browser_plugin, "__path__")):
 
@@ -46,7 +46,10 @@ def load_plugins(self):
                     if plugin_menu:
                         self.processing_menu.addMenu(plugin_menu)
                     self.loaded_plugins.append(
-                        member(parent=self, plugin_menu=plugin_menu)
+                        {
+                            "plugin": member(parent=self, plugin_menu=plugin_menu),
+                            "menu": plugin_menu,
+                        }
                     )
                 except Exception as exc:
                     print(f"Failed to load plugin.\n{exc}")
@@ -55,7 +58,7 @@ def load_plugins(self):
 def unload_plugins(self):
     # NOTE: This is currently not actually called!
     for plugin in self.loaded_plugins:
-        plugin.close()
+        plugin["plugin"].close()
 
 
 class ExamplePlugin:
