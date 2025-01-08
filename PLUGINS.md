@@ -11,20 +11,24 @@ class ExamplePlugin:
     # required for py4DGUI to recognize this as a plugin.
     plugin_id = "my.plugin.identifier"
 
-    # optional flags
+    ######## optional flags ########
+    display_name = "Example Plugin"
 
-    # Plugins may add a top-level menu on their own, or can opt to have 
+    # Plugins may add a top-level menu on their own, or can opt to have
     # a submenu located under Plugins>[display_name], which is created before
     # initialization and its QMenu object passed as `plugin_menu`
-    uses_plugin_menu = False 
-    display_name = "Example Plugin"
+    uses_plugin_menu = False
+
+    # If the plugin only needs a single action button, the browser can opt
+    # to have that menu item created automatically under Plugins>[Display Name]
+    # and its QAction object passed as `plugin_action`
+    uses_single_action = False
 
     def __init__(self, parent, **kwargs):
         self.parent = parent
 
     def close(self):
-        pass  # perform any shutdown activities
-                    
+        pass  # perform any shutdown activities                   
 
 ```
 
@@ -36,5 +40,6 @@ where `self` is the `DataViewer` instance (the main window object). All argument
 
 The current implementation of the plugin interface is thus extremely simple: the plugin object gets a reference to the main window, and can in theory do whatever artitrarily stupid things it wants with it, and there are no guarantees on compatibility between different versions of the browser and plugins. Swift solves this using the API Broker, which interposes all actions taken by the plugin. While we may adopt such an interface in version 2.0, for now we simply have the following design guidelines that should ensure compatibility:
 
-* If the plugin adds menu items, it should only add items to its own menu (not to ones already existing in the GUI). The plugin is permitted to add a menu to the top bar on its own, or (preferably) can set the `uses_plugin_menu` attribute which will initialize a menu under Plugins>MyPluginDisplayName which gets passed to the initializer as `plugin_menu`
+* If the plugin adds menu items, it should only add items to its own menu (not to ones already existing in the GUI). The plugin is permitted to add a menu to the top bar on its own, or (preferably) can set the `uses_plugin_menu` attribute which will initialize a menu under Plugins>MyPluginDisplayName which gets passed to the initializer as `plugin_menu`.
+* If the plugin adds a single menu item, it can have the browser create and insert that action item automatically by setting `uses_single_action`. The `QAction` object will be passed in as `plugin_action`. 
 * The plugin should *never* render an image to the views directly. To display images, plugins should always call `set_virtual_image` or `set_diffraction_image` using raw, unscaled data. If the plugin needs to produce a customized display, it cannot do that in the existing views and must create its own window. 

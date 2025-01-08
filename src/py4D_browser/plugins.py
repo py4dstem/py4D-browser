@@ -2,7 +2,7 @@ import pkgutil
 import importlib
 import inspect
 
-from PyQt5.QtWidgets import QMenu
+from PyQt5.QtWidgets import QMenu, QAction
 
 __all__ = ["load_plugins", "unload_plugins"]
 
@@ -45,10 +45,24 @@ def load_plugins(self):
                     )
                     if plugin_menu:
                         self.processing_menu.addMenu(plugin_menu)
+
+                    plugin_action = (
+                        QAction(getattr(member, "display_name", "DEFAULT_NAME"))
+                        if getattr(member, "uses_single_action", False)
+                        else None
+                    )
+                    if plugin_action:
+                        self.processing_menu.addAction(plugin_action)
+
                     self.loaded_plugins.append(
                         {
-                            "plugin": member(parent=self, plugin_menu=plugin_menu),
+                            "plugin": member(
+                                parent=self,
+                                plugin_menu=plugin_menu,
+                                plugin_action=plugin_action,
+                            ),
                             "menu": plugin_menu,
+                            "action": plugin_action,
                         }
                     )
                 except Exception as exc:
@@ -66,13 +80,18 @@ class ExamplePlugin:
     # required for py4DGUI to recognize this as a plugin.
     plugin_id = "my.plugin.identifier"
 
-    # optional flags
+    ######## optional flags ########
+    display_name = "Example Plugin"
 
     # Plugins may add a top-level menu on their own, or can opt to have
     # a submenu located under Plugins>[display_name], which is created before
     # initialization and its QMenu object passed as `plugin_menu`
     uses_plugin_menu = False
-    display_name = "Example Plugin"
+
+    # If the plugin only needs a single action button, the browser can opt
+    # to have that menu item created automatically under Plugins>[Display Name]
+    # and its QAction object passed as `plugin_action`
+    uses_single_action = False
 
     def __init__(self, parent, **kwargs):
         self.parent = parent

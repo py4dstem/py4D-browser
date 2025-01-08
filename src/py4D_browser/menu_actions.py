@@ -6,7 +6,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from py4D_browser.help_menu import KeyboardMapMenu
-from py4D_browser.dialogs import CalibrateDialog, ResizeDialog
+from py4D_browser.dialogs import ResizeDialog
 from py4DSTEM.io.filereaders import read_arina
 
 
@@ -247,19 +247,6 @@ def export_virtual_image(self, im_format: str, im_type: str):
 def show_keyboard_map(self):
     keymap = KeyboardMapMenu(parent=self)
     keymap.open()
-
-
-def show_calibration_dialog(self):
-    # If the selector has a size, figure that out
-    if hasattr(self, "virtual_detector_roi") and self.virtual_detector_roi is not None:
-        selector_size = self.virtual_detector_roi.size()[0] / 2.0
-    else:
-        selector_size = None
-
-    dialog = CalibrateDialog(
-        self.datacube, parent=self, diffraction_selector_size=selector_size
-    )
-    dialog.open()
 
 
 def show_file_dialog(self) -> str:

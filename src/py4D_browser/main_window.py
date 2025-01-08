@@ -48,7 +48,6 @@ class DataViewer(QMainWindow):
         export_datacube,
         export_virtual_image,
         show_keyboard_map,
-        show_calibration_dialog,
         reshape_data,
         set_datacube,
         update_scalebars,
@@ -501,13 +500,9 @@ class DataViewer(QMainWindow):
             partial(self.update_diffraction_space_view, False)
         )
 
-        # Processing menu
+        # Plugins menu
         self.processing_menu = QMenu("&Plugins", self)
         self.menu_bar.addMenu(self.processing_menu)
-
-        calibrate_action = QAction("&Calibrate...", self)
-        calibrate_action.triggered.connect(self.show_calibration_dialog)
-        self.processing_menu.addAction(calibrate_action)
 
         # Help menu
         self.help_menu = QMenu("&Help", self)
