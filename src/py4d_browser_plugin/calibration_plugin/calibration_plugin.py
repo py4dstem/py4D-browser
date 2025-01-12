@@ -36,6 +36,9 @@ class CalibrationPlugin(QWidget):
 
         plugin_action.triggered.connect(self.launch_dialog)
 
+    def close(self):
+        pass
+
     def launch_dialog(self):
         parent = self.parent
         # If the selector has a size, figure that out

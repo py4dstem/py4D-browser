@@ -36,7 +36,7 @@ def load_plugins(self):
             plugin_id = getattr(member, "plugin_id", None)
 
             if plugin_id:
-                print(f"Loading plugin: {plugin_id}")
+                print(f"Loading plugin: {plugin_id} \tfrom: {name}")
                 try:
                     plugin_menu = (
                         QMenu(getattr(member, "display_name", "DEFAULT_NAME"))
