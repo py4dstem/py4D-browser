@@ -56,6 +56,8 @@ class DataViewer(QMainWindow):
     from py4D_browser.update_views import (
         set_virtual_image,
         set_diffraction_image,
+        get_diffraction_detector,
+        get_virtual_image_detector,
         _render_virtual_image,
         _render_diffraction_image,
         update_diffraction_space_view,

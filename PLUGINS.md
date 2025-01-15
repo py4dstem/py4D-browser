@@ -60,6 +60,10 @@ The current implementation of the plugin interface is thus extremely simple: the
 * If the plugin adds a single menu item, it can have the browser create and insert that action item automatically by setting `uses_single_action`. The `QAction` object will be passed in as `plugin_action`. 
 * The plugin should *never* render an image to the views directly. To display images, plugins should always call `set_virtual_image` or `set_diffraction_image` using raw, unscaled data. If the plugin needs to produce a customized display, it cannot do that in the existing views and must create its own window. 
 
+## Accessing the detectors
+
+With version 1.3.0, there is a new API for accessing the ROI selections made using the detectors on the two views. Plugins should only interact with the detectors via this API, as the implementation details of the ROI objects themselves are considered internal and subject to change. Calling `get_diffraction_detector` or `get_virtual_image_detector` yields a `DetectorInfo` object containing the properties of the current detector and the information (either a slice or a mask array) needed to produce the selection it represents.
+
 ## Namespace packages
 
 Namespace packages are a way to split a package across multiple sources, which can be provided by different distributions. This allows the py4DGUI to import this special namespace and have all plugins, regardless of their source, appear under that import. Details can be found in [PEP 420](https://peps.python.org/pep-0420/).
