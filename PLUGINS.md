@@ -59,6 +59,7 @@ The current implementation of the plugin interface is thus extremely simple: the
 * If the plugin adds a single menu item, it can have the browser create and insert that action item automatically by setting `uses_single_action`. The `QAction` object will be passed in as `plugin_action`. 
 * The plugin should *never* render an image to the views directly. To display images, plugins should always call `set_virtual_image` or `set_diffraction_image` using raw, unscaled data. If the plugin needs to produce a customized display, it cannot do that in the existing views and must create its own window. 
 * The plugin should not retain references to any objects in the `DataViewer`, as that may prevent objects from being freed at the right times. For example, do not do something like `self.current_datacube = self.parent.datacube`, as until this reference is cleared the browser could not free memory after closing a dataset and opening a new one. 
+* The plugin is allowed to read/write from the QSettings of the GUI, but should only do so in a top-level section with the same name as `plugin_id`, i.e. `value = self.parent.settings(self.plugin_id + "/my_setting", default_value)`.
 
 ## Accessing the detectors
 
