@@ -582,7 +582,12 @@ class DataViewer(QMainWindow):
         rightside.addWidget(self.real_space_widget)
         rightside.addWidget(self.fft_widget)
         rightside.setOrientation(QtCore.Qt.Vertical)
-        rightside.setStretchFactor(0, 2)
+        # set a sensible ratio for the sizes
+        full_height = (
+            self.real_space_widget.size().height() + self.fft_widget.size().height()
+        )
+        rightside.setSizes([int(full_height * 2 / 3), int(full_height / 3)])
+
         layout.addWidget(rightside, 1)
 
         widget = QWidget()
