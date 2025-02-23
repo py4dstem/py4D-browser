@@ -34,7 +34,9 @@ def load_plugins(self):
                 py4d_browser_plugin.__name__ + "." + module_info.name
             )
         except Exception as e:
-            print(f"Attempting to import plugin {module_info.name} raised exception:\n{e}")
+            print(
+                f"Attempting to import plugin {module_info.name} raised exception:\n{e}"
+            )
             print(traceback.print_exc())
             continue
 
