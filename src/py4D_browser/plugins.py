@@ -1,6 +1,7 @@
 import pkgutil
 import importlib
 import inspect
+import traceback
 
 from PyQt5.QtWidgets import QMenu, QAction
 
@@ -28,9 +29,14 @@ def load_plugins(self):
 
     for module_info in pkgutil.iter_modules(getattr(py4d_browser_plugin, "__path__")):
 
-        module = importlib.import_module(
-            py4d_browser_plugin.__name__ + "." + module_info.name
-        )
+        try:
+            module = importlib.import_module(
+                py4d_browser_plugin.__name__ + "." + module_info.name
+            )
+        except Exception as e:
+            print(f"Attempting to import plugin {module_info.name} raised exception:\n{e}")
+            print(traceback.print_exc())
+            continue
 
         for name, member in inspect.getmembers(module, inspect.isclass):
             plugin_id = getattr(member, "plugin_id", None)
@@ -67,6 +73,7 @@ def load_plugins(self):
                     )
                 except Exception as exc:
                     print(f"Failed to load plugin.\n{exc}")
+                    print(traceback.print_exc())
 
 
 def unload_plugins(self):
