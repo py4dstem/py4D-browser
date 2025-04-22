@@ -31,18 +31,9 @@ def load_data_arina(self):
     filename = self.show_file_dialog()
     dataset = read_arina(filename)
 
-    # Try to reshape the data to be square
-    N_patterns = dataset.data.shape[1]
-    Nxy = np.sqrt(N_patterns)
-    if np.abs(Nxy - np.round(Nxy)) <= 1e-10:
-        Nxy = int(Nxy)
-        dataset.data = dataset.data.reshape(
-            Nxy, Nxy, dataset.data.shape[2], dataset.data.shape[3]
-        )
-    else:
-        self.statusBar().showMessage(
-            f"The scan appears to not be square! Found {N_patterns} patterns", 5_000
-        )
+    # Warn if the data is not square
+    if dataset.data.shape[1] == 1:
+        self.statusBar().showMessage(f"Arina data was loaded as 3D, please reshape...")
 
     self.datacube = dataset
     self.diffraction_scale_bar.pixel_size = self.datacube.calibration.get_Q_pixel_size()
