@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout, QSpinBox
 from typing import NotRequired, TypedDict
 from enum import Enum
 
+
 class DetectorShape(Enum):
     RECTANGULAR = "rectangular"
     POINT = "point"

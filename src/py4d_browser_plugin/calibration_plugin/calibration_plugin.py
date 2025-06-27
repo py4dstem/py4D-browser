@@ -49,13 +49,16 @@ class CalibrationPlugin(QWidget):
         # If the selector has a size, figure that out
         detector_info: DetectorInfo = parent.get_diffraction_detector()
 
-        match detector_info['shape']:
+        match detector_info["shape"]:
             case DetectorShape.CIRCLE:
                 circle_geometry: CircleGeometry = detector_info["geometry"]
-                selector_size = circle_geometry['R']
+                selector_size = circle_geometry["R"]
             case _:
                 selector_size = None
-                parent.statusBar().showMessage("Use a Circle selection to calibrate based on a known spacing...", 5_000)
+                parent.statusBar().showMessage(
+                    "Use a Circle selection to calibrate based on a known spacing...",
+                    5_000,
+                )
 
         dialog = CalibrateDialog(
             parent.datacube, parent=parent, diffraction_selector_size=selector_size

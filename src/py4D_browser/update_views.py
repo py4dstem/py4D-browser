@@ -23,8 +23,6 @@ from py4D_browser.utils import (
 )
 
 
-
-
 def get_diffraction_detector(self) -> DetectorInfo:
     """
     Get the current detector and its position on the diffraction view.

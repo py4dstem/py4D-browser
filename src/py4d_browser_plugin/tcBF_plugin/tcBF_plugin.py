@@ -18,7 +18,7 @@ from py4D_browser.utils import (
     DetectorInfo,
     RectangleGeometry,
     CircleGeometry,
-    StatusBarWriter
+    StatusBarWriter,
 )
 import py4DSTEM
 
@@ -54,10 +54,8 @@ class tcBFPlugin(QWidget):
 
         detector: DetectorInfo = self.parent.get_diffraction_detector()
 
-        if detector['shape'] is DetectorShape.POINT:
-            parent.statusBar().showMessage(
-                "tcBF requires an area detector!", 5_000
-            )
+        if detector["shape"] is DetectorShape.POINT:
+            parent.statusBar().showMessage("tcBF requires an area detector!", 5_000)
             return
 
         if (
@@ -76,7 +74,7 @@ class tcBFPlugin(QWidget):
             datacube=parent.datacube,
         )
         tcBF.preprocess(
-            dp_mask=detector['mask'],
+            dp_mask=detector["mask"],
             plot_average_bf=False,
             vectorized_com_calculation=False,
             store_initial_arrays=False,
@@ -139,13 +137,13 @@ class ManualTCBFDialog(QDialog):
         # tcBF requires an area detector for generating the mask
         detector: DetectorInfo = self.parent.get_diffraction_detector()
 
-        if detector['shape'] is DetectorShape.POINT:
+        if detector["shape"] is DetectorShape.POINT:
             self.parent.statusBar().showMessage(
                 "tcBF requires an area detector!", 5_000
             )
             return
 
-        mask = detector['mask']
+        mask = detector["mask"]
 
         if self.max_shift_box.text() == "":
             self.parent.statusBar().showMessage("Max Shift must be specified")
