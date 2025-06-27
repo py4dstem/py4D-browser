@@ -13,7 +13,13 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QWidget,
 )
-from py4D_browser.utils import make_detector, StatusBarWriter
+from py4D_browser.utils import (
+    DetectorShape,
+    DetectorInfo,
+    RectangleGeometry,
+    CircleGeometry,
+    StatusBarWriter
+)
 import py4DSTEM
 
 
@@ -46,16 +52,11 @@ class tcBFPlugin(QWidget):
     def launch_auto(self):
         parent = self.parent
 
-        # tcBF requires an area detector for generating the mask
-        detector_shape = (
-            parent.detector_shape_group.checkedAction().text().replace("&", "")
-        )
-        if detector_shape not in [
-            "Rectangular",
-            "Circle",
-        ]:
+        detector: DetectorInfo = self.parent.get_diffraction_detector()
+
+        if detector['shape'] is DetectorShape.POINT:
             parent.statusBar().showMessage(
-                "tcBF requires a selection of the BF disk", 5_000
+                "tcBF requires an area detector!", 5_000
             )
             return
 
@@ -63,44 +64,19 @@ class tcBFPlugin(QWidget):
             parent.datacube.calibration.get_R_pixel_units == "pixels"
             or parent.datacube.calibration.get_Q_pixel_units == "pixels"
         ):
-            parent.statusBar().showMessage("tcBF requires caibrated data", 5_000)
+            parent.statusBar().showMessage("Auto tcBF requires caibrated data", 5_000)
             return
-
-        if detector_shape == "Rectangular":
-            # Get slices corresponding to ROI
-            slices, _ = parent.virtual_detector_roi.getArraySlice(
-                parent.datacube.data[0, 0, :, :],
-                parent.diffraction_space_widget.getImageItem(),
-            )
-            slice_y, slice_x = slices
-
-            mask = np.zeros(
-                (parent.datacube.Q_Nx, parent.datacube.Q_Ny), dtype=np.bool_
-            )
-            mask[slice_x, slice_y] = True
-
-        elif detector_shape == "Circle":
-            R = parent.virtual_detector_roi.size()[0] / 2.0
-
-            x0 = parent.virtual_detector_roi.pos()[0] + R
-            y0 = parent.virtual_detector_roi.pos()[1] + R
-
-            mask = make_detector(
-                (parent.datacube.Q_Nx, parent.datacube.Q_Ny), "circle", ((x0, y0), R)
-            )
-        else:
-            raise ValueError("idk how we got here...")
 
         # do tcBF!
         parent.statusBar().showMessage("Reconstructing... (This may take a while)")
-        parent.app.processEvents()
+        parent.qtapp.processEvents()
 
         tcBF = py4DSTEM.process.phase.Parallax(
             energy=300e3,
             datacube=parent.datacube,
         )
         tcBF.preprocess(
-            dp_mask=mask,
+            dp_mask=detector['mask'],
             plot_average_bf=False,
             vectorized_com_calculation=False,
             store_initial_arrays=False,
@@ -161,44 +137,15 @@ class ManualTCBFDialog(QDialog):
         datacube = self.parent.datacube
 
         # tcBF requires an area detector for generating the mask
-        detector_shape = (
-            self.parent.detector_shape_group.checkedAction().text().replace("&", "")
-        )
-        if detector_shape not in [
-            "Rectangular",
-            "Circle",
-        ]:
+        detector: DetectorInfo = self.parent.get_diffraction_detector()
+
+        if detector['shape'] is DetectorShape.POINT:
             self.parent.statusBar().showMessage(
-                "tcBF requires a selection of the BF disk"
+                "tcBF requires an area detector!", 5_000
             )
             return
 
-        if detector_shape == "Rectangular":
-            # Get slices corresponding to ROI
-            slices, _ = self.parent.virtual_detector_roi.getArraySlice(
-                self.parent.datacube.data[0, 0, :, :],
-                self.parent.diffraction_space_widget.getImageItem(),
-            )
-            slice_y, slice_x = slices
-
-            mask = np.zeros(
-                (self.parent.datacube.Q_Nx, self.parent.datacube.Q_Ny), dtype=np.bool_
-            )
-            mask[slice_x, slice_y] = True
-
-        elif detector_shape == "Circle":
-            R = self.parent.virtual_detector_roi.size()[0] / 2.0
-
-            x0 = self.parent.virtual_detector_roi.pos()[0] + R
-            y0 = self.parent.virtual_detector_roi.pos()[1] + R
-
-            mask = make_detector(
-                (self.parent.datacube.Q_Nx, self.parent.datacube.Q_Ny),
-                "circle",
-                ((x0, y0), R),
-            )
-        else:
-            raise ValueError("idk how we got here...")
+        mask = detector['mask']
 
         if self.max_shift_box.text() == "":
             self.parent.statusBar().showMessage("Max Shift must be specified")

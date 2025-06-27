@@ -18,7 +18,12 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QWidget,
 )
-from py4D_browser.utils import make_detector, StatusBarWriter
+from py4D_browser.utils import (
+    DetectorShape,
+    DetectorInfo,
+    RectangleGeometry,
+    CircleGeometry,
+)
 
 
 class CalibrationPlugin(QWidget):
@@ -42,13 +47,15 @@ class CalibrationPlugin(QWidget):
     def launch_dialog(self):
         parent = self.parent
         # If the selector has a size, figure that out
-        if (
-            hasattr(parent, "virtual_detector_roi")
-            and parent.virtual_detector_roi is not None
-        ):
-            selector_size = parent.virtual_detector_roi.size()[0] / 2.0
-        else:
-            selector_size = None
+        detector_info: DetectorInfo = parent.get_diffraction_detector()
+
+        match detector_info['shape']:
+            case DetectorShape.CIRCLE:
+                circle_geometry: CircleGeometry = detector_info["geometry"]
+                selector_size = circle_geometry['R']
+            case _:
+                selector_size = None
+                parent.statusBar().showMessage("Use a Circle selection to calibrate based on a known spacing...", 5_000)
 
         dialog = CalibrateDialog(
             parent.datacube, parent=parent, diffraction_selector_size=selector_size

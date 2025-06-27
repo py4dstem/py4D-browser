@@ -5,6 +5,96 @@ from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import Qt, QObject
 from PyQt5.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout, QSpinBox
 
+from typing import NotRequired, TypedDict
+from enum import Enum
+
+class DetectorShape(Enum):
+    RECTANGULAR = "rectangular"
+    POINT = "point"
+    CIRCLE = "circle"
+    ANNULUS = "annulus"
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            value = value.replace("&", "").lower()
+            for member in cls:
+                if member.value == value:
+                    return member
+        return None
+
+
+class DetectorMode(Enum):
+    INTEGRATING = "integrating"
+    MAXIMUM = "maximum"
+    CoM = "com"
+    CoMx = "comx"
+    CoMy = "comy"
+    ICOM = "icom"
+
+    # Strip GUI-related cruft from strings to map to internal representations
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            value = value.replace("&", "").replace(" ", "").lower()
+            for member in cls:
+                if member.value == value:
+                    return member
+        return None
+
+
+RectangleGeometry = TypedDict(
+    "RectangleGeometry",
+    {
+        "xmin": float,
+        "xmax": float,
+        "ymin": float,
+        "ymax": float,
+    },
+)
+CircleGeometry = TypedDict(
+    "CircleGeometry",
+    {
+        "x": float,
+        "y": float,
+        "R": float,
+    },
+)
+AnnulusGeometry = TypedDict(
+    "AnnulusGeometry",
+    {
+        "x": float,
+        "y": float,
+        "R_inner": float,
+        "R_outer": float,
+    },
+)
+PointGeometry = TypedDict(
+    "PointGeometry",
+    {
+        "x": float,
+        "y": float,
+    },
+)
+
+DetectorInfo = TypedDict(
+    "DetectorInfo",
+    {
+        "shape": DetectorShape,
+        "mode": DetectorMode,
+        # Geometry is intended for display purposes only
+        "geometry": RectangleGeometry
+        | CircleGeometry
+        | AnnulusGeometry
+        | PointGeometry,
+        #  The are provided based on the detector shape, and should
+        #  be used for any image computation:
+        "slice": NotRequired[list[slice]],
+        "mask": NotRequired[np.ndarray],
+        "point": NotRequired[list[int]],
+    },
+)
+
 
 class StatusBarWriter:
     def __init__(self, statusBar):

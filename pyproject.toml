@@ -34,9 +34,6 @@ py4DGUI = "py4D_browser.runGUI:launch"
 "Homepage" = "https://github.com/py4dstem/py4D-browser"
 "Bug Tracker" = "https://github.com/py4dstem/py4D-browser/issues"
 
-[tool.pyright]
-venv = "py4dstem"
-
 [tool.setuptools]
 include-package-data = true
 
