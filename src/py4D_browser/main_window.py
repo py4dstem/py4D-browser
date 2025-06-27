@@ -21,7 +21,7 @@ import numpy as np
 from functools import partial
 from pathlib import Path
 import importlib
-import os
+import os, sys
 import platformdirs
 
 from py4D_browser.utils import pg_point_roi, VLine, LatchingButton
@@ -48,16 +48,16 @@ class DataViewer(QMainWindow):
         export_datacube,
         export_virtual_image,
         show_keyboard_map,
-        show_calibration_dialog,
         reshape_data,
+        set_datacube,
         update_scalebars,
-        reconstruct_tcBF_auto,
-        reconstruct_tcBF_manual,
     )
 
     from py4D_browser.update_views import (
         set_virtual_image,
         set_diffraction_image,
+        get_diffraction_detector,
+        get_virtual_image_detector,
         _render_virtual_image,
         _render_diffraction_image,
         update_diffraction_space_view,
@@ -73,13 +73,7 @@ class DataViewer(QMainWindow):
         update_tooltip,
     )
 
-    HAS_EMPAD2 = importlib.util.find_spec("empad2") is not None
-    if HAS_EMPAD2:
-        from py4D_browser.empad2_reader import (
-            set_empad2_sensor,
-            load_empad2_background,
-            load_empad2_dataset,
-        )
+    from py4D_browser.plugins import load_plugins
 
     def __init__(self, argv):
         super().__init__()
@@ -128,6 +122,9 @@ class DataViewer(QMainWindow):
         self.resize(
             self.settings.value("last_state/window_size", QtCore.QSize(1000, 800)),
         )
+
+        # (Potentially) load plugins
+        self.load_plugins()
 
         self.show()
 
@@ -202,32 +199,6 @@ class DataViewer(QMainWindow):
             menu_item = vdiff_export_menu.addAction(method)
             menu_item.triggered.connect(
                 partial(self.export_virtual_image, method, "diffraction")
-            )
-
-        # EMPAD2 menu
-        if self.HAS_EMPAD2:
-            self.empad2_calibrations = None
-            self.empad2_background = None
-
-            self.empad2_menu = QMenu("&EMPAD-G2", self)
-            self.menu_bar.addMenu(self.empad2_menu)
-
-            sensor_menu = self.empad2_menu.addMenu("&Sensor")
-            calibration_action_group = QActionGroup(self)
-            calibration_action_group.setExclusive(True)
-            from empad2 import SENSORS
-
-            for name, sensor in SENSORS.items():
-                menu_item = sensor_menu.addAction(sensor["display-name"])
-                calibration_action_group.addAction(menu_item)
-                menu_item.setCheckable(True)
-                menu_item.triggered.connect(partial(self.set_empad2_sensor, name))
-
-            self.empad2_menu.addAction("Load &Background...").triggered.connect(
-                self.load_empad2_background
-            )
-            self.empad2_menu.addAction("Load &Dataset...").triggered.connect(
-                self.load_empad2_dataset
             )
 
         # Scaling Menu
@@ -531,22 +502,9 @@ class DataViewer(QMainWindow):
             partial(self.update_diffraction_space_view, False)
         )
 
-        # Processing menu
-        self.processing_menu = QMenu("&Processing", self)
+        # Plugins menu
+        self.processing_menu = QMenu("&Plugins", self)
         self.menu_bar.addMenu(self.processing_menu)
-
-        calibrate_action = QAction("&Calibrate...", self)
-        calibrate_action.triggered.connect(self.show_calibration_dialog)
-        self.processing_menu.addAction(calibrate_action)
-
-        tcBF_action_manual = QAction("tcBF (Manual)...", self)
-        tcBF_action_manual.triggered.connect(self.reconstruct_tcBF_manual)
-        self.processing_menu.addAction(tcBF_action_manual)
-
-        tcBF_action_auto = QAction("tcBF (Automatic)", self)
-        tcBF_action_auto.triggered.connect(self.reconstruct_tcBF_auto)
-        self.processing_menu.addAction(tcBF_action_auto)
-        # tcBF_action_auto.setEnabled(False)
 
         # Help menu
         self.help_menu = QMenu("&Help", self)
@@ -624,7 +582,12 @@ class DataViewer(QMainWindow):
         rightside.addWidget(self.real_space_widget)
         rightside.addWidget(self.fft_widget)
         rightside.setOrientation(QtCore.Qt.Vertical)
-        rightside.setStretchFactor(0, 2)
+        # set a sensible ratio for the sizes
+        full_height = (
+            self.real_space_widget.size().height() + self.fft_widget.size().height()
+        )
+        rightside.setSizes([int(full_height * 2 / 3), int(full_height / 3)])
+
         layout.addWidget(rightside, 1)
 
         widget = QWidget()

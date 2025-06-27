@@ -7,124 +7,244 @@ from PyQt5 import QtCore
 from PyQt5.QtGui import QCursor
 import os
 
+
 from py4D_browser.utils import (
     pg_point_roi,
     make_detector,
     complex_to_Lab,
     StatusBarWriter,
+    DetectorShape,
+    DetectorMode,
+    DetectorInfo,
+    RectangleGeometry,
+    CircleGeometry,
+    AnnulusGeometry,
+    PointGeometry,
 )
 
 
-def update_real_space_view(self, reset=False):
-    detector_shape = self.detector_shape_group.checkedAction().text().replace("&", "")
-    assert detector_shape in [
-        "Point",
-        "Rectangular",
-        "Circle",
-        "Annulus",
-    ], detector_shape
+def get_diffraction_detector(self) -> DetectorInfo:
+    """
+    Get the current detector and its position on the diffraction view.
+    Returns a DetectorInfo dictionary, which contains the shape and
+    response mode of the detector and information on the selection
+    it represents. The selection is described using one (or more) of
+    the `slice`, `mask`, and `point` entries, depending on the detector
+    type. The selections are expressed in data coordinates.
+    """
+    shape = DetectorShape(self.detector_shape_group.checkedAction().text())
+    mode = DetectorMode(self.detector_mode_group.checkedAction().text())
 
-    detector_mode = self.detector_mode_group.checkedAction().text().replace("&", "")
-    assert detector_mode in [
-        "Integrating",
-        "Maximum",
-        "CoM",
-        "CoM X",
-        "CoM Y",
-        "iCoM",
-    ], detector_mode
+    match shape:
+        case DetectorShape.POINT:
+            roi_state = self.virtual_detector_point.saveState()
+            y0, x0 = roi_state["pos"]
+            xc, yc = int(x0 + 1), int(y0 + 1)
+
+            # Normalize coordinates
+            xc = np.clip(xc, 0, self.datacube.Q_Nx - 1)
+            yc = np.clip(yc, 0, self.datacube.Q_Ny - 1)
+
+            return DetectorInfo(
+                shape=shape,
+                mode=mode,
+                point=[xc, yc],
+                geometry=PointGeometry(x=xc, y=yc),
+            )
+
+        case DetectorShape.RECTANGULAR:
+            slices, _ = self.virtual_detector_roi.getArraySlice(
+                self.datacube.data[0, 0, :, :].T,
+                self.diffraction_space_widget.getImageItem(),
+            )
+            slice_y, slice_x = slices
+
+            mask = np.zeros(self.datacube.Qshape, dtype=np.bool_)
+            mask[slice_x, slice_y] = True
+
+            return DetectorInfo(
+                shape=shape,
+                mode=mode,
+                slice=[slice_x, slice_y],
+                mask=mask,
+                geometry=RectangleGeometry(
+                    xmin=slice_x.start,
+                    xmax=slice_x.stop,
+                    ymin=slice_y.start,
+                    ymax=slice_y.stop,
+                ),
+            )
+        case DetectorShape.CIRCLE:
+            R = self.virtual_detector_roi.size()[0] / 2.0
+
+            x0 = self.virtual_detector_roi.pos()[1] + R
+            y0 = self.virtual_detector_roi.pos()[0] + R
+
+            mask = make_detector(
+                (self.datacube.Q_Nx, self.datacube.Q_Ny), "circle", ((x0, y0), R)
+            )
+
+            return DetectorInfo(
+                shape=shape,
+                mode=mode,
+                mask=mask,
+                geometry=CircleGeometry(x=x0, y=y0, R=R),
+            )
+
+        case DetectorShape.ANNULUS:
+            inner_pos = self.virtual_detector_roi_inner.pos()
+            inner_size = self.virtual_detector_roi_inner.size()
+            R_inner = inner_size[0] / 2.0
+            x0 = inner_pos[1] + R_inner
+            y0 = inner_pos[0] + R_inner
+
+            outer_size = self.virtual_detector_roi_outer.size()
+            R_outer = outer_size[0] / 2.0
+
+            if R_inner <= R_outer:
+                R_inner -= 1
+
+            mask = make_detector(
+                (self.datacube.Q_Nx, self.datacube.Q_Ny),
+                "annulus",
+                ((x0, y0), (R_inner, R_outer)),
+            )
+
+            return DetectorInfo(
+                shape=shape,
+                mode=mode,
+                mask=mask,
+                geometry=AnnulusGeometry(x=x0, y=y0, R_inner=R_inner, R_outer=R_outer),
+            )
+
+        case _:
+            raise ValueError("Detector could not be determined")
+
+
+def get_virtual_image_detector(self) -> DetectorInfo:
+    """
+    Get the current detector and its position on the diffraction view.
+    Returns a DetectorInfo dictionary, which contains the shape and
+    response mode of the detector and information on the selection
+    it represents. The selection is described using one (or more) of
+    the `slice`, `mask`, and `point` entries, depending on the detector
+    type. The selections are expressed in data coordinates.
+    """
+    shape = DetectorShape(self.rs_detector_shape_group.checkedAction().text())
+    mode = DetectorMode(self.realspace_detector_mode_group.checkedAction().text())
+
+    match shape:
+        case DetectorShape.POINT:
+            roi_state = self.real_space_point_selector.saveState()
+            y0, x0 = roi_state["pos"]
+            xc, yc = int(x0 + 1), int(y0 + 1)
+
+            # Normalize coordinates
+            xc = np.clip(xc, 0, self.datacube.R_Nx - 1)
+            yc = np.clip(yc, 0, self.datacube.R_Ny - 1)
+
+            return DetectorInfo(
+                shape=shape,
+                mode=mode,
+                point=[xc, yc],
+                geometry=PointGeometry(x=xc, y=yc),
+            )
+
+        case DetectorShape.RECTANGULAR:
+            slices, _ = self.real_space_rect_selector.getArraySlice(
+                np.zeros((self.datacube.Rshape)).T,
+                self.real_space_widget.getImageItem(),
+            )
+            slice_y, slice_x = slices
+
+            mask = np.zeros(self.datacube.Rshape, dtype=np.bool_)
+            mask[slice_x, slice_y] = True
+
+            return DetectorInfo(
+                shape=shape,
+                mode=mode,
+                slice=[slice_x, slice_y],
+                mask=mask,
+                geometry=RectangleGeometry(
+                    xmin=slice_x.start,
+                    xmax=slice_x.stop,
+                    ymin=slice_y.start,
+                    ymax=slice_y.stop,
+                ),
+            )
+
+        case _:
+            raise ValueError("Detector could not be determined")
+
+
+def update_real_space_view(self, reset=False):
+    if self.datacube is None:
+        return
+
+    detector = self.get_diffraction_detector()
 
     # If a CoM method is checked, ensure linear scaling
     scaling_mode = self.vimg_scaling_group.checkedAction().text().replace("&", "")
-    if detector_mode == "CoM" and scaling_mode != "Linear":
+    if (
+        detector["mode"] in (DetectorMode.CoM, DetectorMode.CoMx, DetectorMode.CoMy)
+        and scaling_mode != "Linear"
+    ):
         self.statusBar().showMessage("Warning! Setting linear scaling for CoM image")
         self.vimg_scale_linear_action.setChecked(True)
         scaling_mode = "Linear"
 
-    if self.datacube is None:
-        return
-
     # We will branch through certain combinations of detector shape and mode.
     # If we happen across a special case that can be handled directly, we
-    # compute vimg. If we encounter a case that needs a more complicated
-    # computation we compute the mask and then do the virtual image later
-    mask = None
-    if detector_shape == "Rectangular":
-        # Get slices corresponding to ROI
-        slices, transforms = self.virtual_detector_roi.getArraySlice(
-            self.datacube.data[0, 0, :, :].T,
-            self.diffraction_space_widget.getImageItem(),
-        )
-        slice_y, slice_x = slices
+    # compute vimg. If we don't encounter a special case, the image is calculated
+    # in the next block using the mask
+    vimg = None
+    match detector["shape"]:
+        case DetectorShape.RECTANGULAR:
+            # Get slices corresponding to ROI
+            slice_x, slice_y = detector["slice"]
 
-        # update the label:
-        self.diffraction_space_view_text.setText(
-            f"Diffraction Slice: [{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
-        )
+            # update the label:
+            self.diffraction_space_view_text.setText(
+                f"Diffraction Slice: [{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
+            )
 
-        if detector_mode == "Integrating":
-            vimg = np.sum(self.datacube.data[:, :, slice_x, slice_y], axis=(2, 3))
-        elif detector_mode == "Maximum":
-            vimg = np.max(self.datacube.data[:, :, slice_x, slice_y], axis=(2, 3))
-        else:
-            mask = np.zeros((self.datacube.Q_Nx, self.datacube.Q_Ny), dtype=np.bool_)
-            mask[slice_x, slice_y] = True
+            if detector["mode"] is DetectorMode.INTEGRATING:
+                vimg = np.sum(self.datacube.data[:, :, slice_x, slice_y], axis=(2, 3))
+            elif detector["mode"] is DetectorMode.MAXIMUM:
+                vimg = np.max(self.datacube.data[:, :, slice_x, slice_y], axis=(2, 3))
 
-    elif detector_shape == "Circle":
-        R = self.virtual_detector_roi.size()[0] / 2.0
+        case DetectorShape.CIRCLE:
+            # This has no direct methods, so vimg will be made with mask
+            circle_geometry: CircleGeometry = detector["geometry"]
+            self.diffraction_space_view_text.setText(
+                f"Diffraction Circle: Center ({circle_geometry['x']:.0f},{circle_geometry['y']:.0f}), Radius {circle_geometry['R']:.0f}"
+            )
 
-        x0 = self.virtual_detector_roi.pos()[1] + R
-        y0 = self.virtual_detector_roi.pos()[0] + R
+        case DetectorShape.ANNULUS:
+            # No direct computation, so vimg gets made with mask
+            annulus_geometry: AnnulusGeometry = detector["geometry"]
 
-        self.diffraction_space_view_text.setText(
-            f"Diffraction Circle: Center ({x0:.0f},{y0:.0f}), Radius {R:.0f}"
-        )
+            self.diffraction_space_view_text.setText(
+                f"Diffraction Annulus: Center ({annulus_geometry['x']:.0f},{annulus_geometry['y']:.0f}), Radii ({annulus_geometry['R_inner']:.0f},{annulus_geometry['R_outer']:.0f})"
+            )
 
-        mask = make_detector(
-            (self.datacube.Q_Nx, self.datacube.Q_Ny), "circle", ((x0, y0), R)
-        )
-    elif detector_shape == "Annulus":
-        inner_pos = self.virtual_detector_roi_inner.pos()
-        inner_size = self.virtual_detector_roi_inner.size()
-        R_inner = inner_size[0] / 2.0
-        x0 = inner_pos[1] + R_inner
-        y0 = inner_pos[0] + R_inner
+        case DetectorShape.POINT:
+            xc, yc = detector["point"]
+            vimg = self.datacube.data[:, :, xc, yc]
 
-        outer_size = self.virtual_detector_roi_outer.size()
-        R_outer = outer_size[0] / 2.0
+            self.diffraction_space_view_text.setText(f"Diffraction: Point [{xc},{yc}]")
 
-        if R_inner <= R_outer:
-            R_inner -= 1
+        case _:
+            raise ValueError("Detector shape not recognized")
 
-        self.diffraction_space_view_text.setText(
-            f"Diffraction Annulus: Center ({x0:.0f},{y0:.0f}), Radii ({R_inner:.0f},{R_outer:.0f})"
-        )
+    if vimg is None:
+        mask = detector["mask"]
 
-        mask = make_detector(
-            (self.datacube.Q_Nx, self.datacube.Q_Ny),
-            "annulus",
-            ((x0, y0), (R_inner, R_outer)),
-        )
-    elif detector_shape == "Point":
-        roi_state = self.virtual_detector_point.saveState()
-        y0, x0 = roi_state["pos"]
-        xc, yc = int(x0 + 1), int(y0 + 1)
-
-        # Set the diffraction space image
-        # Normalize coordinates
-        xc = np.clip(xc, 0, self.datacube.Q_Nx - 1)
-        yc = np.clip(yc, 0, self.datacube.Q_Ny - 1)
-        vimg = self.datacube.data[:, :, xc, yc]
-
-        self.diffraction_space_view_text.setText(f"Diffraction: Point [{xc},{yc}]")
-
-    else:
-        raise ValueError("Detector shape not recognized")
-
-    if mask is not None:
+        # Debug mode for displaying the mask
         if "MASK_DEBUG" in os.environ:
             self.set_diffraction_image(mask.astype(np.float32), reset=reset)
             return
+
         mask = mask.astype(np.float32)
         vimg = np.zeros((self.datacube.R_Nx, self.datacube.R_Ny))
         iterator = py4DSTEM.tqdmnd(
@@ -134,15 +254,20 @@ def update_real_space_view(self, reset=False):
             mininterval=0.1,
         )
 
-        if detector_mode == "Integrating":
+        if detector["mode"] is DetectorMode.INTEGRATING:
             for rx, ry in iterator:
                 vimg[rx, ry] = np.sum(self.datacube.data[rx, ry] * mask)
 
-        elif detector_mode == "Maximum":
+        elif detector["mode"] is DetectorMode.MAXIMUM:
             for rx, ry in iterator:
                 vimg[rx, ry] = np.max(self.datacube.data[rx, ry] * mask)
 
-        elif "CoM" in detector_mode:
+        elif detector["mode"] in (
+            DetectorMode.CoM,
+            DetectorMode.CoMx,
+            DetectorMode.CoMy,
+            DetectorMode.ICOM,
+        ):
             ry_coord, rx_coord = np.meshgrid(
                 np.arange(self.datacube.Q_Ny), np.arange(self.datacube.Q_Nx)
             )
@@ -157,13 +282,13 @@ def update_real_space_view(self, reset=False):
             CoMx -= np.mean(CoMx)
             CoMy -= np.mean(CoMy)
 
-            if detector_mode == "CoM":
+            if detector["mode"] is DetectorMode.CoM:
                 vimg = CoMx + 1.0j * CoMy
-            elif detector_mode == "CoM X":
+            elif detector["mode"] is DetectorMode.CoMx:
                 vimg = CoMx
-            elif detector_mode == "CoM Y":
+            elif detector["mode"] is DetectorMode.CoMy:
                 vimg = CoMy
-            elif detector_mode == "iCoM":
+            elif detector["mode"] is DetectorMode.ICOM:
                 dpc = py4DSTEM.process.phase.DPC(verbose=False)
                 dpc.preprocess(
                     force_com_measured=[CoMx, CoMy],
@@ -291,53 +416,33 @@ def update_diffraction_space_view(self, reset=False):
     if self.datacube is None:
         return
 
-    detector_shape = (
-        self.rs_detector_shape_group.checkedAction().text().replace("&", "")
-    )
-    assert detector_shape in [
-        "Point",
-        "Rectangular",
-    ], detector_shape
+    detector = self.get_virtual_image_detector()
 
-    detector_response = (
-        self.realspace_detector_mode_group.checkedAction().text().replace("&", "")
-    )
-    assert detector_response in ["Integrating", "Maximum"], detector_response
+    match detector["shape"]:
+        case DetectorShape.POINT:
+            xc, yc = detector["point"]
 
-    if detector_shape == "Point":
-        roi_state = self.real_space_point_selector.saveState()
-        y0, x0 = roi_state["pos"]
-        xc, yc = int(x0 + 1), int(y0 + 1)
+            self.real_space_view_text.setText(f"Virtual Image: Point [{xc},{yc}]")
 
-        # Set the diffraction space image
-        # Normalize coordinates
-        xc = np.clip(xc, 0, self.datacube.R_Nx - 1)
-        yc = np.clip(yc, 0, self.datacube.R_Ny - 1)
+            DP = self.datacube.data[xc, yc]
 
-        self.real_space_view_text.setText(f"Virtual Image: Point [{xc},{yc}]")
+        case DetectorShape.RECTANGULAR:
+            slice_x, slice_y = detector["slice"]
 
-        DP = self.datacube.data[xc, yc]
-    elif detector_shape == "Rectangular":
-        # Get slices corresponding to ROI
-        slices, _ = self.real_space_rect_selector.getArraySlice(
-            np.zeros((self.datacube.Rshape)).T, self.real_space_widget.getImageItem()
-        )
-        slice_y, slice_x = slices
+            self.real_space_view_text.setText(
+                f"Virtual Image: Slice [{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
+            )
 
-        # update the label:
-        self.real_space_view_text.setText(
-            f"Virtual Image: Slice [{slice_x.start}:{slice_x.stop},{slice_y.start}:{slice_y.stop}]"
-        )
+            match detector["mode"]:
+                case DetectorMode.INTEGRATING:
+                    DP = np.sum(self.datacube.data[slice_x, slice_y], axis=(0, 1))
+                case DetectorMode.MAXIMUM:
+                    DP = np.max(self.datacube.data[slice_x, slice_y], axis=(0, 1))
+                case _:
+                    raise ValueError("Unsupported detector response")
 
-        if detector_response == "Integrating":
-            DP = np.sum(self.datacube.data[slice_x, slice_y], axis=(0, 1))
-        elif detector_response == "Maximum":
-            DP = np.max(self.datacube.data[slice_x, slice_y], axis=(0, 1))
-        else:
-            raise ValueError("Detector response problem")
-
-    else:
-        raise ValueError("Detector shape not recognized")
+        case _:
+            raise ValueError("Unsupported detector shape...")
 
     self.set_diffraction_image(DP, reset=reset)
 
