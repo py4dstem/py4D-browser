@@ -21,11 +21,16 @@ Run `py4DGUI` in your terminal to open the GUI. Then just drag and drop a 4D-STE
 * The information in the bottom bar contains the details of the virtual detector used to generate the images, and can be entered into py4DSTEM to generate the same image.
 * The FFT pane can be switched between displaying the FFT of the virtual image and displaying the [exit wave power cepstrum](https://doi.org/10.1016/j.ultramic.2020.112994).
 * Virtual images can be exported either as the scaled and clipped displays shown in the GUI or as raw data. The exact datatype stored in the raw TIFF image depends on both the datatype of the dataset and the type of virtual image being displayed (in particular, integer datatypes are converted internally to floating point to prevent overflows when generating any synthesized virtual images).
-* If the [EMPAD-G2 Raw Reader](https://github.com/sezelt/empad2) is installed in the same environment, an extra menu will appear that allows the concatenated binary format data to be background subtracted and calibrated in the GUI. You can also save the calibrated data as an HDF5 file for later analysis.
 
 ![Demonstration](/images/demo.gif)
 
 The keyboard map in the Help menu was made using [this tool](https://archie-adams.github.io/keyboard-shortcut-map-maker/) and the map file is in the top level of this repo.
+
+## Plugins
+
+As of version 1.3.0, we now support a simple means for loading plugins that extend the functionality of the browser. Details on creating a plugin can be found in [this document](PLUGINS.md).
+
+The [EMPAD-G2 Raw Reader](https://github.com/sezelt/empad2), which was previously implemented in the browser code itself, is now implemented as a plugin, which can serve as an example.
 
 ## About
 
