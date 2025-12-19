@@ -197,17 +197,26 @@ def export_datacube(self, save_format: str):
             self.statusBar().showMessage("Cancelling due to user guilt", 5_000)
             return
 
-    filename = self.get_savefile_name(save_format)
+    try:
+        filename = self.get_savefile_name(save_format)
 
-    if save_format == "Raw float32":
-        self.datacube.data.astype(np.float32).tofile(filename)
+        if save_format == "Raw float32":
+            self.datacube.data.astype(np.float32).tofile(filename)
 
-    elif save_format == "py4DSTEM HDF5":
-        py4DSTEM.save(filename, self.datacube, mode="o")
+        elif save_format == "py4DSTEM HDF5":
+            py4DSTEM.save(filename, self.datacube, mode="o")
 
-    elif save_format == "Plain HDF5":
-        with h5py.File(filename, "w") as f:
-            f["array"] = self.datacube.data
+        elif save_format == "Plain HDF5":
+            with h5py.File(filename, "w") as f:
+                f["array"] = self.datacube.data
+    except Exception as exc:
+        QMessageBox.critical(
+            self,
+            "Uh-oh!",
+            repr(exc),
+        )
+
+        raise exc
 
 
 def export_virtual_image(self, im_format: str, im_type: str):
