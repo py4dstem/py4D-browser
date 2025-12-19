@@ -72,16 +72,22 @@ def load_file(self, filepath, mmap=False, binning=1):
         if len(datacubes) >= 1:
             # Read the first datacube in the HDF5 file into RAM
             print(f"Reading dataset at location {datacubes[0].name}")
-            self.datacube = py4DSTEM.DataCube(
-                datacubes[0] if mmap else datacubes[0][()]
-            )
 
-            R_size, R_units, Q_size, Q_units = find_calibrations(datacubes[0])
+            parent = "/".join(datacubes[0].name.split("/")[:-1])
+            if parent != "/" and "emd_group_type" in file[parent].attrs:
+                print("This appears to be an emdfile... reading natively")
+                self.datacube = py4DSTEM.DataCube.from_h5(datacubes[0].file[parent])
+            else:
+                self.datacube = py4DSTEM.DataCube(
+                    datacubes[0] if mmap else datacubes[0][()]
+                )
 
-            self.datacube.calibration.set_R_pixel_size(R_size)
-            self.datacube.calibration.set_R_pixel_units(R_units)
-            self.datacube.calibration.set_Q_pixel_size(Q_size)
-            self.datacube.calibration.set_Q_pixel_units(Q_units)
+                R_size, R_units, Q_size, Q_units = find_calibrations(datacubes[0])
+
+                self.datacube.calibration.set_R_pixel_size(R_size)
+                self.datacube.calibration.set_R_pixel_units(R_units)
+                self.datacube.calibration.set_Q_pixel_size(Q_size)
+                self.datacube.calibration.set_Q_pixel_units(Q_units)
 
         else:
             # if no 4D data was found, look for 3D data
