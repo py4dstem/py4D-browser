@@ -134,7 +134,7 @@ class DataViewer(QMainWindow):
 
         # launch pyqtgraph's debug console if environment variable exists
         if os.environ.get("PY4DGUI_DEBUG"):
-            pg.dbg()
+            pg.dbg(namespace={"main_window": self})
 
     def setup_menus(self):
         self.menu_bar = self.menuBar()
