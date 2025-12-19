@@ -52,7 +52,6 @@ class LoggerDialog(QDialog):
         scroll.setWidget(main_box)
         scroll.setWidgetResizable(True)
         layout.addWidget(scroll)
-        # scroll.setFixedHeight(200)
 
         form = QFormLayout()
         main_box.setLayout(form)
