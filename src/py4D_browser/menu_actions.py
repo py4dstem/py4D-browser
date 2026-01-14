@@ -74,7 +74,7 @@ def load_file(self, filepath, mmap=False, binning=1):
             print(f"Reading dataset at location {datacubes[0].name}")
 
             parent = "/".join(datacubes[0].name.split("/")[:-1])
-            if parent != "/" and "emd_group_type" in file[parent].attrs:
+            if len(parent) > 1 and "emd_group_type" in file[parent].attrs:
                 print("This appears to be an emdfile... reading natively")
                 self.datacube = py4DSTEM.DataCube.from_h5(datacubes[0].file[parent])
             else:
@@ -216,10 +216,11 @@ def export_datacube(self, save_format: str):
             with h5py.File(filename, "w") as f:
                 f["array"] = self.datacube.data
     except Exception as exc:
+        import traceback
         QMessageBox.critical(
             self,
             "Uh-oh!",
-            repr(exc),
+            traceback.format_exc(),
         )
 
         raise exc
