@@ -1,6 +1,5 @@
-from numbers import Real
 import py4DSTEM
-from PyQt5.QtWidgets import QFileDialog, QMessageBox
+from PyQt5.QtWidgets import QFileDialog, QMessageBox, QApplication
 import h5py
 import os
 import numpy as np
@@ -217,6 +216,7 @@ def export_datacube(self, save_format: str):
                 f["array"] = self.datacube.data
     except Exception as exc:
         import traceback
+
         QMessageBox.critical(
             self,
             "Uh-oh!",
@@ -258,6 +258,24 @@ def export_virtual_image(self, im_format: str, im_type: str):
             tw.write(vimg)
     else:
         raise RuntimeError("Nothing saved! Format not recognized")
+
+
+def copy_vimg_to_clipboard(self):
+    img = self.real_space_widget.getImageItem()
+
+    if img._renderRequired:
+        img.render()
+
+    QApplication.clipboard().setImage(img.qimage)
+
+
+def copy_diff_to_clipboard(self):
+    img = self.diffraction_space_widget.getImageItem()
+
+    if img._renderRequired:
+        img.render()
+
+    QApplication.clipboard().setImage(img.qimage)
 
 
 def show_keyboard_map(self):

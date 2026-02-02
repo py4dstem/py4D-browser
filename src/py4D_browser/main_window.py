@@ -51,6 +51,8 @@ class DataViewer(QMainWindow):
         reshape_data,
         set_datacube,
         update_scalebars,
+        copy_vimg_to_clipboard,
+        copy_diff_to_clipboard,
     )
 
     from py4D_browser.update_views import (
@@ -186,6 +188,9 @@ class DataViewer(QMainWindow):
         # Submenu to export virtual image
         vimg_export_menu = QMenu("Export Virtual Image", self)
         self.file_menu.addMenu(vimg_export_menu)
+        menu_item = vimg_export_menu.addAction("To clipboard")
+        menu_item.triggered.connect(self.copy_vimg_to_clipboard)
+        menu_item.setShortcut(QtGui.QKeySequence("Ctrl+C"))
         for method in ["PNG (display)", "TIFF (display)", "TIFF (raw)"]:
             menu_item = vimg_export_menu.addAction(method)
             menu_item.triggered.connect(
@@ -195,6 +200,9 @@ class DataViewer(QMainWindow):
         # Submenu to export diffraction
         vdiff_export_menu = QMenu("Export Diffraction Pattern", self)
         self.file_menu.addMenu(vdiff_export_menu)
+        menu_item = vdiff_export_menu.addAction("To clipboard")
+        menu_item.triggered.connect(self.copy_diff_to_clipboard)
+        menu_item.setShortcut(QtGui.QKeySequence("Ctrl+Alt+C"))
         for method in ["PNG (display)", "TIFF (display)", "TIFF (raw)"]:
             menu_item = vdiff_export_menu.addAction(method)
             menu_item.triggered.connect(
