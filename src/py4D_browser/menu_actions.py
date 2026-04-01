@@ -214,6 +214,9 @@ def export_datacube(self, save_format: str):
         elif save_format == "Plain HDF5":
             with h5py.File(filename, "w") as f:
                 f["array"] = self.datacube.data
+
+        self.setWindowTitle(filename)
+        self.statusBar().showMessage(f"File saved to {filename}")
     except Exception as exc:
         import traceback
 
