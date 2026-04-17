@@ -23,6 +23,7 @@ from pathlib import Path
 import importlib
 import os, sys
 import platformdirs
+from showinfm import show_in_file_manager
 
 from py4D_browser.utils import pg_point_roi, VLine, LatchingButton
 from py4D_browser.scalebar import ScaleBar
@@ -75,7 +76,13 @@ class DataViewer(QMainWindow):
         update_tooltip,
     )
 
+    from py4D_browser.signals import register_result_callback
+
     from py4D_browser.plugins import load_plugins
+
+    signal_diffraction_data_changed = QtCore.pyqtSignal()
+    signal_virtual_image_data_changed = QtCore.pyqtSignal()
+    signal_datacube_changed = QtCore.pyqtSignal()
 
     def __init__(self, argv):
         super().__init__()
@@ -95,15 +102,17 @@ class DataViewer(QMainWindow):
 
         self.datacube = None
 
-        # Load settings from cofig file
-        config_path = os.path.join(
+        # Load settings from config file
+        self.config_path = os.path.join(
             platformdirs.user_config_dir("py4DGUI", "py4DSTEM"), "GUI_config.ini"
         )
-        print(f"Loading configuration from {config_path}")
+        print(f"Loading configuration from {self.config_path}")
         QtCore.QCoreApplication.setOrganizationName("py4DSTEM")
         QtCore.QCoreApplication.setOrganizationDomain("py4DSTEM.com")
         QtCore.QCoreApplication.setApplicationName("py4DGUI")
-        self.settings = QtCore.QSettings(config_path, QtCore.QSettings.Format.IniFormat)
+        self.settings = QtCore.QSettings(
+            self.config_path, QtCore.QSettings.Format.IniFormat
+        )
 
         # Reset stored state if so asked:
         if os.environ.get("PY4DGUI_RESET"):
@@ -482,30 +491,30 @@ class DataViewer(QMainWindow):
         rs_detector_shape_group.addAction(detector_rectangle_action)
         self.detector_shape_menu.addAction(detector_rectangle_action)
 
-        self.fft_menu = QMenu("FF&T View", self)
-        self.menu_bar.addMenu(self.fft_menu)
+        self.result_menu = QMenu("Resul&t View", self)
+        self.menu_bar.addMenu(self.result_menu)
 
-        self.fft_source_action_group = QActionGroup(self)
-        self.fft_source_action_group.setExclusive(True)
+        self.result_source_action_group = QActionGroup(self)
+        self.result_source_action_group.setExclusive(True)
         img_fft_action = QAction("Virtual Image FFT", self)
         img_fft_action.setCheckable(True)
         img_fft_action.setChecked(True)
         img_fft_action.triggered.connect(partial(self.update_real_space_view, False))
-        self.fft_menu.addAction(img_fft_action)
-        self.fft_source_action_group.addAction(img_fft_action)
+        self.result_menu.addAction(img_fft_action)
+        self.result_source_action_group.addAction(img_fft_action)
 
         img_complex_fft_action = QAction("Virtual Image FFT (complex)", self)
         img_complex_fft_action.setCheckable(True)
-        self.fft_menu.addAction(img_complex_fft_action)
-        self.fft_source_action_group.addAction(img_complex_fft_action)
+        self.result_menu.addAction(img_complex_fft_action)
+        self.result_source_action_group.addAction(img_complex_fft_action)
         img_complex_fft_action.triggered.connect(
             partial(self.update_real_space_view, False)
         )
 
         img_ewpc_action = QAction("EWPC", self)
         img_ewpc_action.setCheckable(True)
-        self.fft_menu.addAction(img_ewpc_action)
-        self.fft_source_action_group.addAction(img_ewpc_action)
+        self.result_menu.addAction(img_ewpc_action)
+        self.result_source_action_group.addAction(img_ewpc_action)
         img_ewpc_action.triggered.connect(
             partial(self.update_diffraction_space_view, False)
         )
@@ -521,6 +530,12 @@ class DataViewer(QMainWindow):
         self.keyboard_map_action = QAction("Show &Keyboard Map", self)
         self.keyboard_map_action.triggered.connect(self.show_keyboard_map)
         self.help_menu.addAction(self.keyboard_map_action)
+
+        self.show_config_file_action = QAction("Show Configuration File", self)
+        self.show_config_file_action.triggered.connect(
+            partial(show_in_file_manager, self.config_path)
+        )
+        self.help_menu.addAction(self.show_config_file_action)
 
     def setup_views(self):
         # Set up the diffraction space window.
