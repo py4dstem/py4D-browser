@@ -1,3 +1,4 @@
+from typing import Optional
 import pyqtgraph as pg
 import numpy as np
 import py4DSTEM
@@ -309,6 +310,7 @@ def update_real_space_view(self, reset=False):
 def set_virtual_image(self, vimg, reset=False):
     self.unscaled_realspace_image = vimg
     self._render_virtual_image(reset=reset)
+    self.signal_virtual_image_data_changed.emit()
 
 
 def _render_virtual_image(self, reset=False):
@@ -364,53 +366,6 @@ def _render_virtual_image(self, reset=False):
     for t, m in zip(stats_text, self.realspace_statistics_actions):
         m.setText(t)
 
-    # Update FFT view
-    self.unscaled_fft_image = None
-    vimg_2D = vimg if np.isrealobj(vimg) else np.abs(vimg)
-    fft_window = (
-        np.hanning(vimg_2D.shape[0])[:, None] * np.hanning(vimg_2D.shape[1])[None, :]
-    )
-    if self.fft_source_action_group.checkedAction().text() == "Virtual Image FFT":
-        fft = np.abs(np.fft.fftshift(np.fft.fft2(vimg_2D * fft_window))) ** 0.5
-        levels = (np.min(fft), np.percentile(fft, 99.9))
-        mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
-        self.fft_widget_text.setText("Virtual Image FFT")
-        self.fft_widget.setImage(
-            fft.T, autoLevels=False, levels=levels, autoRange=mode_switch
-        )
-        self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
-        if mode_switch:
-            # Need to autorange after setRect
-            self.fft_widget.autoRange()
-        self.unscaled_fft_image = fft
-    elif (
-        self.fft_source_action_group.checkedAction().text()
-        == "Virtual Image FFT (complex)"
-    ):
-        fft = np.fft.fftshift(np.fft.fft2(vimg_2D * fft_window))
-        levels = (np.min(np.abs(fft)), np.percentile(np.abs(fft), 99.9))
-        mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
-        self.fft_widget_text.setText("Virtual Image FFT")
-        fft_img = complex_to_Lab(
-            fft.T,
-            amin=levels[0],
-            amax=levels[1],
-            ab_scale=128,
-            gamma=0.5,
-        )
-        self.fft_widget.setImage(
-            fft_img,
-            autoLevels=False,
-            autoRange=mode_switch,
-            levels=(0, 1),
-        )
-
-        self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
-        if mode_switch:
-            # Need to autorange after setRect
-            self.fft_widget.autoRange()
-        self.unscaled_fft_image = fft
-
 
 def update_diffraction_space_view(self, reset=False):
     if self.datacube is None:
@@ -450,6 +405,7 @@ def update_diffraction_space_view(self, reset=False):
 def set_diffraction_image(self, DP, reset=False):
     self.unscaled_diffraction_image = DP
     self._render_diffraction_image(reset=reset)
+    self.signal_diffraction_data_changed.emit()
 
 
 def _render_diffraction_image(self, reset=False):
@@ -494,7 +450,74 @@ def _render_diffraction_image(self, reset=False):
         autoRange=reset,
     )
 
-    if self.fft_source_action_group.checkedAction().text() == "EWPC":
+
+def update_fft_view(self, mode: Optional[str] = None):
+    # called via signals when the Result menu has an internal option chosen
+    # TODO: architect this as a plugin as well!
+
+    # This gets called when *any* internal option is picked and
+    # the mode is read from which menu item is selected
+
+    mode = mode or self.result_source_action_group.checkedAction().text()
+
+    # Update FFT view
+    self.unscaled_fft_image = None
+
+    vimg = self.unscaled_realspace_image
+    DP = self.unscaled_diffraction_image
+
+    if vimg is None or DP is None:
+        return
+
+    if mode == "Virtual Image FFT":
+        vimg_2D = vimg if np.isrealobj(vimg) else np.abs(vimg)
+        fft_window = (
+            np.hanning(vimg_2D.shape[0])[:, None]
+            * np.hanning(vimg_2D.shape[1])[None, :]
+        )
+
+        fft = np.abs(np.fft.fftshift(np.fft.fft2(vimg_2D * fft_window))) ** 0.5
+        levels = (np.min(fft), np.percentile(fft, 99.9))
+        mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
+        self.fft_widget_text.setText("Virtual Image FFT")
+        self.fft_widget.setImage(
+            fft.T, autoLevels=False, levels=levels, autoRange=mode_switch
+        )
+        self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
+        if mode_switch:
+            # Need to autorange after setRect
+            self.fft_widget.autoRange()
+    elif mode == "Virtual Image FFT (complex)":
+        vimg_2D = vimg if np.isrealobj(vimg) else np.abs(vimg)
+        fft_window = (
+            np.hanning(vimg_2D.shape[0])[:, None]
+            * np.hanning(vimg_2D.shape[1])[None, :]
+        )
+
+        fft = np.fft.fftshift(np.fft.fft2(vimg_2D * fft_window))
+        levels = (np.min(np.abs(fft)), np.percentile(np.abs(fft), 99.9))
+        mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
+        self.fft_widget_text.setText("Virtual Image FFT")
+        fft_img = complex_to_Lab(
+            fft.T,
+            amin=levels[0],
+            amax=levels[1],
+            ab_scale=128,
+            gamma=0.5,
+        )
+        self.fft_widget.setImage(
+            fft_img,
+            autoLevels=False,
+            autoRange=mode_switch,
+            levels=(0, 1),
+        )
+
+        self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
+        if mode_switch:
+            # Need to autorange after setRect
+            self.fft_widget.autoRange()
+
+    elif mode == "EWPC":
         log_clip = np.maximum(1e-10, np.percentile(np.maximum(DP, 0.0), 0.1))
         fft = np.abs(np.fft.fftshift(np.fft.fft2(np.log(np.maximum(DP, log_clip)))))
         levels = (np.min(fft), np.percentile(fft, 99.9))
@@ -503,6 +526,12 @@ def _render_diffraction_image(self, reset=False):
         self.fft_widget.setImage(
             fft.T, autoLevels=False, levels=levels, autoRange=mode_switch
         )
+    else:
+        raise RuntimeError(
+            f"The internal FFT view callback was triggered but {mode} is checked!"
+        )
+
+    self.unscaled_fft_image = fft
 
 
 def update_realspace_detector(self):

@@ -65,6 +65,7 @@ class DataViewer(QMainWindow):
         _render_diffraction_image,
         update_diffraction_space_view,
         update_real_space_view,
+        update_fft_view,
         update_realspace_detector,
         update_diffraction_detector,
         set_diffraction_autoscale_range,
@@ -76,7 +77,10 @@ class DataViewer(QMainWindow):
         update_tooltip,
     )
 
-    from py4D_browser.signals import register_result_callback
+    from py4D_browser.signals import (
+        register_result_callback,
+        set_internal_result_callback,
+    )
 
     from py4D_browser.plugins import load_plugins
 
@@ -101,6 +105,10 @@ class DataViewer(QMainWindow):
         self.setAcceptDrops(True)
 
         self.datacube = None
+
+        self.unscaled_diffraction_image = None
+        self.unscaled_realspace_image = None
+        self.unscaled_fft_image = None
 
         # Load settings from config file
         self.config_path = os.path.join(
@@ -498,8 +506,8 @@ class DataViewer(QMainWindow):
         self.result_source_action_group.setExclusive(True)
         img_fft_action = QAction("Virtual Image FFT", self)
         img_fft_action.setCheckable(True)
+        img_fft_action.triggered.connect(self.set_internal_result_callback)
         img_fft_action.setChecked(True)
-        img_fft_action.triggered.connect(partial(self.update_real_space_view, False))
         self.result_menu.addAction(img_fft_action)
         self.result_source_action_group.addAction(img_fft_action)
 
@@ -507,17 +515,23 @@ class DataViewer(QMainWindow):
         img_complex_fft_action.setCheckable(True)
         self.result_menu.addAction(img_complex_fft_action)
         self.result_source_action_group.addAction(img_complex_fft_action)
-        img_complex_fft_action.triggered.connect(
-            partial(self.update_real_space_view, False)
-        )
+        img_complex_fft_action.triggered.connect(self.set_internal_result_callback)
 
         img_ewpc_action = QAction("EWPC", self)
         img_ewpc_action.setCheckable(True)
         self.result_menu.addAction(img_ewpc_action)
         self.result_source_action_group.addAction(img_ewpc_action)
-        img_ewpc_action.triggered.connect(
-            partial(self.update_diffraction_space_view, False)
-        )
+        img_ewpc_action.triggered.connect(self.set_internal_result_callback)
+
+        # action only for information purposes, to show when a plugin has taken over
+        # the result window
+        self.result_other_action = QAction("Plugin", self)
+        self.result_other_action.setCheckable(True)
+        self.result_other_action.setEnabled(False)
+        self.result_menu.addAction(self.result_other_action)
+        self.result_source_action_group.addAction(self.result_other_action)
+
+        self.set_internal_result_callback()
 
         # Plugins menu
         self.processing_menu = QMenu("&Plugins", self)
