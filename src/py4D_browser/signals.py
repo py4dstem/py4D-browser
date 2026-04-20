@@ -6,16 +6,18 @@ Registration and marshalling for callbacks/signals
 
 __all__ = ["register_result_callback", "set_internal_result_callback"]
 
-_registered_result_callbacks = {
+_registered_result_callbacks: dict[str, Optional[Callable]] = {
     "diffraction": None,
     "virtual_image": None,
     "datacube": None,
+    "cleanup": None,
 }
 
 
 def register_result_callback(
     self,
     title: str,
+    cleanup: Optional[Callable],
     callback_diffraction_pattern_changed: Optional[Callable] = None,
     callback_virtual_image_changed: Optional[Callable] = None,
     callback_datacube_changed: Optional[Callable] = None,
@@ -23,12 +25,17 @@ def register_result_callback(
     # Only one plugin should use these callbacks at a time, and the menu
     # must be updated to indicate which plugin is actively recieving
     # the signals.
+
+    # The cleanup function is called when the plugin/handler is removed,
+    # and should be used to restore the GUI to its original state (i.e.
+    # by removing any additional ROIs or windows).
     self.result_other_action.setText(title)
     self.fft_widget_text.setText(title)
     self.result_other_action.setChecked(True)
 
     _replace_result_callbacks(
         self,
+        cleanup=cleanup,
         callback_diffraction_pattern_changed=callback_diffraction_pattern_changed,
         callback_virtual_image_changed=callback_virtual_image_changed,
         callback_datacube_changed=callback_datacube_changed,
@@ -55,6 +62,7 @@ def set_internal_result_callback(self):
 
 def _replace_result_callbacks(
     self,
+    cleanup: Optional[Callable] = None,
     callback_diffraction_pattern_changed: Optional[Callable] = None,
     callback_virtual_image_changed: Optional[Callable] = None,
     callback_datacube_changed: Optional[Callable] = None,
@@ -64,16 +72,24 @@ def _replace_result_callbacks(
         self.signal_diffraction_data_changed.disconnect(
             _registered_result_callbacks["diffraction"]
         )
+    _registered_result_callbacks["diffraction"] = None
 
     if _registered_result_callbacks["virtual_image"] is not None:
         self.signal_virtual_image_data_changed.disconnect(
             _registered_result_callbacks["virtual_image"]
         )
+    _registered_result_callbacks["virtual_image"] = None
 
     if _registered_result_callbacks["datacube"] is not None:
         self.signal_datacube_changed.disconnect(
             _registered_result_callbacks["datacube"]
         )
+    _registered_result_callbacks["datacube"]
+
+    # call the cleanup function for the old plugin/handler
+    if _registered_result_callbacks["cleanup"] is not None:
+        _registered_result_callbacks["cleanup"]()
+    _registered_result_callbacks["cleanup"] = cleanup
 
     # register any supplied callbacks
     if callback_diffraction_pattern_changed is not None:
