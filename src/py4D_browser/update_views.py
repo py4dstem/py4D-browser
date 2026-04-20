@@ -460,9 +460,6 @@ def update_fft_view(self, mode: Optional[str] = None):
 
     mode = mode or self.result_source_action_group.checkedAction().text()
 
-    # Update FFT view
-    self.unscaled_fft_image = None
-
     vimg = self.unscaled_realspace_image
     DP = self.unscaled_diffraction_image
 
@@ -480,7 +477,7 @@ def update_fft_view(self, mode: Optional[str] = None):
         levels = (np.min(fft), np.percentile(fft, 99.9))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
         self.set_result_image(
-            fft.T,
+            fft,
             reset=mode_switch,
             title="Virtual Image FFT",
             pixel_size=(
@@ -503,7 +500,7 @@ def update_fft_view(self, mode: Optional[str] = None):
         levels = (np.min(np.abs(fft)), np.percentile(np.abs(fft), 99.9))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
         self.set_result_image(
-            fft.T,
+            fft,
             reset=mode_switch,
             title="Virtual Image FFT",
             pixel_size=(
@@ -522,7 +519,7 @@ def update_fft_view(self, mode: Optional[str] = None):
         levels = (np.min(fft), np.percentile(fft, 99.9))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "EWPC"
         self.set_result_image(
-            fft.T,
+            fft,
             reset=mode_switch,
             title="EWPC",
             pixel_size=(
@@ -534,8 +531,6 @@ def update_fft_view(self, mode: Optional[str] = None):
         raise RuntimeError(
             f"The internal FFT view callback was triggered but {mode} is checked!"
         )
-
-    self.unscaled_fft_image = fft
 
 
 def set_result_image(self, vimg, reset=False, pixel_size=1.0, pixel_units="", title=""):
