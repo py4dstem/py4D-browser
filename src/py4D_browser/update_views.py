@@ -479,9 +479,14 @@ def update_fft_view(self, mode: Optional[str] = None):
         fft = np.abs(np.fft.fftshift(np.fft.fft2(vimg_2D * fft_window))) ** 0.5
         levels = (np.min(fft), np.percentile(fft, 99.9))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
-        self.fft_widget_text.setText("Virtual Image FFT")
-        self.fft_widget.setImage(
-            fft.T, autoLevels=False, levels=levels, autoRange=mode_switch
+        self.set_result_image(
+            fft.T,
+            reset=mode_switch,
+            title="Virtual Image FFT",
+            pixel_size=(
+                1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
+            ),
+            pixel_units=f"{self.datacube.calibration.get_R_pixel_units()}⁻¹",
         )
         self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
         if mode_switch:
@@ -497,21 +502,15 @@ def update_fft_view(self, mode: Optional[str] = None):
         fft = np.fft.fftshift(np.fft.fft2(vimg_2D * fft_window))
         levels = (np.min(np.abs(fft)), np.percentile(np.abs(fft), 99.9))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
-        self.fft_widget_text.setText("Virtual Image FFT")
-        fft_img = complex_to_Lab(
+        self.set_result_image(
             fft.T,
-            amin=levels[0],
-            amax=levels[1],
-            ab_scale=128,
-            gamma=0.5,
+            reset=mode_switch,
+            title="Virtual Image FFT",
+            pixel_size=(
+                1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
+            ),
+            pixel_units=f"{self.datacube.calibration.get_R_pixel_units()}⁻¹",
         )
-        self.fft_widget.setImage(
-            fft_img,
-            autoLevels=False,
-            autoRange=mode_switch,
-            levels=(0, 1),
-        )
-
         self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
         if mode_switch:
             # Need to autorange after setRect
@@ -522,9 +521,14 @@ def update_fft_view(self, mode: Optional[str] = None):
         fft = np.abs(np.fft.fftshift(np.fft.fft2(np.log(np.maximum(DP, log_clip)))))
         levels = (np.min(fft), np.percentile(fft, 99.9))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "EWPC"
-        self.fft_widget_text.setText("EWPC")
-        self.fft_widget.setImage(
-            fft.T, autoLevels=False, levels=levels, autoRange=mode_switch
+        self.set_result_image(
+            fft.T,
+            reset=mode_switch,
+            title="EWPC",
+            pixel_size=(
+                1.0 / self.datacube.calibration.get_Q_pixel_size() / self.datacube.Q_Ny
+            ),
+            pixel_units=f"{self.datacube.calibration.get_Q_pixel_units()}⁻¹",
         )
     else:
         raise RuntimeError(
@@ -532,6 +536,65 @@ def update_fft_view(self, mode: Optional[str] = None):
         )
 
     self.unscaled_fft_image = fft
+
+
+def set_result_image(self, vimg, reset=False, pixel_size=1.0, pixel_units="", title=""):
+    self.unscaled_fft_image = vimg
+    self.fft_widget_text.setText(title)
+    self._render_result_image(reset=reset)
+
+    self.fft_scale_bar.pixel_size = pixel_size
+    self.fft_scale_bar.units = pixel_units
+    self.fft_scale_bar.updateBar()
+
+
+def _render_result_image(self, reset=False):
+    vimg = self.unscaled_fft_image
+
+    # for 2D images, use the scaling set by the user
+    # for RGB (3D) images, always scale linear
+    if np.isrealobj(vimg):
+        scaling_mode = self.result_scaling_group.checkedAction().text().replace("&", "")
+        assert scaling_mode in ["Linear", "Log", "Square Root"], scaling_mode
+
+        if scaling_mode == "Linear":
+            new_view = vimg.copy()
+        elif scaling_mode == "Log":
+            new_view = np.log2(np.maximum(vimg, self.LOG_SCALE_MIN_VALUE))
+        elif scaling_mode == "Square Root":
+            new_view = np.sqrt(np.maximum(vimg, 0))
+        else:
+            raise ValueError("Mode not recognized")
+
+        auto_level = reset or self.result_rescale_button.latched
+
+        self.fft_widget.setImage(
+            new_view.T,
+            autoLevels=False,
+            levels=(
+                (
+                    np.percentile(new_view, self.result_autoscale_percentiles[0]),
+                    np.percentile(new_view, self.result_autoscale_percentiles[1]),
+                )
+                if auto_level
+                else None
+            ),
+            autoRange=reset,
+        )
+    else:
+        new_view = complex_to_Lab(
+            vimg,
+            amin=np.percentile(np.abs(vimg), self.result_autoscale_percentiles[0]),
+            amax=np.percentile(np.abs(vimg), self.result_autoscale_percentiles[1]),
+            ab_scale=128,
+            gamma=0.5,
+        )
+        self.fft_widget.setImage(
+            np.transpose(new_view, (1, 0, 2)),  # flip x/y but keep RGB ordering
+            autoLevels=False,
+            levels=(0, 1),
+            autoRange=reset,
+        )
 
 
 def update_realspace_detector(self):
@@ -741,6 +804,14 @@ def set_real_space_autoscale_range(self, percentiles, redraw=True):
 
     if redraw:
         self._render_virtual_image(reset=False)
+
+
+def set_result_autoscale_range(self, percentiles, redraw=True):
+    self.result_autoscale_percentiles = percentiles
+    self.settings.setValue("last_state/result_autorange", list(percentiles))
+
+    if redraw:
+        self._render_result_image(reset=False)
 
 
 def nudge_real_space_selector(self, dx, dy):

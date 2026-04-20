@@ -30,7 +30,7 @@ def register_result_callback(
     # and should be used to restore the GUI to its original state (i.e.
     # by removing any additional ROIs or windows).
     self.result_other_action.setText(title)
-    self.fft_widget_text.setText(title)
+    # self.fft_widget_text.setText(title) # this is handled in set_result_image now
     self.result_other_action.setChecked(True)
 
     _replace_result_callbacks(
@@ -59,6 +59,8 @@ def set_internal_result_callback(self):
         callback_datacube_changed=None,
     )
 
+    self.update_fft_view()
+
 
 def _replace_result_callbacks(
     self,
@@ -84,7 +86,7 @@ def _replace_result_callbacks(
         self.signal_datacube_changed.disconnect(
             _registered_result_callbacks["datacube"]
         )
-    _registered_result_callbacks["datacube"]
+    _registered_result_callbacks["datacube"] = None
 
     # call the cleanup function for the old plugin/handler
     if _registered_result_callbacks["cleanup"] is not None:

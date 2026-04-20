@@ -153,14 +153,8 @@ def update_scalebars(self):
         else r_units
     )
 
-    self.fft_scale_bar.pixel_size = (
-        1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
-    )
-    self.fft_scale_bar.units = f"{self.datacube.calibration.get_R_pixel_units()}⁻¹"
-
     self.diffraction_scale_bar.updateBar()
     self.real_space_scale_bar.updateBar()
-    self.fft_scale_bar.updateBar()
 
 
 def reshape_data(self):

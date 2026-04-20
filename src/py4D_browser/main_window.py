@@ -59,10 +59,12 @@ class DataViewer(QMainWindow):
     from py4D_browser.update_views import (
         set_virtual_image,
         set_diffraction_image,
+        set_result_image,
         get_diffraction_detector,
         get_virtual_image_detector,
         _render_virtual_image,
         _render_diffraction_image,
+        _render_result_image,
         update_diffraction_space_view,
         update_real_space_view,
         update_fft_view,
@@ -70,6 +72,7 @@ class DataViewer(QMainWindow):
         update_diffraction_detector,
         set_diffraction_autoscale_range,
         set_real_space_autoscale_range,
+        set_result_autoscale_range,
         nudge_real_space_selector,
         nudge_diffraction_selector,
         update_annulus_pos,
@@ -300,6 +303,43 @@ class DataViewer(QMainWindow):
         vimg_scaling_group.addAction(vimg_scale_sqrt_action)
         self.scaling_menu.addAction(vimg_scale_sqrt_action)
 
+        self.scaling_menu.addSeparator()
+
+        # Real space scaling
+        result_scaling_group = QActionGroup(self)
+        result_scaling_group.setExclusive(True)
+        self.result_scaling_group = result_scaling_group
+
+        result_menu_separator = QAction("Result", self)
+        result_menu_separator.setDisabled(True)
+        self.scaling_menu.addAction(result_menu_separator)
+
+        result_scale_linear_action = QAction("Linear", self)
+        self.result_scale_linear_action = result_scale_linear_action  # Save this one!
+        result_scale_linear_action.setCheckable(True)
+        result_scale_linear_action.triggered.connect(
+            partial(self._render_result_image, True)
+        )
+        result_scaling_group.addAction(result_scale_linear_action)
+        self.scaling_menu.addAction(result_scale_linear_action)
+
+        result_scale_log_action = QAction("Log", self)
+        result_scale_log_action.setCheckable(True)
+        result_scale_log_action.triggered.connect(
+            partial(self._render_result_image, True)
+        )
+        result_scaling_group.addAction(result_scale_log_action)
+        self.scaling_menu.addAction(result_scale_log_action)
+
+        result_scale_sqrt_action = QAction("Square Root", self)
+        result_scale_sqrt_action.setCheckable(True)
+        result_scale_sqrt_action.setChecked(True)
+        result_scale_sqrt_action.triggered.connect(
+            partial(self._render_result_image, True)
+        )
+        result_scaling_group.addAction(result_scale_sqrt_action)
+        self.scaling_menu.addAction(result_scale_sqrt_action)
+
         # Autorange menu
         self.autorange_menu = QMenu("&Autorange", self)
         self.menu_bar.addMenu(self.autorange_menu)
@@ -357,6 +397,36 @@ class DataViewer(QMainWindow):
             ):
                 action.setChecked(True)
                 self.set_real_space_autoscale_range(scale_range, redraw=False)
+
+        ##
+        self.autorange_menu.addSeparator()
+
+        result_autoscale_separator = QAction("Result", self)
+        result_autoscale_separator.setDisabled(True)
+        self.autorange_menu.addAction(result_autoscale_separator)
+
+        result_range_group = QActionGroup(self)
+        result_range_group.setExclusive(True)
+
+        scale_range_default = self.settings.value(
+            "last_state/result_autorange", [0.1, 99.9], type=float
+        )
+        for scale_range in [(0, 100), (0.1, 99.9), (1, 99), (2, 98), (5, 95)]:
+            action = QAction(f"{scale_range[0]}% – {scale_range[1]}%", self)
+            result_range_group.addAction(action)
+            self.autorange_menu.addAction(action)
+            action.setCheckable(True)
+            action.triggered.connect(
+                partial(self.set_result_autoscale_range, scale_range)
+            )
+            # set default
+            if (
+                scale_range[0] == scale_range_default[0]
+                and scale_range[1] == scale_range_default[1]
+            ):
+                action.setChecked(True)
+                self.set_result_autoscale_range(scale_range, redraw=False)
+        ##
 
         # Detector Response Menu
         self.detector_menu = QMenu("&Detector Response", self)
@@ -670,6 +740,7 @@ class DataViewer(QMainWindow):
         self.statusBar().addPermanentWidget(VLine())
         self.statusBar().addPermanentWidget(self.real_space_view_text)
         self.statusBar().addPermanentWidget(VLine())
+
         self.diffraction_rescale_button = LatchingButton(
             "Autorange Diffraction",
             status_bar=self.statusBar(),
@@ -679,6 +750,7 @@ class DataViewer(QMainWindow):
             self.diffraction_space_widget.autoLevels
         )
         self.statusBar().addPermanentWidget(self.diffraction_rescale_button)
+
         self.realspace_rescale_button = LatchingButton(
             "Autorange Virtual Image",
             status_bar=self.statusBar(),
@@ -688,6 +760,14 @@ class DataViewer(QMainWindow):
             self.real_space_widget.autoLevels
         )
         self.statusBar().addPermanentWidget(self.realspace_rescale_button)
+
+        self.result_rescale_button = LatchingButton(
+            "Autorange Result",
+            status_bar=self.statusBar(),
+            latched=True,
+        )
+        self.result_rescale_button.activated.connect(self.fft_widget.autoLevels)
+        self.statusBar().addPermanentWidget(self.result_rescale_button)
 
     def resizeEvent(self, event):
         # Store window size for next run
