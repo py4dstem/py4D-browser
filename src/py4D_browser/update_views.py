@@ -474,7 +474,6 @@ def update_fft_view(self, mode: Optional[str] = None):
         )
 
         fft = np.abs(np.fft.fftshift(np.fft.fft2(vimg_2D * fft_window))) ** 0.5
-        levels = (np.min(fft), np.percentile(fft, 99.9))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
         self.set_result_image(
             fft,
@@ -496,8 +495,7 @@ def update_fft_view(self, mode: Optional[str] = None):
             * np.hanning(vimg_2D.shape[1])[None, :]
         )
 
-        fft = np.fft.fftshift(np.fft.fft2(vimg_2D * fft_window))
-        levels = (np.min(np.abs(fft)), np.percentile(np.abs(fft), 99.9))
+        fft = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(vimg_2D * fft_window)))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
         self.set_result_image(
             fft,
@@ -516,7 +514,6 @@ def update_fft_view(self, mode: Optional[str] = None):
     elif mode == "EWPC":
         log_clip = np.maximum(1e-10, np.percentile(np.maximum(DP, 0.0), 0.1))
         fft = np.abs(np.fft.fftshift(np.fft.fft2(np.log(np.maximum(DP, log_clip)))))
-        levels = (np.min(fft), np.percentile(fft, 99.9))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "EWPC"
         self.set_result_image(
             fft,
