@@ -49,15 +49,11 @@ def load_data_arina(self):
     self.real_space_scale_bar.pixel_size = self.datacube.calibration.get_R_pixel_size()
     self.real_space_scale_bar.units = self.datacube.calibration.get_R_pixel_units()
 
-    self.fft_scale_bar.pixel_size = (
-        1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
-    )
-    self.fft_scale_bar.units = f"1/{self.datacube.calibration.get_R_pixel_units()}"
-
     self.update_diffraction_space_view(reset=True)
     self.update_real_space_view(reset=True)
 
     self.setWindowTitle(filename)
+    self.signal_datacube_changed.emit()
 
 
 def load_file(self, filepath, mmap=False, binning=1):
@@ -115,6 +111,7 @@ def load_file(self, filepath, mmap=False, binning=1):
     self.update_real_space_view(reset=True)
 
     self.setWindowTitle(filepath)
+    self.signal_datacube_changed.emit()
 
 
 def set_datacube(self, datacube, window_title):
@@ -126,6 +123,7 @@ def set_datacube(self, datacube, window_title):
     self.update_real_space_view(reset=True)
 
     self.setWindowTitle(window_title)
+    self.signal_datacube_changed.emit()
 
 
 def update_scalebars(self):
