@@ -18,7 +18,7 @@ _registered_result_callbacks: dict[str, Optional[Callable]] = {
 
 
 def register_result_callback(
-    self: DataViewer,
+    self: "DataViewer",
     title: str,
     cleanup: Optional[Callable],
     callback_diffraction_pattern_changed: Optional[Callable] = None,
@@ -45,7 +45,7 @@ def register_result_callback(
     )
 
 
-def set_internal_result_callback(self: DataViewer):
+def set_internal_result_callback(self: "DataViewer"):
     # Set the callbacks back to the internal ones for FFT/EWPC
     # and use the default renderer
 
@@ -66,7 +66,7 @@ def set_internal_result_callback(self: DataViewer):
 
 
 def _replace_result_callbacks(
-    self: DataViewer,
+    self: "DataViewer",
     cleanup: Optional[Callable] = None,
     callback_diffraction_pattern_changed: Optional[Callable] = None,
     callback_virtual_image_changed: Optional[Callable] = None,

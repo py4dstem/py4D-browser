@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from py4D_browser import DataViewer
 
 
-def get_diffraction_detector(self: DataViewer) -> DetectorInfo:
+def get_diffraction_detector(self: "DataViewer") -> DetectorInfo:
     """
     Get the current detector and its position on the diffraction view.
     Returns a DetectorInfo dictionary, which contains the shape and
@@ -127,7 +127,7 @@ def get_diffraction_detector(self: DataViewer) -> DetectorInfo:
             raise ValueError("Detector could not be determined")
 
 
-def get_virtual_image_detector(self: DataViewer) -> DetectorInfo:
+def get_virtual_image_detector(self: "DataViewer") -> DetectorInfo:
     """
     Get the current detector and its position on the diffraction view.
     Returns a DetectorInfo dictionary, which contains the shape and
@@ -183,7 +183,7 @@ def get_virtual_image_detector(self: DataViewer) -> DetectorInfo:
             raise ValueError("Detector could not be determined")
 
 
-def update_real_space_view(self: DataViewer, reset=False):
+def update_real_space_view(self: "DataViewer", reset=False):
     if self.datacube is None:
         return
 
@@ -312,13 +312,13 @@ def update_real_space_view(self: DataViewer, reset=False):
     self.set_virtual_image(vimg, reset=reset)
 
 
-def set_virtual_image(self: DataViewer, vimg, reset=False):
+def set_virtual_image(self: "DataViewer", vimg, reset=False):
     self.unscaled_realspace_image = vimg
     self._render_virtual_image(reset=reset)
     self.signal_virtual_image_data_changed.emit()
 
 
-def _render_virtual_image(self: DataViewer, reset=False):
+def _render_virtual_image(self: "DataViewer", reset=False):
     vimg = self.unscaled_realspace_image
 
     # for 2D images, use the scaling set by the user
@@ -372,7 +372,7 @@ def _render_virtual_image(self: DataViewer, reset=False):
         m.setText(t)
 
 
-def update_diffraction_space_view(self: DataViewer, reset=False):
+def update_diffraction_space_view(self: "DataViewer", reset=False):
     if self.datacube is None:
         return
 
@@ -407,13 +407,13 @@ def update_diffraction_space_view(self: DataViewer, reset=False):
     self.set_diffraction_image(DP, reset=reset)
 
 
-def set_diffraction_image(self: DataViewer, DP, reset=False):
+def set_diffraction_image(self: "DataViewer", DP, reset=False):
     self.unscaled_diffraction_image = DP
     self._render_diffraction_image(reset=reset)
     self.signal_diffraction_data_changed.emit()
 
 
-def _render_diffraction_image(self: DataViewer, reset=False):
+def _render_diffraction_image(self: "DataViewer", reset=False):
     DP = self.unscaled_diffraction_image
 
     scaling_mode = self.diff_scaling_group.checkedAction().text().replace("&", "")
@@ -456,7 +456,7 @@ def _render_diffraction_image(self: DataViewer, reset=False):
     )
 
 
-def update_fft_view(self: DataViewer, mode: Optional[str] = None):
+def update_fft_view(self: "DataViewer", mode: Optional[str] = None):
     # called via signals when the Result menu has an internal option chosen
     # TODO: architect this as a plugin as well!
 
@@ -536,7 +536,7 @@ def update_fft_view(self: DataViewer, mode: Optional[str] = None):
 
 
 def set_result_image(
-    self: DataViewer, vimg, reset=False, pixel_size=1.0, pixel_units="", title=""
+    self: "DataViewer", vimg, reset=False, pixel_size=1.0, pixel_units="", title=""
 ):
     self.unscaled_fft_image = vimg
     self.fft_widget_text.setText(title)
@@ -547,7 +547,7 @@ def set_result_image(
     self.fft_scale_bar.updateBar()
 
 
-def _render_result_image(self: DataViewer, reset=False):
+def _render_result_image(self: "DataViewer", reset=False):
     vimg = self.unscaled_fft_image
 
     # for 2D images, use the scaling set by the user
@@ -596,7 +596,7 @@ def _render_result_image(self: DataViewer, reset=False):
         )
 
 
-def update_realspace_detector(self: DataViewer):
+def update_realspace_detector(self: "DataViewer"):
     # change the shape of the detector, then update the view
 
     detector_shape = (
@@ -658,7 +658,7 @@ def update_realspace_detector(self: DataViewer):
     self.update_diffraction_space_view(reset=True)
 
 
-def update_diffraction_detector(self: DataViewer):
+def update_diffraction_detector(self: "DataViewer"):
     # change the shape of the detector, then update the view
 
     detector_shape = self.detector_shape_group.checkedAction().text().strip("&")
@@ -789,7 +789,7 @@ def update_diffraction_detector(self: DataViewer):
     self.update_real_space_view(reset=True)
 
 
-def set_diffraction_autoscale_range(self: DataViewer, percentiles, redraw=True):
+def set_diffraction_autoscale_range(self: "DataViewer", percentiles, redraw=True):
     self.diffraction_autoscale_percentiles = percentiles
     self.settings.setValue("last_state/diffraction_autorange", list(percentiles))
 
@@ -797,7 +797,7 @@ def set_diffraction_autoscale_range(self: DataViewer, percentiles, redraw=True):
         self._render_diffraction_image(reset=False)
 
 
-def set_real_space_autoscale_range(self: DataViewer, percentiles, redraw=True):
+def set_real_space_autoscale_range(self: "DataViewer", percentiles, redraw=True):
     self.real_space_autoscale_percentiles = percentiles
     self.settings.setValue("last_state/realspace_autorange", list(percentiles))
 
@@ -805,7 +805,7 @@ def set_real_space_autoscale_range(self: DataViewer, percentiles, redraw=True):
         self._render_virtual_image(reset=False)
 
 
-def set_result_autoscale_range(self: DataViewer, percentiles, redraw=True):
+def set_result_autoscale_range(self: "DataViewer", percentiles, redraw=True):
     self.result_autoscale_percentiles = percentiles
     self.settings.setValue("last_state/result_autorange", list(percentiles))
 
@@ -813,7 +813,7 @@ def set_result_autoscale_range(self: DataViewer, percentiles, redraw=True):
         self._render_result_image(reset=False)
 
 
-def nudge_real_space_selector(self: DataViewer, dx, dy):
+def nudge_real_space_selector(self: "DataViewer", dx, dy):
     if (
         hasattr(self, "real_space_point_selector")
         and self.real_space_point_selector is not None
@@ -834,7 +834,7 @@ def nudge_real_space_selector(self: DataViewer, dx, dy):
     selector.setPos(position)
 
 
-def nudge_diffraction_selector(self: DataViewer, dx, dy):
+def nudge_diffraction_selector(self: "DataViewer", dx, dy):
     if (
         hasattr(self, "virtual_detector_point")
         and self.virtual_detector_point is not None
@@ -859,7 +859,7 @@ def nudge_diffraction_selector(self: DataViewer, dx, dy):
     selector.setPos(position)
 
 
-def update_tooltip(self: DataViewer):
+def update_tooltip(self: "DataViewer"):
     modifier_keys = QApplication.queryKeyboardModifiers()
 
     if self.datacube is not None and self.isActiveWindow():
@@ -885,7 +885,7 @@ def update_tooltip(self: DataViewer):
                 self.cursor_value_text.setText(display_text)
 
 
-def update_annulus_pos(self: DataViewer):
+def update_annulus_pos(self: "DataViewer"):
     """
     Function to keep inner and outer rings of annulus aligned.
     """
@@ -897,7 +897,7 @@ def update_annulus_pos(self: DataViewer):
     self.virtual_detector_roi_inner.setPos(x0 - R_inner, y0 - R_inner, update=False)
 
 
-def update_annulus_radii(self: DataViewer):
+def update_annulus_radii(self: "DataViewer"):
     R_outer = self.virtual_detector_roi_outer.size().x() / 2
     R_inner = self.virtual_detector_roi_inner.size().x() / 2
     if R_outer < R_inner:

@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 __all__ = ["load_plugins", "unload_plugins"]
 
 
-def load_plugins(self: DataViewer):
+def load_plugins(self: "DataViewer"):
     """
     The py4D_browser plugin mechanics are inspired by Nion Swift:
     https://nionswift.readthedocs.io/en/stable/api/plugins.html
@@ -90,7 +90,7 @@ def load_plugins(self: DataViewer):
                 plugin.post_init(parent=self)
 
 
-def unload_plugins(self: DataViewer):
+def unload_plugins(self: "DataViewer"):
     # NOTE: This is currently not actually called!
     for plugin in self.loaded_plugins:
         plugin["plugin"].close()
