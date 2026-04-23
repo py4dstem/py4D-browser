@@ -25,6 +25,11 @@ from py4D_browser.utils import (
     CircleGeometry,
 )
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from py4D_browser import DataViewer
+
 
 class CalibrationPlugin(QWidget):
 
@@ -34,7 +39,7 @@ class CalibrationPlugin(QWidget):
     uses_single_action = True
     display_name = "Calibrate..."
 
-    def __init__(self, parent, plugin_action, **kwargs):
+    def __init__(self, parent: "DataViewer", plugin_action, **kwargs):
         super().__init__()
 
         self.parent = parent
