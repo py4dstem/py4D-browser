@@ -8,24 +8,29 @@ from py4D_browser.help_menu import KeyboardMapMenu
 from py4D_browser.dialogs import ResizeDialog
 from py4DSTEM.io.filereaders import read_arina
 
+from typing import TYPE_CHECKING
 
-def load_data_auto(self):
+if TYPE_CHECKING:
+    from py4D_browser import DataViewer
+
+
+def load_data_auto(self: DataViewer):
     filename = self.show_file_dialog()
     self.load_file(filename)
 
 
-def load_data_mmap(self):
+def load_data_mmap(self: DataViewer):
     filename = self.show_file_dialog()
     self.load_file(filename, mmap=True)
 
 
-def load_data_bin(self):
+def load_data_bin(self: DataViewer):
     # TODO: Ask user for binning level
     filename = self.show_file_dialog()
     self.load_file(filename, mmap=False, binning=4)
 
 
-def load_data_arina(self):
+def load_data_arina(self: DataViewer):
     filename = self.show_file_dialog()
     dataset = read_arina(filename)
 
@@ -56,7 +61,7 @@ def load_data_arina(self):
     self.signal_datacube_changed.emit()
 
 
-def load_file(self, filepath, mmap=False, binning=1):
+def load_file(self: DataViewer, filepath, mmap=False, binning=1):
     print(f"Loading file {filepath}")
     extension = os.path.splitext(filepath)[-1].lower()
     print(f"Type: {extension}")
@@ -114,7 +119,7 @@ def load_file(self, filepath, mmap=False, binning=1):
     self.signal_datacube_changed.emit()
 
 
-def set_datacube(self, datacube, window_title):
+def set_datacube(self: DataViewer, datacube, window_title):
     self.datacube = datacube
 
     self.update_scalebars()
@@ -126,7 +131,7 @@ def set_datacube(self, datacube, window_title):
     self.signal_datacube_changed.emit()
 
 
-def update_scalebars(self):
+def update_scalebars(self: DataViewer):
 
     realspace_translation = {
         "A": "Å",
@@ -155,7 +160,7 @@ def update_scalebars(self):
     self.real_space_scale_bar.updateBar()
 
 
-def reshape_data(self):
+def reshape_data(self: DataViewer):
     new_shape = ResizeDialog.get_new_size(self.datacube.shape[:2], parent=self)
     self.datacube.data = self.datacube.data.reshape(
         *new_shape, *self.datacube.data.shape[2:]
@@ -167,7 +172,7 @@ def reshape_data(self):
     self.update_real_space_view(reset=True)
 
 
-def export_datacube(self, save_format: str):
+def export_datacube(self: DataViewer, save_format: str):
     assert save_format in [
         "Raw float32",
         "py4DSTEM HDF5",
@@ -221,7 +226,7 @@ def export_datacube(self, save_format: str):
         raise exc
 
 
-def export_virtual_image(self, im_format: str, im_type: str):
+def export_virtual_image(self: DataViewer, im_format: str, im_type: str):
     assert im_type in ["image", "diffraction"], f"bad image type: {im_type}"
 
     filename = self.get_savefile_name(im_format)
@@ -255,7 +260,7 @@ def export_virtual_image(self, im_format: str, im_type: str):
         raise RuntimeError("Nothing saved! Format not recognized")
 
 
-def copy_vimg_to_clipboard(self):
+def copy_vimg_to_clipboard(self: DataViewer):
     img = self.real_space_widget.getImageItem()
 
     if img._renderRequired:
@@ -264,7 +269,7 @@ def copy_vimg_to_clipboard(self):
     QApplication.clipboard().setImage(img.qimage)
 
 
-def copy_diff_to_clipboard(self):
+def copy_diff_to_clipboard(self: DataViewer):
     img = self.diffraction_space_widget.getImageItem()
 
     if img._renderRequired:
@@ -273,12 +278,12 @@ def copy_diff_to_clipboard(self):
     QApplication.clipboard().setImage(img.qimage)
 
 
-def show_keyboard_map(self):
+def show_keyboard_map(self: DataViewer):
     keymap = KeyboardMapMenu(parent=self)
     keymap.open()
 
 
-def show_file_dialog(self) -> str:
+def show_file_dialog(self: DataViewer) -> str:
     filename = QFileDialog.getOpenFileName(
         self,
         "Open 4D-STEM Data",
@@ -292,7 +297,7 @@ def show_file_dialog(self) -> str:
         raise ValueError("Could not read file")
 
 
-def get_savefile_name(self, file_format) -> str:
+def get_savefile_name(self: DataViewer, file_format) -> str:
     filters = {
         "Raw float32": "RAW File (*.raw *.f32);;Any file (*)",
         "py4DSTEM HDF5": "HDF5 File (*.hdf5 *.h5 *.emd *.py4dstem);;Any file (*)",

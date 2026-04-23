@@ -1,23 +1,10 @@
-from py4DSTEM import DataCube, data
-import pyqtgraph as pg
-import numpy as np
-from tqdm import tqdm
-from PyQt5.QtWidgets import QFrame, QPushButton, QApplication, QLabel
-from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtCore import Qt, QObject
-from PyQt5.QtGui import QDoubleValidator
+from PyQt5.QtWidgets import QPushButton, QLabel
 from PyQt5.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QVBoxLayout,
     QSpinBox,
-    QLineEdit,
-    QComboBox,
-    QGroupBox,
-    QGridLayout,
-    QCheckBox,
 )
-from py4D_browser.utils import make_detector, StatusBarWriter
 
 
 class ResizeDialog(QDialog):

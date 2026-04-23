@@ -5,10 +5,15 @@ import traceback
 
 from PyQt5.QtWidgets import QMenu, QAction
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from py4D_browser import DataViewer
+
 __all__ = ["load_plugins", "unload_plugins"]
 
 
-def load_plugins(self):
+def load_plugins(self: DataViewer):
     """
     The py4D_browser plugin mechanics are inspired by Nion Swift:
     https://nionswift.readthedocs.io/en/stable/api/plugins.html
@@ -85,7 +90,7 @@ def load_plugins(self):
                 plugin.post_init(parent=self)
 
 
-def unload_plugins(self):
+def unload_plugins(self: DataViewer):
     # NOTE: This is currently not actually called!
     for plugin in self.loaded_plugins:
         plugin["plugin"].close()

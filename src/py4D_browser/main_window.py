@@ -1,3 +1,4 @@
+from typing import Optional
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import (
     QApplication,
@@ -14,18 +15,17 @@ from PyQt5.QtWidgets import (
     QShortcut,
 )
 
-from matplotlib.backend_bases import tools
+from py4DSTEM import DataCube
 import pyqtgraph as pg
 import numpy as np
 
 from functools import partial
 from pathlib import Path
-import importlib
-import os, sys
+import os
 import platformdirs
 from showinfm import show_in_file_manager
 
-from py4D_browser.utils import pg_point_roi, VLine, LatchingButton
+from py4D_browser.utils import VLine, LatchingButton
 from py4D_browser.scalebar import ScaleBar
 
 
@@ -107,11 +107,11 @@ class DataViewer(QMainWindow):
         self.setWindowTitle("py4DSTEM")
         self.setAcceptDrops(True)
 
-        self.datacube = None
+        self.datacube: Optional[DataCube] = None
 
-        self.unscaled_diffraction_image = None
-        self.unscaled_realspace_image = None
-        self.unscaled_fft_image = None
+        self.unscaled_diffraction_image: Optional[np.ndarray] = None
+        self.unscaled_realspace_image: Optional[np.ndarray] = None
+        self.unscaled_fft_image: Optional[np.ndarray] = None
 
         # Load settings from config file
         self.config_path = os.path.join(
