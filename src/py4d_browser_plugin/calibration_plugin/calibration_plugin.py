@@ -136,6 +136,18 @@ class CalibrateDialog(QDialog):
         )
         diff_right_layout.addWidget(self.diff_unit_box)
 
+        kV_box = QGroupBox("Energy")
+        layout.addWidget(kV_box)
+        kV_layout = QHBoxLayout()
+        kV_box.setLayout(kV_layout)
+        kV_left_layout = QGridLayout()
+        kV_layout.addLayout(kV_left_layout)
+        kV_left_layout.addWidget(
+            QLabel("Accelerating Voltage [kV]"), 0, 0, Qt.AlignRight
+        )
+        self.kV_input = QLineEdit()
+        kV_left_layout.addWidget(self.kV_input, 0, 1)
+
         button_layout = QHBoxLayout()
         button_layout.addStretch()
         cancel_button = QPushButton("Cancel")
@@ -224,6 +236,13 @@ class CalibrateDialog(QDialog):
             self.datacube.calibration.set_Q_pixel_units(
                 translation[self.diff_unit_box.currentText()]
             )
+
+        kV_text = self.kV_input.text()
+        if kV_text != "":
+            kV = float(kV_text)
+            self.datacube.calibration["voltage"] = kV
+            # note there is no canonical tag for voltage, so we are
+            # going to make our own key for it
 
         self.parent.update_scalebars()
 
