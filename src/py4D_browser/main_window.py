@@ -113,7 +113,7 @@ class DataViewer(QMainWindow):
 
         self.setWindowTitle("py4DSTEM")
 
-        alternate_logo = strtobool(self.settings.value("gui/quack", 0))
+        alternate_logo = strtobool(self.settings.value("gui/quack", "0"))
         icon = QtGui.QIcon(
             str(
                 Path(__file__).parent.absolute()

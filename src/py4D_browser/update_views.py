@@ -862,7 +862,7 @@ def nudge_diffraction_selector(self: "DataViewer", dx, dy):
 def update_tooltip(self: "DataViewer"):
     modifier_keys = QApplication.queryKeyboardModifiers()
 
-    if self.datacube is not None and self.isActiveWindow():
+    if self.isActiveWindow():
         global_pos = QCursor.pos()
 
         for scene, data in [
@@ -870,6 +870,8 @@ def update_tooltip(self: "DataViewer"):
             (self.real_space_widget, self.unscaled_realspace_image),
             (self.fft_widget, self.unscaled_fft_image),
         ]:
+            if data is None:
+                return
             pos_in_scene = scene.mapFromGlobal(QCursor.pos())
             if scene.getView().rect().contains(pos_in_scene):
                 pos_in_data = scene.view.mapSceneToView(pos_in_scene)
@@ -878,7 +880,10 @@ def update_tooltip(self: "DataViewer"):
                 x = int(np.clip(np.floor(pos_in_data.y()), 0, data.shape[0] - 1))
 
                 if np.isrealobj(data):
-                    display_text = f"[{x},{y}]: {data[x,y]:.5g}"
+                    if QtCore.Qt.ControlModifier == modifier_keys and data.dtype in (np.uint32, np.float32):
+                        display_text = f"[{x},{y}]: {data.view(np.uint32)[x,y]:#08X}"
+                    else:
+                        display_text = f"[{x},{y}]: {data[x,y]:.5g}"
                 else:
                     display_text = f"[{x},{y}]: |z|={np.abs(data[x,y]):.5g}, ϕ={np.degrees(np.angle(data[x,y])):.5g}°"
 
