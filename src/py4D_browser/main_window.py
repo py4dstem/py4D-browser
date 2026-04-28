@@ -25,7 +25,7 @@ import os
 import platformdirs
 from showinfm import show_in_file_manager
 
-from py4D_browser.utils import VLine, LatchingButton
+from py4D_browser.utils import VLine, LatchingButton, strtobool
 from py4D_browser.scalebar import ScaleBar
 
 
@@ -98,21 +98,6 @@ class DataViewer(QMainWindow):
         if not self.qtapp:
             self.qtapp = QApplication(argv)
 
-        self.setWindowTitle("py4DSTEM")
-
-        icon = QtGui.QIcon(str(Path(__file__).parent.absolute() / "logo.png"))
-        self.setWindowIcon(icon)
-        self.qtapp.setWindowIcon(icon)
-
-        self.setWindowTitle("py4DSTEM")
-        self.setAcceptDrops(True)
-
-        self.datacube: Optional[DataCube] = None
-
-        self.unscaled_diffraction_image: Optional[np.ndarray] = None
-        self.unscaled_realspace_image: Optional[np.ndarray] = None
-        self.unscaled_fft_image: Optional[np.ndarray] = None
-
         # Load settings from config file
         self.config_path = os.path.join(
             platformdirs.user_config_dir("py4DGUI", "py4DSTEM"), "GUI_config.ini"
@@ -124,6 +109,27 @@ class DataViewer(QMainWindow):
         self.settings = QtCore.QSettings(
             self.config_path, QtCore.QSettings.Format.IniFormat
         )
+
+        self.setWindowTitle("py4DSTEM")
+
+        alternate_logo = strtobool(self.settings.value("gui/quack", 0))
+        icon = QtGui.QIcon(
+            str(
+                Path(__file__).parent.absolute()
+                / ("logo.png" if not alternate_logo else "logo_alternate.png")
+            )
+        )
+        self.setWindowIcon(icon)
+        self.qtapp.setWindowIcon(icon)
+
+        self.setWindowTitle("py4DSTEM")
+        self.setAcceptDrops(True)
+
+        self.datacube: Optional[DataCube] = None
+
+        self.unscaled_diffraction_image: Optional[np.ndarray] = None
+        self.unscaled_realspace_image: Optional[np.ndarray] = None
+        self.unscaled_fft_image: Optional[np.ndarray] = None
 
         # Reset stored state if so asked:
         if os.environ.get("PY4DGUI_RESET"):
