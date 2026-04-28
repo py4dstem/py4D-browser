@@ -218,13 +218,21 @@ def export_datacube(self: "DataViewer", save_format: str):
 
 
 def export_virtual_image(self: "DataViewer", im_format: str, im_type: str):
-    assert im_type in ["image", "diffraction"], f"bad image type: {im_type}"
+    assert im_type in ["image", "diffraction", "result"], f"bad image type: {im_type}"
 
     filename = self.get_savefile_name(im_format)
 
-    view = (
-        self.real_space_widget if im_type == "image" else self.diffraction_space_widget
-    )
+    if im_type == "image":
+        view = self.real_space_widget
+        rawimg = self.unscaled_realspace_image
+    elif im_type == "diffraction":
+        view = self.diffraction_space_widget
+        rawimg = self.unscaled_diffraction_image
+    elif im_type == "result":
+        view = self.fft_widget
+        rawimg = self.unscaled_fft_image
+    else:
+        raise RuntimeError("Unrecognized export image source...")
 
     vimg = view.image.T
     vmin, vmax = view.getLevels()
@@ -240,13 +248,8 @@ def export_virtual_image(self: "DataViewer", im_format: str, im_type: str):
     elif im_format == "TIFF (raw)":
         from tifffile import TiffWriter
 
-        vimg = (
-            self.unscaled_realspace_image
-            if im_type == "image"
-            else self.unscaled_diffraction_image
-        )
         with TiffWriter(filename) as tw:
-            tw.write(vimg)
+            tw.write(rawimg)
     else:
         raise RuntimeError("Nothing saved! Format not recognized")
 
@@ -262,6 +265,15 @@ def copy_vimg_to_clipboard(self: "DataViewer"):
 
 def copy_diff_to_clipboard(self: "DataViewer"):
     img = self.diffraction_space_widget.getImageItem()
+
+    if img._renderRequired:
+        img.render()
+
+    QApplication.clipboard().setImage(img.qimage)
+
+
+def copy_result_to_clipboard(self: "DataViewer"):
+    img = self.fft_widget.getImageItem()
 
     if img._renderRequired:
         img.render()

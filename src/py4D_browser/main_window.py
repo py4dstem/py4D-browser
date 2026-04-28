@@ -54,6 +54,7 @@ class DataViewer(QMainWindow):
         update_scalebars,
         copy_vimg_to_clipboard,
         copy_diff_to_clipboard,
+        copy_result_to_clipboard,
     )
 
     from py4D_browser.update_views import (
@@ -233,6 +234,17 @@ class DataViewer(QMainWindow):
             menu_item = vdiff_export_menu.addAction(method)
             menu_item.triggered.connect(
                 partial(self.export_virtual_image, method, "diffraction")
+            )
+
+        result_export_menu = QMenu("Export Result", self)
+        self.file_menu.addMenu(result_export_menu)
+        menu_item = result_export_menu.addAction("To clipboard")
+        menu_item.triggered.connect(self.copy_result_to_clipboard)
+        menu_item.setShortcut(QtGui.QKeySequence("Ctrl+Shift+C"))
+        for method in ["PNG (display)", "TIFF (display)", "TIFF (raw)"]:
+            menu_item = result_export_menu.addAction(method)
+            menu_item.triggered.connect(
+                partial(self.export_virtual_image, method, "result")
             )
 
         # Scaling Menu
