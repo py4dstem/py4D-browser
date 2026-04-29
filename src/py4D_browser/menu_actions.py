@@ -1,6 +1,5 @@
-from numbers import Real
 import py4DSTEM
-from PyQt5.QtWidgets import QFileDialog, QMessageBox
+from PyQt5.QtWidgets import QFileDialog, QMessageBox, QApplication
 import h5py
 import os
 import numpy as np
@@ -9,24 +8,29 @@ from py4D_browser.help_menu import KeyboardMapMenu
 from py4D_browser.dialogs import ResizeDialog
 from py4DSTEM.io.filereaders import read_arina
 
+from typing import TYPE_CHECKING
 
-def load_data_auto(self):
+if TYPE_CHECKING:
+    from py4D_browser import DataViewer
+
+
+def load_data_auto(self: "DataViewer"):
     filename = self.show_file_dialog()
     self.load_file(filename)
 
 
-def load_data_mmap(self):
+def load_data_mmap(self: "DataViewer"):
     filename = self.show_file_dialog()
     self.load_file(filename, mmap=True)
 
 
-def load_data_bin(self):
+def load_data_bin(self: "DataViewer"):
     # TODO: Ask user for binning level
     filename = self.show_file_dialog()
     self.load_file(filename, mmap=False, binning=4)
 
 
-def load_data_arina(self):
+def load_data_arina(self: "DataViewer"):
     filename = self.show_file_dialog()
     dataset = read_arina(filename)
 
@@ -41,18 +45,14 @@ def load_data_arina(self):
     self.real_space_scale_bar.pixel_size = self.datacube.calibration.get_R_pixel_size()
     self.real_space_scale_bar.units = self.datacube.calibration.get_R_pixel_units()
 
-    self.fft_scale_bar.pixel_size = (
-        1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
-    )
-    self.fft_scale_bar.units = f"1/{self.datacube.calibration.get_R_pixel_units()}"
-
     self.update_diffraction_space_view(reset=True)
     self.update_real_space_view(reset=True)
 
     self.setWindowTitle(filename)
+    self.signal_datacube_changed.emit()
 
 
-def load_file(self, filepath, mmap=False, binning=1):
+def load_file(self: "DataViewer", filepath, mmap=False, binning=1):
     print(f"Loading file {filepath}")
     extension = os.path.splitext(filepath)[-1].lower()
     print(f"Type: {extension}")
@@ -63,16 +63,22 @@ def load_file(self, filepath, mmap=False, binning=1):
         if len(datacubes) >= 1:
             # Read the first datacube in the HDF5 file into RAM
             print(f"Reading dataset at location {datacubes[0].name}")
-            self.datacube = py4DSTEM.DataCube(
-                datacubes[0] if mmap else datacubes[0][()]
-            )
 
-            R_size, R_units, Q_size, Q_units = find_calibrations(datacubes[0])
+            parent = "/".join(datacubes[0].name.split("/")[:-1])
+            if len(parent) > 1 and "emd_group_type" in file[parent].attrs:
+                print("This appears to be an emdfile... reading natively")
+                self.datacube = py4DSTEM.DataCube.from_h5(datacubes[0].file[parent])
+            else:
+                self.datacube = py4DSTEM.DataCube(
+                    datacubes[0] if mmap else datacubes[0][()]
+                )
 
-            self.datacube.calibration.set_R_pixel_size(R_size)
-            self.datacube.calibration.set_R_pixel_units(R_units)
-            self.datacube.calibration.set_Q_pixel_size(Q_size)
-            self.datacube.calibration.set_Q_pixel_units(Q_units)
+                R_size, R_units, Q_size, Q_units = find_calibrations(datacubes[0])
+
+                self.datacube.calibration.set_R_pixel_size(R_size)
+                self.datacube.calibration.set_R_pixel_units(R_units)
+                self.datacube.calibration.set_Q_pixel_size(Q_size)
+                self.datacube.calibration.set_Q_pixel_units(Q_units)
 
         else:
             # if no 4D data was found, look for 3D data
@@ -101,9 +107,10 @@ def load_file(self, filepath, mmap=False, binning=1):
     self.update_real_space_view(reset=True)
 
     self.setWindowTitle(filepath)
+    self.signal_datacube_changed.emit()
 
 
-def set_datacube(self, datacube, window_title):
+def set_datacube(self: "DataViewer", datacube, window_title):
     self.datacube = datacube
 
     self.update_scalebars()
@@ -112,9 +119,10 @@ def set_datacube(self, datacube, window_title):
     self.update_real_space_view(reset=True)
 
     self.setWindowTitle(window_title)
+    self.signal_datacube_changed.emit()
 
 
-def update_scalebars(self):
+def update_scalebars(self: "DataViewer"):
 
     realspace_translation = {
         "A": "Å",
@@ -139,17 +147,11 @@ def update_scalebars(self):
         else r_units
     )
 
-    self.fft_scale_bar.pixel_size = (
-        1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
-    )
-    self.fft_scale_bar.units = f"{self.datacube.calibration.get_R_pixel_units()}⁻¹"
-
     self.diffraction_scale_bar.updateBar()
     self.real_space_scale_bar.updateBar()
-    self.fft_scale_bar.updateBar()
 
 
-def reshape_data(self):
+def reshape_data(self: "DataViewer"):
     new_shape = ResizeDialog.get_new_size(self.datacube.shape[:2], parent=self)
     self.datacube.data = self.datacube.data.reshape(
         *new_shape, *self.datacube.data.shape[2:]
@@ -161,7 +163,7 @@ def reshape_data(self):
     self.update_real_space_view(reset=True)
 
 
-def export_datacube(self, save_format: str):
+def export_datacube(self: "DataViewer", save_format: str):
     assert save_format in [
         "Raw float32",
         "py4DSTEM HDF5",
@@ -188,27 +190,49 @@ def export_datacube(self, save_format: str):
             self.statusBar().showMessage("Cancelling due to user guilt", 5_000)
             return
 
-    filename = self.get_savefile_name(save_format)
+    try:
+        filename = self.get_savefile_name(save_format)
 
-    if save_format == "Raw float32":
-        self.datacube.data.astype(np.float32).tofile(filename)
+        if save_format == "Raw float32":
+            self.datacube.data.astype(np.float32).tofile(filename)
 
-    elif save_format == "py4DSTEM HDF5":
-        py4DSTEM.save(filename, self.datacube, mode="o")
+        elif save_format == "py4DSTEM HDF5":
+            py4DSTEM.save(filename, self.datacube, mode="o")
 
-    elif save_format == "Plain HDF5":
-        with h5py.File(filename, "w") as f:
-            f["array"] = self.datacube.data
+        elif save_format == "Plain HDF5":
+            with h5py.File(filename, "w") as f:
+                f["array"] = self.datacube.data
+
+        self.setWindowTitle(filename)
+        self.statusBar().showMessage(f"File saved to {filename}")
+    except Exception as exc:
+        import traceback
+
+        QMessageBox.critical(
+            self,
+            "Uh-oh!",
+            traceback.format_exc(),
+        )
+
+        raise exc
 
 
-def export_virtual_image(self, im_format: str, im_type: str):
-    assert im_type in ["image", "diffraction"], f"bad image type: {im_type}"
+def export_virtual_image(self: "DataViewer", im_format: str, im_type: str):
+    assert im_type in ["image", "diffraction", "result"], f"bad image type: {im_type}"
 
     filename = self.get_savefile_name(im_format)
 
-    view = (
-        self.real_space_widget if im_type == "image" else self.diffraction_space_widget
-    )
+    if im_type == "image":
+        view = self.real_space_widget
+        rawimg = self.unscaled_realspace_image
+    elif im_type == "diffraction":
+        view = self.diffraction_space_widget
+        rawimg = self.unscaled_diffraction_image
+    elif im_type == "result":
+        view = self.fft_widget
+        rawimg = self.unscaled_fft_image
+    else:
+        raise RuntimeError("Unrecognized export image source...")
 
     vimg = view.image.T
     vmin, vmax = view.getLevels()
@@ -224,23 +248,45 @@ def export_virtual_image(self, im_format: str, im_type: str):
     elif im_format == "TIFF (raw)":
         from tifffile import TiffWriter
 
-        vimg = (
-            self.unscaled_realspace_image
-            if im_type == "image"
-            else self.unscaled_diffraction_image
-        )
         with TiffWriter(filename) as tw:
-            tw.write(vimg)
+            tw.write(rawimg)
     else:
         raise RuntimeError("Nothing saved! Format not recognized")
 
 
-def show_keyboard_map(self):
+def copy_vimg_to_clipboard(self: "DataViewer"):
+    img = self.real_space_widget.getImageItem()
+
+    if img._renderRequired:
+        img.render()
+
+    QApplication.clipboard().setImage(img.qimage)
+
+
+def copy_diff_to_clipboard(self: "DataViewer"):
+    img = self.diffraction_space_widget.getImageItem()
+
+    if img._renderRequired:
+        img.render()
+
+    QApplication.clipboard().setImage(img.qimage)
+
+
+def copy_result_to_clipboard(self: "DataViewer"):
+    img = self.fft_widget.getImageItem()
+
+    if img._renderRequired:
+        img.render()
+
+    QApplication.clipboard().setImage(img.qimage)
+
+
+def show_keyboard_map(self: "DataViewer"):
     keymap = KeyboardMapMenu(parent=self)
     keymap.open()
 
 
-def show_file_dialog(self) -> str:
+def show_file_dialog(self: "DataViewer") -> str:
     filename = QFileDialog.getOpenFileName(
         self,
         "Open 4D-STEM Data",
@@ -254,7 +300,7 @@ def show_file_dialog(self) -> str:
         raise ValueError("Could not read file")
 
 
-def get_savefile_name(self, file_format) -> str:
+def get_savefile_name(self: "DataViewer", file_format) -> str:
     filters = {
         "Raw float32": "RAW File (*.raw *.f32);;Any file (*)",
         "py4DSTEM HDF5": "HDF5 File (*.hdf5 *.h5 *.emd *.py4dstem);;Any file (*)",

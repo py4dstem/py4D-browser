@@ -5,10 +5,15 @@ import traceback
 
 from PyQt5.QtWidgets import QMenu, QAction
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from py4D_browser import DataViewer
+
 __all__ = ["load_plugins", "unload_plugins"]
 
 
-def load_plugins(self):
+def load_plugins(self: "DataViewer"):
     """
     The py4D_browser plugin mechanics are inspired by Nion Swift:
     https://nionswift.readthedocs.io/en/stable/api/plugins.html
@@ -71,20 +76,27 @@ def load_plugins(self):
                             ),
                             "menu": plugin_menu,
                             "action": plugin_action,
+                            "id": plugin_id,
                         }
                     )
                 except Exception as exc:
                     print(f"Failed to load plugin.\n{exc}")
                     print(traceback.print_exc())
 
+        # run post-initialization so that plugins can see all other loaded plugins
+        for plugin_dict in self.loaded_plugins:
+            plugin = plugin_dict["plugin"]
+            if hasattr(plugin, "post_init"):
+                plugin.post_init(parent=self)
 
-def unload_plugins(self):
+
+def unload_plugins(self: "DataViewer"):
     # NOTE: This is currently not actually called!
     for plugin in self.loaded_plugins:
         plugin["plugin"].close()
 
 
-class ExamplePlugin:
+class py4DBrowserPlugin:
 
     # required for py4DGUI to recognize this as a plugin.
     plugin_id = "my.plugin.identifier"
@@ -104,6 +116,12 @@ class ExamplePlugin:
 
     def __init__(self, parent, **kwargs):
         self.parent = parent
+
+    def post_init(self, parent, **kwargs):
+        # This is called after *all* plugins are loaded and __init__'ed
+        # to enabled to plugins to discover and hook into one another.
+        # ADDED IN v1.5.0 (currently called only with parent argument)
+        pass
 
     def close(self):
         pass  # perform any shutdown activities

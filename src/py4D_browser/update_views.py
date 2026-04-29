@@ -1,3 +1,4 @@
+from typing import Optional
 import pyqtgraph as pg
 import numpy as np
 import py4DSTEM
@@ -22,8 +23,13 @@ from py4D_browser.utils import (
     PointGeometry,
 )
 
+from typing import TYPE_CHECKING
 
-def get_diffraction_detector(self) -> DetectorInfo:
+if TYPE_CHECKING:
+    from py4D_browser import DataViewer
+
+
+def get_diffraction_detector(self: "DataViewer") -> DetectorInfo:
     """
     Get the current detector and its position on the diffraction view.
     Returns a DetectorInfo dictionary, which contains the shape and
@@ -121,7 +127,7 @@ def get_diffraction_detector(self) -> DetectorInfo:
             raise ValueError("Detector could not be determined")
 
 
-def get_virtual_image_detector(self) -> DetectorInfo:
+def get_virtual_image_detector(self: "DataViewer") -> DetectorInfo:
     """
     Get the current detector and its position on the diffraction view.
     Returns a DetectorInfo dictionary, which contains the shape and
@@ -177,7 +183,7 @@ def get_virtual_image_detector(self) -> DetectorInfo:
             raise ValueError("Detector could not be determined")
 
 
-def update_real_space_view(self, reset=False):
+def update_real_space_view(self: "DataViewer", reset=False):
     if self.datacube is None:
         return
 
@@ -306,12 +312,13 @@ def update_real_space_view(self, reset=False):
     self.set_virtual_image(vimg, reset=reset)
 
 
-def set_virtual_image(self, vimg, reset=False):
+def set_virtual_image(self: "DataViewer", vimg, reset=False):
     self.unscaled_realspace_image = vimg
     self._render_virtual_image(reset=reset)
+    self.signal_virtual_image_data_changed.emit()
 
 
-def _render_virtual_image(self, reset=False):
+def _render_virtual_image(self: "DataViewer", reset=False):
     vimg = self.unscaled_realspace_image
 
     # for 2D images, use the scaling set by the user
@@ -364,55 +371,8 @@ def _render_virtual_image(self, reset=False):
     for t, m in zip(stats_text, self.realspace_statistics_actions):
         m.setText(t)
 
-    # Update FFT view
-    self.unscaled_fft_image = None
-    vimg_2D = vimg if np.isrealobj(vimg) else np.abs(vimg)
-    fft_window = (
-        np.hanning(vimg_2D.shape[0])[:, None] * np.hanning(vimg_2D.shape[1])[None, :]
-    )
-    if self.fft_source_action_group.checkedAction().text() == "Virtual Image FFT":
-        fft = np.abs(np.fft.fftshift(np.fft.fft2(vimg_2D * fft_window))) ** 0.5
-        levels = (np.min(fft), np.percentile(fft, 99.9))
-        mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
-        self.fft_widget_text.setText("Virtual Image FFT")
-        self.fft_widget.setImage(
-            fft.T, autoLevels=False, levels=levels, autoRange=mode_switch
-        )
-        self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
-        if mode_switch:
-            # Need to autorange after setRect
-            self.fft_widget.autoRange()
-        self.unscaled_fft_image = fft
-    elif (
-        self.fft_source_action_group.checkedAction().text()
-        == "Virtual Image FFT (complex)"
-    ):
-        fft = np.fft.fftshift(np.fft.fft2(vimg_2D * fft_window))
-        levels = (np.min(np.abs(fft)), np.percentile(np.abs(fft), 99.9))
-        mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
-        self.fft_widget_text.setText("Virtual Image FFT")
-        fft_img = complex_to_Lab(
-            fft.T,
-            amin=levels[0],
-            amax=levels[1],
-            ab_scale=128,
-            gamma=0.5,
-        )
-        self.fft_widget.setImage(
-            fft_img,
-            autoLevels=False,
-            autoRange=mode_switch,
-            levels=(0, 1),
-        )
 
-        self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
-        if mode_switch:
-            # Need to autorange after setRect
-            self.fft_widget.autoRange()
-        self.unscaled_fft_image = fft
-
-
-def update_diffraction_space_view(self, reset=False):
+def update_diffraction_space_view(self: "DataViewer", reset=False):
     if self.datacube is None:
         return
 
@@ -447,12 +407,13 @@ def update_diffraction_space_view(self, reset=False):
     self.set_diffraction_image(DP, reset=reset)
 
 
-def set_diffraction_image(self, DP, reset=False):
+def set_diffraction_image(self: "DataViewer", DP, reset=False):
     self.unscaled_diffraction_image = DP
     self._render_diffraction_image(reset=reset)
+    self.signal_diffraction_data_changed.emit()
 
 
-def _render_diffraction_image(self, reset=False):
+def _render_diffraction_image(self: "DataViewer", reset=False):
     DP = self.unscaled_diffraction_image
 
     scaling_mode = self.diff_scaling_group.checkedAction().text().replace("&", "")
@@ -494,18 +455,148 @@ def _render_diffraction_image(self, reset=False):
         autoRange=reset,
     )
 
-    if self.fft_source_action_group.checkedAction().text() == "EWPC":
+
+def update_fft_view(self: "DataViewer", mode: Optional[str] = None):
+    # called via signals when the Result menu has an internal option chosen
+    # TODO: architect this as a plugin as well!
+
+    # This gets called when *any* internal option is picked and
+    # the mode is read from which menu item is selected
+
+    mode = mode or self.result_source_action_group.checkedAction().text()
+
+    vimg = self.unscaled_realspace_image
+    DP = self.unscaled_diffraction_image
+
+    if vimg is None or DP is None:
+        return
+
+    if mode == "Virtual Image FFT":
+        vimg_2D = vimg if np.isrealobj(vimg) else np.abs(vimg)
+        fft_window = (
+            np.hanning(vimg_2D.shape[0])[:, None]
+            * np.hanning(vimg_2D.shape[1])[None, :]
+        )
+
+        fft = np.abs(np.fft.fftshift(np.fft.fft2(vimg_2D * fft_window))) ** 0.5
+        mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
+        self.set_result_image(
+            fft,
+            reset=mode_switch,
+            title="Virtual Image FFT",
+            pixel_size=(
+                1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
+            ),
+            pixel_units=f"{self.datacube.calibration.get_R_pixel_units()}⁻¹",
+        )
+        self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
+        if mode_switch:
+            # Need to autorange after setRect
+            self.fft_widget.autoRange()
+    elif mode == "Virtual Image FFT (complex)":
+        vimg_2D = vimg if np.isrealobj(vimg) else np.abs(vimg)
+        fft_window = (
+            np.hanning(vimg_2D.shape[0])[:, None]
+            * np.hanning(vimg_2D.shape[1])[None, :]
+        )
+
+        fft = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(vimg_2D * fft_window)))
+        mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
+        self.set_result_image(
+            fft,
+            reset=mode_switch,
+            title="Virtual Image FFT",
+            pixel_size=(
+                1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
+            ),
+            pixel_units=f"{self.datacube.calibration.get_R_pixel_units()}⁻¹",
+        )
+        self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
+        if mode_switch:
+            # Need to autorange after setRect
+            self.fft_widget.autoRange()
+
+    elif mode == "EWPC":
         log_clip = np.maximum(1e-10, np.percentile(np.maximum(DP, 0.0), 0.1))
         fft = np.abs(np.fft.fftshift(np.fft.fft2(np.log(np.maximum(DP, log_clip)))))
-        levels = (np.min(fft), np.percentile(fft, 99.9))
         mode_switch = self.fft_widget_text.textItem.toPlainText() != "EWPC"
-        self.fft_widget_text.setText("EWPC")
-        self.fft_widget.setImage(
-            fft.T, autoLevels=False, levels=levels, autoRange=mode_switch
+        self.set_result_image(
+            fft,
+            reset=mode_switch,
+            title="EWPC",
+            pixel_size=(
+                1.0 / self.datacube.calibration.get_Q_pixel_size() / self.datacube.Q_Ny
+            ),
+            pixel_units=f"{self.datacube.calibration.get_Q_pixel_units()}⁻¹",
+        )
+    else:
+        raise RuntimeError(
+            f"The internal FFT view callback was triggered but {mode} is checked!"
         )
 
 
-def update_realspace_detector(self):
+def set_result_image(
+    self: "DataViewer", vimg, reset=False, pixel_size=1.0, pixel_units="", title=""
+):
+    self.unscaled_fft_image = vimg
+    self.fft_widget_text.setText(title)
+    self._render_result_image(reset=reset)
+
+    self.fft_scale_bar.pixel_size = pixel_size
+    self.fft_scale_bar.units = pixel_units
+    self.fft_scale_bar.updateBar()
+
+
+def _render_result_image(self: "DataViewer", reset=False):
+    vimg = self.unscaled_fft_image
+
+    # for 2D images, use the scaling set by the user
+    # for RGB (3D) images, always scale linear
+    if np.isrealobj(vimg):
+        scaling_mode = self.result_scaling_group.checkedAction().text().replace("&", "")
+        assert scaling_mode in ["Linear", "Log", "Square Root"], scaling_mode
+
+        if scaling_mode == "Linear":
+            new_view = vimg.copy()
+        elif scaling_mode == "Log":
+            new_view = np.log2(np.maximum(vimg, self.LOG_SCALE_MIN_VALUE))
+        elif scaling_mode == "Square Root":
+            new_view = np.sqrt(np.maximum(vimg, 0))
+        else:
+            raise ValueError("Mode not recognized")
+
+        auto_level = reset or self.result_rescale_button.latched
+
+        self.fft_widget.setImage(
+            new_view.T,
+            autoLevels=False,
+            levels=(
+                (
+                    np.percentile(new_view, self.result_autoscale_percentiles[0]),
+                    np.percentile(new_view, self.result_autoscale_percentiles[1]),
+                )
+                if auto_level
+                else None
+            ),
+            autoRange=reset,
+        )
+    else:
+        new_view = complex_to_Lab(
+            vimg,
+            amin=np.percentile(np.abs(vimg), self.result_autoscale_percentiles[0]),
+            amax=np.percentile(np.abs(vimg), self.result_autoscale_percentiles[1]),
+            ab_scale=128,
+            gamma=0.5,
+        )
+        self.fft_widget.setImage(
+            np.transpose(new_view, (1, 0, 2)),  # flip x/y but keep RGB ordering
+            autoLevels=False,
+            levels=(0, 1),
+            autoRange=reset,
+        )
+
+
+def update_realspace_detector(self: "DataViewer"):
     # change the shape of the detector, then update the view
 
     detector_shape = (
@@ -567,7 +658,7 @@ def update_realspace_detector(self):
     self.update_diffraction_space_view(reset=True)
 
 
-def update_diffraction_detector(self):
+def update_diffraction_detector(self: "DataViewer"):
     # change the shape of the detector, then update the view
 
     detector_shape = self.detector_shape_group.checkedAction().text().strip("&")
@@ -698,7 +789,7 @@ def update_diffraction_detector(self):
     self.update_real_space_view(reset=True)
 
 
-def set_diffraction_autoscale_range(self, percentiles, redraw=True):
+def set_diffraction_autoscale_range(self: "DataViewer", percentiles, redraw=True):
     self.diffraction_autoscale_percentiles = percentiles
     self.settings.setValue("last_state/diffraction_autorange", list(percentiles))
 
@@ -706,7 +797,7 @@ def set_diffraction_autoscale_range(self, percentiles, redraw=True):
         self._render_diffraction_image(reset=False)
 
 
-def set_real_space_autoscale_range(self, percentiles, redraw=True):
+def set_real_space_autoscale_range(self: "DataViewer", percentiles, redraw=True):
     self.real_space_autoscale_percentiles = percentiles
     self.settings.setValue("last_state/realspace_autorange", list(percentiles))
 
@@ -714,7 +805,15 @@ def set_real_space_autoscale_range(self, percentiles, redraw=True):
         self._render_virtual_image(reset=False)
 
 
-def nudge_real_space_selector(self, dx, dy):
+def set_result_autoscale_range(self: "DataViewer", percentiles, redraw=True):
+    self.result_autoscale_percentiles = percentiles
+    self.settings.setValue("last_state/result_autorange", list(percentiles))
+
+    if redraw:
+        self._render_result_image(reset=False)
+
+
+def nudge_real_space_selector(self: "DataViewer", dx, dy):
     if (
         hasattr(self, "real_space_point_selector")
         and self.real_space_point_selector is not None
@@ -735,7 +834,7 @@ def nudge_real_space_selector(self, dx, dy):
     selector.setPos(position)
 
 
-def nudge_diffraction_selector(self, dx, dy):
+def nudge_diffraction_selector(self: "DataViewer", dx, dy):
     if (
         hasattr(self, "virtual_detector_point")
         and self.virtual_detector_point is not None
@@ -760,10 +859,10 @@ def nudge_diffraction_selector(self, dx, dy):
     selector.setPos(position)
 
 
-def update_tooltip(self):
+def update_tooltip(self: "DataViewer"):
     modifier_keys = QApplication.queryKeyboardModifiers()
 
-    if self.datacube is not None and self.isActiveWindow():
+    if self.isActiveWindow():
         global_pos = QCursor.pos()
 
         for scene, data in [
@@ -771,6 +870,8 @@ def update_tooltip(self):
             (self.real_space_widget, self.unscaled_realspace_image),
             (self.fft_widget, self.unscaled_fft_image),
         ]:
+            if data is None:
+                return
             pos_in_scene = scene.mapFromGlobal(QCursor.pos())
             if scene.getView().rect().contains(pos_in_scene):
                 pos_in_data = scene.view.mapSceneToView(pos_in_scene)
@@ -779,14 +880,20 @@ def update_tooltip(self):
                 x = int(np.clip(np.floor(pos_in_data.y()), 0, data.shape[0] - 1))
 
                 if np.isrealobj(data):
-                    display_text = f"[{x},{y}]: {data[x,y]:.5g}"
+                    if QtCore.Qt.ControlModifier == modifier_keys and data.dtype in (
+                        np.uint32,
+                        np.float32,
+                    ):
+                        display_text = f"[{x},{y}]: {data.view(np.uint32)[x,y]:#08X}"
+                    else:
+                        display_text = f"[{x},{y}]: {data[x,y]:.5g}"
                 else:
                     display_text = f"[{x},{y}]: |z|={np.abs(data[x,y]):.5g}, ϕ={np.degrees(np.angle(data[x,y])):.5g}°"
 
                 self.cursor_value_text.setText(display_text)
 
 
-def update_annulus_pos(self):
+def update_annulus_pos(self: "DataViewer"):
     """
     Function to keep inner and outer rings of annulus aligned.
     """
@@ -798,7 +905,7 @@ def update_annulus_pos(self):
     self.virtual_detector_roi_inner.setPos(x0 - R_inner, y0 - R_inner, update=False)
 
 
-def update_annulus_radii(self):
+def update_annulus_radii(self: "DataViewer"):
     R_outer = self.virtual_detector_roi_outer.size().x() / 2
     R_inner = self.virtual_detector_roi_inner.size().x() / 2
     if R_outer < R_inner:

@@ -1,3 +1,4 @@
+from typing import Optional
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import (
     QApplication,
@@ -14,17 +15,17 @@ from PyQt5.QtWidgets import (
     QShortcut,
 )
 
-from matplotlib.backend_bases import tools
+from py4DSTEM import DataCube
 import pyqtgraph as pg
 import numpy as np
 
 from functools import partial
 from pathlib import Path
-import importlib
-import os, sys
+import os
 import platformdirs
+from showinfm import show_in_file_manager
 
-from py4D_browser.utils import pg_point_roi, VLine, LatchingButton
+from py4D_browser.utils import VLine, LatchingButton, strtobool
 from py4D_browser.scalebar import ScaleBar
 
 
@@ -51,21 +52,28 @@ class DataViewer(QMainWindow):
         reshape_data,
         set_datacube,
         update_scalebars,
+        copy_vimg_to_clipboard,
+        copy_diff_to_clipboard,
+        copy_result_to_clipboard,
     )
 
     from py4D_browser.update_views import (
         set_virtual_image,
         set_diffraction_image,
+        set_result_image,
         get_diffraction_detector,
         get_virtual_image_detector,
         _render_virtual_image,
         _render_diffraction_image,
+        _render_result_image,
         update_diffraction_space_view,
         update_real_space_view,
+        update_fft_view,
         update_realspace_detector,
         update_diffraction_detector,
         set_diffraction_autoscale_range,
         set_real_space_autoscale_range,
+        set_result_autoscale_range,
         nudge_real_space_selector,
         nudge_diffraction_selector,
         update_annulus_pos,
@@ -73,7 +81,16 @@ class DataViewer(QMainWindow):
         update_tooltip,
     )
 
+    from py4D_browser.signals import (
+        register_result_callback,
+        set_internal_result_callback,
+    )
+
     from py4D_browser.plugins import load_plugins
+
+    signal_diffraction_data_changed = QtCore.pyqtSignal()
+    signal_virtual_image_data_changed = QtCore.pyqtSignal()
+    signal_datacube_changed = QtCore.pyqtSignal()
 
     def __init__(self, argv):
         super().__init__()
@@ -82,26 +99,38 @@ class DataViewer(QMainWindow):
         if not self.qtapp:
             self.qtapp = QApplication(argv)
 
+        # Load settings from config file
+        self.config_path = os.path.join(
+            platformdirs.user_config_dir("py4DGUI", "py4DSTEM"), "GUI_config.ini"
+        )
+        print(f"Loading configuration from {self.config_path}")
+        QtCore.QCoreApplication.setOrganizationName("py4DSTEM")
+        QtCore.QCoreApplication.setOrganizationDomain("py4DSTEM.com")
+        QtCore.QCoreApplication.setApplicationName("py4DGUI")
+        self.settings = QtCore.QSettings(
+            self.config_path, QtCore.QSettings.Format.IniFormat
+        )
+
         self.setWindowTitle("py4DSTEM")
 
-        icon = QtGui.QIcon(str(Path(__file__).parent.absolute() / "logo.png"))
+        alternate_logo = strtobool(self.settings.value("gui/quack", "0"))
+        icon = QtGui.QIcon(
+            str(
+                Path(__file__).parent.absolute()
+                / ("logo.png" if not alternate_logo else "logo_alternate.png")
+            )
+        )
         self.setWindowIcon(icon)
         self.qtapp.setWindowIcon(icon)
 
         self.setWindowTitle("py4DSTEM")
         self.setAcceptDrops(True)
 
-        self.datacube = None
+        self.datacube: Optional[DataCube] = None
 
-        # Load settings from cofig file
-        config_path = os.path.join(
-            platformdirs.user_config_dir("py4DGUI", "py4DSTEM"), "GUI_config.ini"
-        )
-        print(f"Loading configuration from {config_path}")
-        QtCore.QCoreApplication.setOrganizationName("py4DSTEM")
-        QtCore.QCoreApplication.setOrganizationDomain("py4DSTEM.com")
-        QtCore.QCoreApplication.setApplicationName("py4DGUI")
-        self.settings = QtCore.QSettings(config_path, QtCore.QSettings.Format.IniFormat)
+        self.unscaled_diffraction_image: Optional[np.ndarray] = None
+        self.unscaled_realspace_image: Optional[np.ndarray] = None
+        self.unscaled_fft_image: Optional[np.ndarray] = None
 
         # Reset stored state if so asked:
         if os.environ.get("PY4DGUI_RESET"):
@@ -134,7 +163,7 @@ class DataViewer(QMainWindow):
 
         # launch pyqtgraph's debug console if environment variable exists
         if os.environ.get("PY4DGUI_DEBUG"):
-            pg.dbg()
+            pg.dbg(namespace={"main_window": self})
 
     def setup_menus(self):
         self.menu_bar = self.menuBar()
@@ -186,6 +215,9 @@ class DataViewer(QMainWindow):
         # Submenu to export virtual image
         vimg_export_menu = QMenu("Export Virtual Image", self)
         self.file_menu.addMenu(vimg_export_menu)
+        menu_item = vimg_export_menu.addAction("To clipboard")
+        menu_item.triggered.connect(self.copy_vimg_to_clipboard)
+        menu_item.setShortcut(QtGui.QKeySequence("Ctrl+C"))
         for method in ["PNG (display)", "TIFF (display)", "TIFF (raw)"]:
             menu_item = vimg_export_menu.addAction(method)
             menu_item.triggered.connect(
@@ -195,10 +227,24 @@ class DataViewer(QMainWindow):
         # Submenu to export diffraction
         vdiff_export_menu = QMenu("Export Diffraction Pattern", self)
         self.file_menu.addMenu(vdiff_export_menu)
+        menu_item = vdiff_export_menu.addAction("To clipboard")
+        menu_item.triggered.connect(self.copy_diff_to_clipboard)
+        menu_item.setShortcut(QtGui.QKeySequence("Ctrl+Alt+C"))
         for method in ["PNG (display)", "TIFF (display)", "TIFF (raw)"]:
             menu_item = vdiff_export_menu.addAction(method)
             menu_item.triggered.connect(
                 partial(self.export_virtual_image, method, "diffraction")
+            )
+
+        result_export_menu = QMenu("Export Result", self)
+        self.file_menu.addMenu(result_export_menu)
+        menu_item = result_export_menu.addAction("To clipboard")
+        menu_item.triggered.connect(self.copy_result_to_clipboard)
+        menu_item.setShortcut(QtGui.QKeySequence("Ctrl+Shift+C"))
+        for method in ["PNG (display)", "TIFF (display)", "TIFF (raw)"]:
+            menu_item = result_export_menu.addAction(method)
+            menu_item.triggered.connect(
+                partial(self.export_virtual_image, method, "result")
             )
 
         # Scaling Menu
@@ -275,6 +321,43 @@ class DataViewer(QMainWindow):
         vimg_scaling_group.addAction(vimg_scale_sqrt_action)
         self.scaling_menu.addAction(vimg_scale_sqrt_action)
 
+        self.scaling_menu.addSeparator()
+
+        # Real space scaling
+        result_scaling_group = QActionGroup(self)
+        result_scaling_group.setExclusive(True)
+        self.result_scaling_group = result_scaling_group
+
+        result_menu_separator = QAction("Result", self)
+        result_menu_separator.setDisabled(True)
+        self.scaling_menu.addAction(result_menu_separator)
+
+        result_scale_linear_action = QAction("Linear", self)
+        self.result_scale_linear_action = result_scale_linear_action  # Save this one!
+        result_scale_linear_action.setCheckable(True)
+        result_scale_linear_action.triggered.connect(
+            partial(self._render_result_image, True)
+        )
+        result_scaling_group.addAction(result_scale_linear_action)
+        self.scaling_menu.addAction(result_scale_linear_action)
+
+        result_scale_log_action = QAction("Log", self)
+        result_scale_log_action.setCheckable(True)
+        result_scale_log_action.triggered.connect(
+            partial(self._render_result_image, True)
+        )
+        result_scaling_group.addAction(result_scale_log_action)
+        self.scaling_menu.addAction(result_scale_log_action)
+
+        result_scale_sqrt_action = QAction("Square Root", self)
+        result_scale_sqrt_action.setCheckable(True)
+        result_scale_sqrt_action.setChecked(True)
+        result_scale_sqrt_action.triggered.connect(
+            partial(self._render_result_image, True)
+        )
+        result_scaling_group.addAction(result_scale_sqrt_action)
+        self.scaling_menu.addAction(result_scale_sqrt_action)
+
         # Autorange menu
         self.autorange_menu = QMenu("&Autorange", self)
         self.menu_bar.addMenu(self.autorange_menu)
@@ -332,6 +415,36 @@ class DataViewer(QMainWindow):
             ):
                 action.setChecked(True)
                 self.set_real_space_autoscale_range(scale_range, redraw=False)
+
+        ##
+        self.autorange_menu.addSeparator()
+
+        result_autoscale_separator = QAction("Result", self)
+        result_autoscale_separator.setDisabled(True)
+        self.autorange_menu.addAction(result_autoscale_separator)
+
+        result_range_group = QActionGroup(self)
+        result_range_group.setExclusive(True)
+
+        scale_range_default = self.settings.value(
+            "last_state/result_autorange", [0.1, 99.9], type=float
+        )
+        for scale_range in [(0, 100), (0.1, 99.9), (1, 99), (2, 98), (5, 95)]:
+            action = QAction(f"{scale_range[0]}% – {scale_range[1]}%", self)
+            result_range_group.addAction(action)
+            self.autorange_menu.addAction(action)
+            action.setCheckable(True)
+            action.triggered.connect(
+                partial(self.set_result_autoscale_range, scale_range)
+            )
+            # set default
+            if (
+                scale_range[0] == scale_range_default[0]
+                and scale_range[1] == scale_range_default[1]
+            ):
+                action.setChecked(True)
+                self.set_result_autoscale_range(scale_range, redraw=False)
+        ##
 
         # Detector Response Menu
         self.detector_menu = QMenu("&Detector Response", self)
@@ -474,33 +587,39 @@ class DataViewer(QMainWindow):
         rs_detector_shape_group.addAction(detector_rectangle_action)
         self.detector_shape_menu.addAction(detector_rectangle_action)
 
-        self.fft_menu = QMenu("FF&T View", self)
-        self.menu_bar.addMenu(self.fft_menu)
+        self.result_menu = QMenu("Resul&t View", self)
+        self.menu_bar.addMenu(self.result_menu)
 
-        self.fft_source_action_group = QActionGroup(self)
-        self.fft_source_action_group.setExclusive(True)
+        self.result_source_action_group = QActionGroup(self)
+        self.result_source_action_group.setExclusive(True)
         img_fft_action = QAction("Virtual Image FFT", self)
         img_fft_action.setCheckable(True)
+        img_fft_action.triggered.connect(self.set_internal_result_callback)
         img_fft_action.setChecked(True)
-        img_fft_action.triggered.connect(partial(self.update_real_space_view, False))
-        self.fft_menu.addAction(img_fft_action)
-        self.fft_source_action_group.addAction(img_fft_action)
+        self.result_menu.addAction(img_fft_action)
+        self.result_source_action_group.addAction(img_fft_action)
 
         img_complex_fft_action = QAction("Virtual Image FFT (complex)", self)
         img_complex_fft_action.setCheckable(True)
-        self.fft_menu.addAction(img_complex_fft_action)
-        self.fft_source_action_group.addAction(img_complex_fft_action)
-        img_complex_fft_action.triggered.connect(
-            partial(self.update_real_space_view, False)
-        )
+        self.result_menu.addAction(img_complex_fft_action)
+        self.result_source_action_group.addAction(img_complex_fft_action)
+        img_complex_fft_action.triggered.connect(self.set_internal_result_callback)
 
         img_ewpc_action = QAction("EWPC", self)
         img_ewpc_action.setCheckable(True)
-        self.fft_menu.addAction(img_ewpc_action)
-        self.fft_source_action_group.addAction(img_ewpc_action)
-        img_ewpc_action.triggered.connect(
-            partial(self.update_diffraction_space_view, False)
-        )
+        self.result_menu.addAction(img_ewpc_action)
+        self.result_source_action_group.addAction(img_ewpc_action)
+        img_ewpc_action.triggered.connect(self.set_internal_result_callback)
+
+        # action only for information purposes, to show when a plugin has taken over
+        # the result window
+        self.result_other_action = QAction("Plugin", self)
+        self.result_other_action.setCheckable(True)
+        self.result_other_action.setEnabled(False)
+        self.result_menu.addAction(self.result_other_action)
+        self.result_source_action_group.addAction(self.result_other_action)
+
+        self.set_internal_result_callback()
 
         # Plugins menu
         self.processing_menu = QMenu("&Plugins", self)
@@ -513,6 +632,12 @@ class DataViewer(QMainWindow):
         self.keyboard_map_action = QAction("Show &Keyboard Map", self)
         self.keyboard_map_action.triggered.connect(self.show_keyboard_map)
         self.help_menu.addAction(self.keyboard_map_action)
+
+        self.show_config_file_action = QAction("Show Configuration File", self)
+        self.show_config_file_action.triggered.connect(
+            partial(show_in_file_manager, self.config_path)
+        )
+        self.help_menu.addAction(self.show_config_file_action)
 
     def setup_views(self):
         # Set up the diffraction space window.
@@ -633,6 +758,7 @@ class DataViewer(QMainWindow):
         self.statusBar().addPermanentWidget(VLine())
         self.statusBar().addPermanentWidget(self.real_space_view_text)
         self.statusBar().addPermanentWidget(VLine())
+
         self.diffraction_rescale_button = LatchingButton(
             "Autorange Diffraction",
             status_bar=self.statusBar(),
@@ -642,6 +768,7 @@ class DataViewer(QMainWindow):
             self.diffraction_space_widget.autoLevels
         )
         self.statusBar().addPermanentWidget(self.diffraction_rescale_button)
+
         self.realspace_rescale_button = LatchingButton(
             "Autorange Virtual Image",
             status_bar=self.statusBar(),
@@ -651,6 +778,14 @@ class DataViewer(QMainWindow):
             self.real_space_widget.autoLevels
         )
         self.statusBar().addPermanentWidget(self.realspace_rescale_button)
+
+        self.result_rescale_button = LatchingButton(
+            "Autorange Result",
+            status_bar=self.statusBar(),
+            latched=True,
+        )
+        self.result_rescale_button.activated.connect(self.fft_widget.autoLevels)
+        self.statusBar().addPermanentWidget(self.result_rescale_button)
 
     def resizeEvent(self, event):
         # Store window size for next run
