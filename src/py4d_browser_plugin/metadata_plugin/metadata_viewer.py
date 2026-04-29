@@ -3,12 +3,10 @@ from PyQt5.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QVBoxLayout,
-    QComboBox,
-    QGroupBox,
     QWidget,
-    QFormLayout,
     QTreeWidget,
     QTreeWidgetItem,
+    QHeaderView,
 )
 import logging
 from emdfile import Metadata
@@ -53,6 +51,7 @@ class MetadataDialog(QDialog):
 
         tree = QTreeWidget()
         tree.setColumnCount(2)
+        tree.header().setSectionResizeMode(QHeaderView.ResizeToContents)
         layout.addWidget(tree)
 
         for name, md in mdata.items():
@@ -72,3 +71,5 @@ class MetadataDialog(QDialog):
         button_layout.addWidget(cancel_button)
 
         layout.addLayout(button_layout)
+
+        self.setMinimumSize(400, 600)
