@@ -880,7 +880,10 @@ def update_tooltip(self: "DataViewer"):
                 x = int(np.clip(np.floor(pos_in_data.y()), 0, data.shape[0] - 1))
 
                 if np.isrealobj(data):
-                    if QtCore.Qt.ControlModifier == modifier_keys and data.dtype in (np.uint32, np.float32):
+                    if QtCore.Qt.ControlModifier == modifier_keys and data.dtype in (
+                        np.uint32,
+                        np.float32,
+                    ):
                         display_text = f"[{x},{y}]: {data.view(np.uint32)[x,y]:#08X}"
                     else:
                         display_text = f"[{x},{y}]: {data[x,y]:.5g}"
