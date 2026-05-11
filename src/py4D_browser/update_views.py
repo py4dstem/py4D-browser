@@ -884,7 +884,13 @@ def update_tooltip(self: "DataViewer"):
                         np.uint32,
                         np.float32,
                     ):
-                        display_text = f"[{x},{y}]: {data.view(np.uint32)[x,y]:#08X}"
+                        # display_text = f"[{x},{y}]: {data.view(np.uint32)[x,y]:#010X}"
+                        val = data.view(np.uint32)[x,y]
+                        analog = val & 0x3FFF
+                        digital = (val & 0x3FFFC000) >> 14
+                        gain = (val & 0x80000000) >> 31
+                        reserved = (val & 0x40000000) >> 30
+                        display_text = f"[{x},{y}]: {data.view(np.uint32)[x,y]:#041_b} (R{reserved} G{gain} D{digital} A{analog})"
                     else:
                         display_text = f"[{x},{y}]: {data[x,y]:.5g}"
                 else:
