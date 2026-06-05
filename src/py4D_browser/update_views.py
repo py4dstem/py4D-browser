@@ -886,11 +886,7 @@ def update_tooltip(self: "DataViewer"):
                         and strtobool(
                             self.settings.value("gui/concatenation_tooltip", "0")
                         )
-                        and data.dtype
-                        in (
-                            np.uint32,
-                            np.float32,
-                        )
+                        and data.itemsize == 4
                     ):
                         val = data.view(np.uint32)[x, y]
                         analog = val & 0x3FFF
