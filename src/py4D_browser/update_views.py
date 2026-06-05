@@ -21,6 +21,7 @@ from py4D_browser.utils import (
     CircleGeometry,
     AnnulusGeometry,
     PointGeometry,
+    strtobool,
 )
 
 from typing import TYPE_CHECKING
@@ -880,12 +881,18 @@ def update_tooltip(self: "DataViewer"):
                 x = int(np.clip(np.floor(pos_in_data.y()), 0, data.shape[0] - 1))
 
                 if np.isrealobj(data):
-                    if QtCore.Qt.ControlModifier == modifier_keys and data.dtype in (
-                        np.uint32,
-                        np.float32,
+                    if (
+                        QtCore.Qt.ControlModifier == modifier_keys
+                        and strtobool(
+                            self.settings.value("gui/concatenation_tooltip", "0")
+                        )
+                        and data.dtype
+                        in (
+                            np.uint32,
+                            np.float32,
+                        )
                     ):
-                        # display_text = f"[{x},{y}]: {data.view(np.uint32)[x,y]:#010X}"
-                        val = data.view(np.uint32)[x,y]
+                        val = data.view(np.uint32)[x, y]
                         analog = val & 0x3FFF
                         digital = (val & 0x3FFFC000) >> 14
                         gain = (val & 0x80000000) >> 31
