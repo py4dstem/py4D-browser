@@ -68,6 +68,13 @@ def load_file(self: "DataViewer", filepath, mmap=False, binning=1):
             if len(parent) > 1 and "emd_group_type" in file[parent].attrs:
                 print("This appears to be an emdfile... reading natively")
                 self.datacube = py4DSTEM.DataCube.from_h5(datacubes[0].file[parent])
+                try:
+                    calibration = py4DSTEM.Calibration.from_h5(
+                        datacubes[0].file["/datacube_root/metadatabundle/calibration"]
+                    )
+                    self.datacube.calibration = calibration
+                except Exception as e:
+                    self.statusBar().showMessage(str(e))
             else:
                 self.datacube = py4DSTEM.DataCube(
                     datacubes[0] if mmap else datacubes[0][()]
