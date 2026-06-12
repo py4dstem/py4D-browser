@@ -610,11 +610,11 @@ def update_realspace_detector(self: "DataViewer"):
     hover_pen = {"color": "c", "width": 6}
     hover_handle = {"color": "c", "width": 9}
 
-    if self.datacube is None:
+    if self.unscaled_realspace_image is None:
         x0, y0 = 0, 0
         xr, yr = 4, 4
     else:
-        x, y = self.datacube.data.shape[2:]
+        x, y = self.unscaled_realspace_image.shape[:2]
         y0, x0 = x // 2, y // 2
         xr, yr = (np.minimum(x, y) / 10,) * 2
 
@@ -670,11 +670,11 @@ def update_diffraction_detector(self: "DataViewer"):
     hover_pen = {"color": "c", "width": 6}
     hover_handle = {"color": "c", "width": 9}
 
-    if self.datacube is None:
+    if self.unscaled_diffraction_image is None:
         x0, y0 = 0, 0
         xr, yr = 4, 4
     else:
-        x, y = self.datacube.data.shape[2:]
+        x, y = self.unscaled_diffraction_image.shape[:2]
         y0, x0 = x // 2, y // 2
         xr, yr = (np.minimum(x, y) / 10,) * 2
 
