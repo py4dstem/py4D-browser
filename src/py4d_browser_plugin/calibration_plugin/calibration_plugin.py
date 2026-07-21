@@ -125,6 +125,7 @@ class CalibrateDialog(QDialog):
 
         diff_left_layout.addWidget(QLabel("Selection Radius"), 2, 0, Qt.AlignRight)
         self.diff_selection_box = QLineEdit()
+        self.diff_selection_box.setValidator(QDoubleValidator())
         diff_left_layout.addWidget(self.diff_selection_box, 2, 1)
         self.diff_selection_box.setEnabled(self.diffraction_selector_size is not None)
 
@@ -162,6 +163,39 @@ class CalibrateDialog(QDialog):
         done_button.pressed.connect(self.set_and_close)
         button_layout.addWidget(done_button)
         layout.addLayout(button_layout)
+
+        ######### POPULATE ########
+
+        # Real Space
+        r_pix = self.datacube.calibration.get_R_pixel_size()
+        r_unit = self.datacube.calibration.get_R_pixel_units()
+
+        self.realspace_pix_box.setText(f"{r_pix:g}")
+        self.realspace_fov_box.setText(f"{r_pix * self.datacube.R_Ny:g}")
+
+        r_unit_map = {"A": "Å", "nm": "nm"}
+        self.realspace_unit_box.setCurrentText(r_unit_map.get(r_unit, "Å"))
+
+        # Diffraction
+        q_pix = self.datacube.calibration.get_Q_pixel_size()
+        q_unit = self.datacube.calibration.get_Q_pixel_units()
+
+        self.diff_pix_box.setText(f"{q_pix:g}")
+        self.diff_fov_box.setText(f"{q_pix * self.datacube.Q_Ny:g}")
+        if self.diffraction_selector_size:
+            self.diff_selection_box.setText(
+                f"{q_pix * self.diffraction_selector_size:g}"
+            )
+
+        q_unit_map = {"mrad": "mrad", "A^-1": "Å⁻¹", "1/nm": "nm⁻¹"}
+        self.diff_unit_box.setCurrentText(q_unit_map.get(q_unit, "mrad"))
+
+        # Voltage
+        try:
+            voltage = self.datacube.calibration["voltage"]
+            self.kV_input.setText(f"{voltage / 1e3:g}")
+        except (KeyError, TypeError):
+            pass
 
         ######### CALLBACKS ########
         self.realspace_pix_box.textEdited.connect(self.realspace_pix_box_changed)
@@ -206,15 +240,15 @@ class CalibrateDialog(QDialog):
 
     def diffraction_selection_box_changed(self, new_text):
         if self.diffraction_selector_size:
-            sel_size = float(new_text)
+            try:
+                sel_size = float(new_text)
+            except ValueError:
+                return
 
             pix_size = sel_size / self.diffraction_selector_size
-            fov = pix_size * self.datacube.Q_Nx
+            fov = pix_size * self.datacube.Q_Ny
             self.diff_pix_box.setText(f"{pix_size:g}")
             self.diff_fov_box.setText(f"{fov:g}")
-
-            sel_size = pix_size * self.diffraction_selector_size
-            self.diff_selection_box.setText(f"{sel_size:g}")
 
     def set_and_close(self):
 
@@ -245,7 +279,7 @@ class CalibrateDialog(QDialog):
         kV_text = self.kV_input.text()
         if kV_text != "":
             kV = float(kV_text)
-            self.datacube.calibration["voltage"] = kV
+            self.datacube.calibration["voltage"] = kV * 1e3
             # note there is no canonical tag for voltage, so we are
             # going to make our own key for it
 
