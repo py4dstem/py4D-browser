@@ -39,12 +39,6 @@ def load_data_arina(self: "DataViewer"):
         self.statusBar().showMessage(f"Arina data was loaded as 3D, please reshape...")
 
     self.datacube = dataset
-    self.diffraction_scale_bar.pixel_size = self.datacube.calibration.get_Q_pixel_size()
-    self.diffraction_scale_bar.units = self.datacube.calibration.get_Q_pixel_units()
-
-    self.real_space_scale_bar.pixel_size = self.datacube.calibration.get_R_pixel_size()
-    self.real_space_scale_bar.units = self.datacube.calibration.get_R_pixel_units()
-
     self.update_diffraction_space_view(reset=True)
     self.update_real_space_view(reset=True)
 
@@ -108,8 +102,6 @@ def load_file(self: "DataViewer", filepath, mmap=False, binning=1):
             binfactor=binning,
         )
 
-    self.update_scalebars()
-
     self.update_diffraction_space_view(reset=True)
     self.update_real_space_view(reset=True)
 
@@ -120,42 +112,11 @@ def load_file(self: "DataViewer", filepath, mmap=False, binning=1):
 def set_datacube(self: "DataViewer", datacube, window_title):
     self.datacube = datacube
 
-    self.update_scalebars()
-
     self.update_diffraction_space_view(reset=True)
     self.update_real_space_view(reset=True)
 
     self.setWindowTitle(window_title)
     self.signal_datacube_changed.emit()
-
-
-def update_scalebars(self: "DataViewer"):
-
-    realspace_translation = {
-        "A": "Å",
-    }
-    reciprocal_translation = {
-        "A^-1": "Å⁻¹",
-    }
-
-    self.diffraction_scale_bar.pixel_size = self.datacube.calibration.get_Q_pixel_size()
-    q_units = self.datacube.calibration.get_Q_pixel_units()
-    self.diffraction_scale_bar.units = (
-        reciprocal_translation[q_units]
-        if q_units in reciprocal_translation.keys()
-        else q_units
-    )
-
-    self.real_space_scale_bar.pixel_size = self.datacube.calibration.get_R_pixel_size()
-    r_units = self.datacube.calibration.get_R_pixel_units()
-    self.real_space_scale_bar.units = (
-        realspace_translation[r_units]
-        if r_units in realspace_translation.keys()
-        else r_units
-    )
-
-    self.diffraction_scale_bar.updateBar()
-    self.real_space_scale_bar.updateBar()
 
 
 def reshape_data(self: "DataViewer"):

@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import QApplication, QToolTip
 from PyQt5 import QtCore
 from PyQt5.QtGui import QCursor
 import os
+from py4D_browser.utils import format_unit
 
 
 from py4D_browser.utils import (
@@ -249,7 +250,12 @@ def update_real_space_view(self: "DataViewer", reset=False):
 
         # Debug mode for displaying the mask
         if "MASK_DEBUG" in os.environ:
-            self.set_diffraction_image(mask.astype(np.float32), reset=reset)
+            self.set_diffraction_image(
+                mask.astype(np.float32),
+                reset=reset,
+                pixel_size=self.datacube.calibration.get_Q_pixel_size(),
+                pixel_units=format_unit(self.datacube.calibration.get_Q_pixel_units()),
+            )
             return
 
         mask = mask.astype(np.float32)
@@ -310,12 +316,25 @@ def update_real_space_view(self: "DataViewer", reset=False):
         else:
             raise ValueError("Oopsie")
 
-    self.set_virtual_image(vimg, reset=reset)
+    self.set_virtual_image(
+        vimg,
+        reset=reset,
+        pixel_size=self.datacube.calibration.get_R_pixel_size(),
+        pixel_units=format_unit(self.datacube.calibration.get_R_pixel_units()),
+    )
 
 
-def set_virtual_image(self: "DataViewer", vimg, reset=False):
+def set_virtual_image(
+    self: "DataViewer", vimg, reset=False, pixel_size=None, pixel_units=None
+):
     self.unscaled_realspace_image = vimg
     self._render_virtual_image(reset=reset)
+    if pixel_size is not None:
+        self.real_space_scale_bar.pixel_size = pixel_size
+    if pixel_units is not None:
+        self.real_space_scale_bar.units = pixel_units
+    if pixel_size is not None or pixel_units is not None:
+        self.real_space_scale_bar.updateBar()
     self.signal_virtual_image_data_changed.emit()
 
 
@@ -405,12 +424,25 @@ def update_diffraction_space_view(self: "DataViewer", reset=False):
         case _:
             raise ValueError("Unsupported detector shape...")
 
-    self.set_diffraction_image(DP, reset=reset)
+    self.set_diffraction_image(
+        DP,
+        reset=reset,
+        pixel_size=self.datacube.calibration.get_Q_pixel_size(),
+        pixel_units=format_unit(self.datacube.calibration.get_Q_pixel_units()),
+    )
 
 
-def set_diffraction_image(self: "DataViewer", DP, reset=False):
+def set_diffraction_image(
+    self: "DataViewer", DP, reset=False, pixel_size=None, pixel_units=None
+):
     self.unscaled_diffraction_image = DP
     self._render_diffraction_image(reset=reset)
+    if pixel_size is not None:
+        self.diffraction_scale_bar.pixel_size = pixel_size
+    if pixel_units is not None:
+        self.diffraction_scale_bar.units = pixel_units
+    if pixel_size is not None or pixel_units is not None:
+        self.diffraction_scale_bar.updateBar()
     self.signal_diffraction_data_changed.emit()
 
 

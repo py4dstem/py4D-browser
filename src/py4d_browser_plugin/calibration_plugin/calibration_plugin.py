@@ -283,7 +283,23 @@ class CalibrateDialog(QDialog):
             # note there is no canonical tag for voltage, so we are
             # going to make our own key for it
 
-        self.parent.update_scalebars()
+        from py4D_browser.utils import format_unit
+
+        self.parent.real_space_scale_bar.pixel_size = (
+            self.datacube.calibration.get_R_pixel_size()
+        )
+        self.parent.real_space_scale_bar.units = format_unit(
+            self.datacube.calibration.get_R_pixel_units()
+        )
+        self.parent.real_space_scale_bar.updateBar()
+
+        self.parent.diffraction_scale_bar.pixel_size = (
+            self.datacube.calibration.get_Q_pixel_size()
+        )
+        self.parent.diffraction_scale_bar.units = format_unit(
+            self.datacube.calibration.get_Q_pixel_units()
+        )
+        self.parent.diffraction_scale_bar.updateBar()
 
         print("New calibration")
         print(self.datacube.calibration)

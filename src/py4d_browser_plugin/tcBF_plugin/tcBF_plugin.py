@@ -84,7 +84,12 @@ class tcBFPlugin(QWidget):
             plot_convergence=False,
         )
 
-        parent.set_virtual_image(tcBF.recon_BF, reset=True)
+        parent.set_virtual_image(
+            tcBF.recon_BF,
+            reset=True,
+            pixel_size=parent.datacube.calibration.get_R_pixel_size(),
+            pixel_units=parent.datacube.calibration.get_R_pixel_units(),
+        )
 
 
 class ManualTCBFDialog(QDialog):
@@ -235,4 +240,9 @@ class ManualTCBFDialog(QDialog):
         if pad:
             reconstruction = reconstruction[pad_width:-pad_width, pad_width:-pad_width]
 
-        self.parent.set_virtual_image(reconstruction, reset=True)
+        self.parent.set_virtual_image(
+            reconstruction,
+            reset=True,
+            pixel_size=self.parent.datacube.calibration.get_R_pixel_size(),
+            pixel_units=self.parent.datacube.calibration.get_R_pixel_units(),
+        )

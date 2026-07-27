@@ -256,3 +256,21 @@ def strtobool(val: str) -> bool:
         return False
     else:
         raise ValueError("invalid truth value %r" % (val,))
+
+
+def format_unit(raw_unit):
+    """Translate py4DSTEM ASCII unit strings to Unicode for display on scale bars.
+
+    py4DSTEM calibration objects return ASCII unit strings like 'A' and 'A^-1'.
+    This function translates them to their Unicode equivalents for nicer display.
+    """
+    if raw_unit == "A":
+        return "Å"
+    if raw_unit == "A^-1":
+        return "Å⁻¹"
+    if raw_unit == "px^-1":
+        return "px⁻¹"
+    # generic fallback: replace "^-1" with the Unicode superscript
+    if raw_unit.endswith("^-1"):
+        return raw_unit[:-3] + "⁻¹"
+    return raw_unit

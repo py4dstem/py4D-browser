@@ -51,7 +51,6 @@ class DataViewer(QMainWindow):
         show_keyboard_map,
         reshape_data,
         set_datacube,
-        update_scalebars,
         copy_vimg_to_clipboard,
         copy_diff_to_clipboard,
         copy_result_to_clipboard,
