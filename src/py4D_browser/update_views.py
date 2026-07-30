@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import QApplication, QToolTip
 from PyQt5 import QtCore
 from PyQt5.QtGui import QCursor
 import os
+from py4D_browser.utils import format_unit
 
 
 from py4D_browser.utils import (
@@ -21,6 +22,7 @@ from py4D_browser.utils import (
     CircleGeometry,
     AnnulusGeometry,
     PointGeometry,
+    strtobool,
 )
 
 from typing import TYPE_CHECKING
@@ -248,7 +250,12 @@ def update_real_space_view(self: "DataViewer", reset=False):
 
         # Debug mode for displaying the mask
         if "MASK_DEBUG" in os.environ:
-            self.set_diffraction_image(mask.astype(np.float32), reset=reset)
+            self.set_diffraction_image(
+                mask.astype(np.float32),
+                reset=reset,
+                pixel_size=self.datacube.calibration.get_Q_pixel_size(),
+                pixel_units=format_unit(self.datacube.calibration.get_Q_pixel_units()),
+            )
             return
 
         mask = mask.astype(np.float32)
@@ -309,12 +316,25 @@ def update_real_space_view(self: "DataViewer", reset=False):
         else:
             raise ValueError("Oopsie")
 
-    self.set_virtual_image(vimg, reset=reset)
+    self.set_virtual_image(
+        vimg,
+        reset=reset,
+        pixel_size=self.datacube.calibration.get_R_pixel_size(),
+        pixel_units=format_unit(self.datacube.calibration.get_R_pixel_units()),
+    )
 
 
-def set_virtual_image(self: "DataViewer", vimg, reset=False):
+def set_virtual_image(
+    self: "DataViewer", vimg, reset=False, pixel_size=None, pixel_units=None
+):
     self.unscaled_realspace_image = vimg
     self._render_virtual_image(reset=reset)
+    if pixel_size is not None:
+        self.real_space_scale_bar.pixel_size = pixel_size
+    if pixel_units is not None:
+        self.real_space_scale_bar.units = pixel_units
+    if pixel_size is not None or pixel_units is not None:
+        self.real_space_scale_bar.updateBar()
     self.signal_virtual_image_data_changed.emit()
 
 
@@ -404,12 +424,25 @@ def update_diffraction_space_view(self: "DataViewer", reset=False):
         case _:
             raise ValueError("Unsupported detector shape...")
 
-    self.set_diffraction_image(DP, reset=reset)
+    self.set_diffraction_image(
+        DP,
+        reset=reset,
+        pixel_size=self.datacube.calibration.get_Q_pixel_size(),
+        pixel_units=format_unit(self.datacube.calibration.get_Q_pixel_units()),
+    )
 
 
-def set_diffraction_image(self: "DataViewer", DP, reset=False):
+def set_diffraction_image(
+    self: "DataViewer", DP, reset=False, pixel_size=None, pixel_units=None
+):
     self.unscaled_diffraction_image = DP
     self._render_diffraction_image(reset=reset)
+    if pixel_size is not None:
+        self.diffraction_scale_bar.pixel_size = pixel_size
+    if pixel_units is not None:
+        self.diffraction_scale_bar.units = pixel_units
+    if pixel_size is not None or pixel_units is not None:
+        self.diffraction_scale_bar.updateBar()
     self.signal_diffraction_data_changed.emit()
 
 
@@ -487,7 +520,9 @@ def update_fft_view(self: "DataViewer", mode: Optional[str] = None):
             pixel_size=(
                 1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
             ),
-            pixel_units=f"{self.datacube.calibration.get_R_pixel_units()}⁻¹",
+            pixel_units=format_unit(
+                f"{self.datacube.calibration.get_R_pixel_units()}⁻¹"
+            ),
         )
         self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
         if mode_switch:
@@ -509,7 +544,9 @@ def update_fft_view(self: "DataViewer", mode: Optional[str] = None):
             pixel_size=(
                 1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
             ),
-            pixel_units=f"{self.datacube.calibration.get_R_pixel_units()}⁻¹",
+            pixel_units=format_unit(
+                f"{self.datacube.calibration.get_R_pixel_units()}⁻¹"
+            ),
         )
         self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
         if mode_switch:
@@ -527,7 +564,9 @@ def update_fft_view(self: "DataViewer", mode: Optional[str] = None):
             pixel_size=(
                 1.0 / self.datacube.calibration.get_Q_pixel_size() / self.datacube.Q_Ny
             ),
-            pixel_units=f"{self.datacube.calibration.get_Q_pixel_units()}⁻¹",
+            pixel_units=format_unit(
+                f"{self.datacube.calibration.get_Q_pixel_units()}⁻¹"
+            ),
         )
     else:
         raise RuntimeError(
@@ -609,11 +648,11 @@ def update_realspace_detector(self: "DataViewer"):
     hover_pen = {"color": "c", "width": 6}
     hover_handle = {"color": "c", "width": 9}
 
-    if self.datacube is None:
+    if self.unscaled_realspace_image is None:
         x0, y0 = 0, 0
         xr, yr = 4, 4
     else:
-        x, y = self.datacube.data.shape[2:]
+        x, y = self.unscaled_realspace_image.shape[:2]
         y0, x0 = x // 2, y // 2
         xr, yr = (np.minimum(x, y) / 10,) * 2
 
@@ -669,11 +708,11 @@ def update_diffraction_detector(self: "DataViewer"):
     hover_pen = {"color": "c", "width": 6}
     hover_handle = {"color": "c", "width": 9}
 
-    if self.datacube is None:
+    if self.unscaled_diffraction_image is None:
         x0, y0 = 0, 0
         xr, yr = 4, 4
     else:
-        x, y = self.datacube.data.shape[2:]
+        x, y = self.unscaled_diffraction_image.shape[:2]
         y0, x0 = x // 2, y // 2
         xr, yr = (np.minimum(x, y) / 10,) * 2
 
@@ -880,11 +919,19 @@ def update_tooltip(self: "DataViewer"):
                 x = int(np.clip(np.floor(pos_in_data.y()), 0, data.shape[0] - 1))
 
                 if np.isrealobj(data):
-                    if QtCore.Qt.ControlModifier == modifier_keys and data.dtype in (
-                        np.uint32,
-                        np.float32,
+                    if (
+                        QtCore.Qt.ControlModifier == modifier_keys
+                        and strtobool(
+                            self.settings.value("gui/concatenation_tooltip", "0")
+                        )
+                        and data.itemsize == 4
                     ):
-                        display_text = f"[{x},{y}]: {data.view(np.uint32)[x,y]:#08X}"
+                        val = data.view(np.uint32)[x, y]
+                        analog = val & 0x3FFF
+                        digital = (val & 0x3FFFC000) >> 14
+                        gain = (val & 0x80000000) >> 31
+                        reserved = (val & 0x40000000) >> 30
+                        display_text = f"[{x},{y}]: {data.view(np.uint32)[x,y]:#041_b} (R{reserved} G{gain} D{digital} A{analog})"
                     else:
                         display_text = f"[{x},{y}]: {data[x,y]:.5g}"
                 else:

@@ -243,7 +243,7 @@ def complex_to_Lab(
     return rgb
 
 
-def strtobool(val):
+def strtobool(val: str) -> bool:
     """Convert a string representation of truth to true (1) or false (0).
     True values are 'y', 'yes', 't', 'true', 'on', and '1'; false values
     are 'n', 'no', 'f', 'false', 'off', and '0'.  Raises ValueError if
@@ -251,8 +251,26 @@ def strtobool(val):
     """
     val = val.lower()
     if val in ("y", "yes", "t", "true", "on", "1"):
-        return 1
+        return True
     elif val in ("n", "no", "f", "false", "off", "0"):
-        return 0
+        return False
     else:
         raise ValueError("invalid truth value %r" % (val,))
+
+
+def format_unit(raw_unit):
+    """Translate py4DSTEM ASCII unit strings to Unicode for display on scale bars.
+
+    py4DSTEM calibration objects return ASCII unit strings like 'A' and 'A^-1'.
+    This function translates them to their Unicode equivalents for nicer display.
+    """
+    if raw_unit == "A":
+        return "Å"
+    if raw_unit == "A^-1":
+        return "Å⁻¹"
+    if raw_unit == "px^-1":
+        return "px⁻¹"
+    # generic fallback: replace "^-1" with the Unicode superscript
+    if raw_unit.endswith("^-1"):
+        return raw_unit[:-3] + "⁻¹"
+    return raw_unit
