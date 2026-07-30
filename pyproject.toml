@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "py4D_browser"
 version = "1.5.1"
 authors = [
-  { name="Steven Zeltmann", email="steven.zeltmann@lbl.gov" },
+  { name="Steven Zeltmann", email="steven.zeltmann@berkeley.edu" },
 ]
 description = "A 4D-STEM data browser built on py4DSTEM."
 readme = "README.md"
