@@ -154,6 +154,25 @@ class CalibrateDialog(QDialog):
         self.kV_input = QLineEdit()
         kV_left_layout.addWidget(self.kV_input, 0, 1)
 
+        orientation_box = QGroupBox("Orientation")
+        layout.addWidget(orientation_box)
+        orientation_layout = QHBoxLayout()
+        orientation_box.setLayout(orientation_layout)
+        orientation_left_layout = QGridLayout()
+        orientation_layout.addLayout(orientation_left_layout)
+        orientation_left_layout.addWidget(
+            QLabel("Scan Rotation [deg]"), 0, 0, Qt.AlignRight
+        )
+        self.rotation_input = QLineEdit()
+        self.rotation_input.setValidator(QDoubleValidator())
+        orientation_left_layout.addWidget(self.rotation_input, 0, 1)
+
+        orientation_left_layout.addWidget(
+            QLabel("Pattern Transpose"), 1, 0, Qt.AlignRight
+        )
+        self.transpose_checkbox = QCheckBox()
+        orientation_left_layout.addWidget(self.transpose_checkbox, 1, 1)
+
         button_layout = QHBoxLayout()
         button_layout.addStretch()
         cancel_button = QPushButton("Cancel")
@@ -197,6 +216,12 @@ class CalibrateDialog(QDialog):
         except (KeyError, TypeError):
             pass
 
+        # Orientation
+        rotation = self.datacube.calibration.get_QR_rotation_degrees()
+        if rotation is not None:
+            self.rotation_input.setText(f"{rotation:g}")
+        self.transpose_checkbox.setChecked(self.datacube.calibration.get_QR_flip())
+
         ######### CALLBACKS ########
         self.realspace_pix_box.textEdited.connect(self.realspace_pix_box_changed)
         self.realspace_fov_box.textEdited.connect(self.realspace_fov_box_changed)
@@ -205,6 +230,7 @@ class CalibrateDialog(QDialog):
         self.diff_selection_box.textEdited.connect(
             self.diffraction_selection_box_changed
         )
+        self.rotation_input.textEdited.connect(self.rotation_input_changed)
 
     def realspace_pix_box_changed(self, new_text):
         pix_size = float(new_text)
@@ -250,6 +276,9 @@ class CalibrateDialog(QDialog):
             self.diff_pix_box.setText(f"{pix_size:g}")
             self.diff_fov_box.setText(f"{fov:g}")
 
+    def rotation_input_changed(self, new_text):
+        pass  # no dependent fields to update
+
     def set_and_close(self):
 
         print("Old calibration")
@@ -282,6 +311,13 @@ class CalibrateDialog(QDialog):
             self.datacube.calibration["voltage"] = kV * 1e3
             # note there is no canonical tag for voltage, so we are
             # going to make our own key for it
+
+        rotation_text = self.rotation_input.text()
+        if rotation_text != "":
+            rotation = float(rotation_text)
+            self.datacube.calibration.set_QR_rotation(np.deg2rad(rotation))
+
+        self.datacube.calibration.set_QR_flip(self.transpose_checkbox.isChecked())
 
         from py4D_browser.utils import format_unit
 

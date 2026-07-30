@@ -520,7 +520,9 @@ def update_fft_view(self: "DataViewer", mode: Optional[str] = None):
             pixel_size=(
                 1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
             ),
-            pixel_units=f"{self.datacube.calibration.get_R_pixel_units()}⁻¹",
+            pixel_units=format_unit(
+                f"{self.datacube.calibration.get_R_pixel_units()}⁻¹"
+            ),
         )
         self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
         if mode_switch:
@@ -542,7 +544,9 @@ def update_fft_view(self: "DataViewer", mode: Optional[str] = None):
             pixel_size=(
                 1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
             ),
-            pixel_units=f"{self.datacube.calibration.get_R_pixel_units()}⁻¹",
+            pixel_units=format_unit(
+                f"{self.datacube.calibration.get_R_pixel_units()}⁻¹"
+            ),
         )
         self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
         if mode_switch:
@@ -560,7 +564,9 @@ def update_fft_view(self: "DataViewer", mode: Optional[str] = None):
             pixel_size=(
                 1.0 / self.datacube.calibration.get_Q_pixel_size() / self.datacube.Q_Ny
             ),
-            pixel_units=f"{self.datacube.calibration.get_Q_pixel_units()}⁻¹",
+            pixel_units=format_unit(
+                f"{self.datacube.calibration.get_Q_pixel_units()}⁻¹"
+            ),
         )
     else:
         raise RuntimeError(
