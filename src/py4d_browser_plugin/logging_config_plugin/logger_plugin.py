@@ -40,8 +40,7 @@ class LoggerDialog(QDialog):
         super().__init__(parent=parent)
 
         self.parent = parent
-
-        layout = QVBoxLayout(self)
+        self.layout = QVBoxLayout(self)
 
         ####### LAYOUT ########
 
@@ -51,7 +50,7 @@ class LoggerDialog(QDialog):
         scroll = QScrollArea()
         scroll.setWidget(main_box)
         scroll.setWidgetResizable(True)
-        layout.addWidget(scroll)
+        self.layout.addWidget(scroll)
 
         form = QFormLayout()
         main_box.setLayout(form)
@@ -65,7 +64,9 @@ class LoggerDialog(QDialog):
             selector = QComboBox()
             selector.addItems(log_levels)
             selector.setCurrentText(logging.getLevelName(lg.level))
-            selector.currentTextChanged.connect(lg.setLevel)
+            selector.currentTextChanged.connect(
+                lambda text, lg=lg: self._update_logger_level(lg, text)
+            )
 
             form.addRow(
                 lg.name,
@@ -75,7 +76,19 @@ class LoggerDialog(QDialog):
         button_layout = QHBoxLayout()
         button_layout.addStretch()
         cancel_button = QPushButton("Done")
-        cancel_button.pressed.connect(self.close)
+        cancel_button.clicked.connect(self.close)
         button_layout.addWidget(cancel_button)
 
-        layout.addLayout(button_layout)
+        self.layout.addLayout(button_layout)
+
+    def _update_logger_level(self, logger, level_text):
+        """Update the logger level based on the selected text."""
+        level_map = {
+            "NOTSET": logging.NOTSET,
+            "DEBUG": logging.DEBUG,
+            "INFO": logging.INFO,
+            "WARNING": logging.WARNING,
+            "ERROR": logging.ERROR,
+            "CRITICAL": logging.CRITICAL,
+        }
+        logger.setLevel(level_map.get(level_text, logging.NOTSET))
