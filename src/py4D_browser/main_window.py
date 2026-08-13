@@ -26,6 +26,7 @@ import platformdirs
 from showinfm import show_in_file_manager
 
 from py4D_browser.utils import VLine, LatchingButton, strtobool
+from py4D_browser.__version__ import __version__
 from py4D_browser.scalebar import ScaleBar
 
 
@@ -650,6 +651,12 @@ class DataViewer(QMainWindow):
         self.debug_console_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+D"))
         self.debug_console_action.triggered.connect(self._launch_debug_console)
         self.help_menu.addAction(self.debug_console_action)
+
+        self.help_menu.addSeparator()
+
+        self.version_action = QAction(f"py4DGUI v{__version__}", self)
+        self.version_action.setEnabled(False)
+        self.help_menu.addAction(self.version_action)
 
     def setup_views(self):
         # Set up the diffraction space window.
