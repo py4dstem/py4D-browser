@@ -646,6 +646,11 @@ class DataViewer(QMainWindow):
         )
         self.help_menu.addAction(self.show_config_file_action)
 
+        self.debug_console_action = QAction("&Debug Console", self)
+        self.debug_console_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+D"))
+        self.debug_console_action.triggered.connect(self._launch_debug_console)
+        self.help_menu.addAction(self.debug_console_action)
+
     def setup_views(self):
         # Set up the diffraction space window.
         self.diffraction_space_widget = pg.ImageView()
@@ -797,6 +802,9 @@ class DataViewer(QMainWindow):
     def resizeEvent(self, event):
         # Store window size for next run
         self.settings.setValue("last_state/window_size", event.size())
+
+    def _launch_debug_console(self):
+        pg.dbg(namespace={"main_window": self})
 
     # Handle dragging and dropping a file on the window
     def dragEnterEvent(self, event):
