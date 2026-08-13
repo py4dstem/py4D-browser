@@ -32,7 +32,8 @@ from py4D_browser.scalebar import ScaleBar
 class DataViewer(QMainWindow):
     """
     The class is used by instantiating and then entering the main Qt loop with, e.g.:
-        app = DataViewer(sys.argv)
+        win = DataViewer()
+        win.show()
         app.exec_()
     """
 
@@ -91,12 +92,19 @@ class DataViewer(QMainWindow):
     signal_virtual_image_data_changed = QtCore.pyqtSignal()
     signal_datacube_changed = QtCore.pyqtSignal()
 
-    def __init__(self, argv):
+    def __init__(
+        self,
+        filepath: Optional[str] = None,
+        reset_state: bool = False,
+        debug_console: bool = False,
+    ):
         super().__init__()
         # Define this as the QApplication object
         self.qtapp = QApplication.instance()
         if not self.qtapp:
-            self.qtapp = QApplication(argv)
+            import sys
+
+            self.qtapp = QApplication(sys.argv)
 
         # Load settings from config file
         self.config_path = os.path.join(
@@ -132,7 +140,7 @@ class DataViewer(QMainWindow):
         self.unscaled_fft_image: Optional[np.ndarray] = None
 
         # Reset stored state if so asked:
-        if os.environ.get("PY4DGUI_RESET"):
+        if reset_state:
             self.settings.remove("last_state")
             print("Cleared saved state, using defaults...")
 
@@ -157,11 +165,11 @@ class DataViewer(QMainWindow):
         self.show()
 
         # If a file was passed on the command line, open it
-        if len(argv) > 1:
-            self.load_file(argv[1])
+        if filepath is not None:
+            self.load_file(filepath)
 
-        # launch pyqtgraph's debug console if environment variable exists
-        if os.environ.get("PY4DGUI_DEBUG"):
+        # launch pyqtgraph's debug console if requested or environment variable exists
+        if debug_console or os.environ.get("PY4DGUI_DEBUG"):
             pg.dbg(namespace={"main_window": self})
 
     def setup_menus(self):
