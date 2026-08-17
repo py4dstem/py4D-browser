@@ -25,7 +25,7 @@ import os
 import platformdirs
 from showinfm import show_in_file_manager
 
-from py4D_browser.utils import VLine, LatchingButton, strtobool
+from py4D_browser.utils import VLine, LatchingButton, strtobool, try_get_cmap
 from py4D_browser.__version__ import __version__
 from py4D_browser.scalebar import ScaleBar
 
@@ -661,7 +661,12 @@ class DataViewer(QMainWindow):
     def setup_views(self):
         # Set up the diffraction space window.
         self.diffraction_space_widget = pg.ImageView()
-        self.diffraction_space_widget.setImage(np.zeros((512, 512)))
+        self.diffraction_space_widget.setImage(np.zeros((128, 128)))
+
+        cmap_name = self.settings.value("gui/diffraction_colormap", "inferno")
+        cmap = try_get_cmap(cmap_name)
+        if cmap is not None:
+            self.diffraction_space_widget.setColorMap(cmap)
 
         self.diffraction_space_widget.setMouseTracking(True)
 
@@ -680,7 +685,12 @@ class DataViewer(QMainWindow):
 
         # Set up the real space window.
         self.real_space_widget = pg.ImageView()
-        self.real_space_widget.setImage(np.zeros((512, 512)))
+        self.real_space_widget.setImage(np.zeros((256, 256)))
+
+        cmap_name = self.settings.value("gui/realspace_colormap", "thermal")
+        cmap = try_get_cmap(cmap_name)
+        if cmap is not None:
+            self.real_space_widget.setColorMap(cmap)
 
         # Add point selector connected to displayed diffraction pattern
         self.update_realspace_detector()
@@ -702,7 +712,12 @@ class DataViewer(QMainWindow):
 
         # Set up the FFT window.
         self.fft_widget = pg.ImageView()
-        self.fft_widget.setImage(np.zeros((512, 512)))
+        self.fft_widget.setImage(np.zeros((256, 256)))
+
+        cmap_name = self.settings.value("gui/fft_colormap", "yellowy")
+        cmap = try_get_cmap(cmap_name)
+        if cmap is not None:
+            self.fft_widget.setColorMap(cmap)
 
         # FFT scale bar
         self.fft_scale_bar = ScaleBar(pixel_size=1, units="1/px", width=10)
