@@ -80,6 +80,7 @@ class DataViewer(QMainWindow):
         update_annulus_pos,
         update_annulus_radii,
         update_tooltip,
+        update_scalebars,
     )
 
     from py4D_browser.signals import (
@@ -87,7 +88,7 @@ class DataViewer(QMainWindow):
         set_internal_result_callback,
     )
 
-    from py4D_browser.plugins import load_plugins
+    from py4D_browser.plugins import load_plugins, unload_plugins
 
     signal_diffraction_data_changed = QtCore.pyqtSignal()
     signal_virtual_image_data_changed = QtCore.pyqtSignal()
@@ -827,6 +828,10 @@ class DataViewer(QMainWindow):
 
     def _launch_debug_console(self):
         pg.dbg(namespace={"main_window": self})
+
+    def closeEvent(self, event):
+        self.unload_plugins()
+        event.accept()
 
     # Handle dragging and dropping a file on the window
     def dragEnterEvent(self, event):

@@ -93,7 +93,10 @@ def load_plugins(self: "DataViewer"):
 def unload_plugins(self: "DataViewer"):
     # NOTE: This is currently not actually called!
     for plugin in self.loaded_plugins:
-        plugin["plugin"].close()
+        try:
+            plugin["plugin"].close()
+        except Exception as e:
+            print(f"Error {e} while unloading plugin {plugin['id']}")
 
 
 class py4DBrowserPlugin:
@@ -125,3 +128,6 @@ class py4DBrowserPlugin:
 
     def close(self):
         pass  # perform any shutdown activities
+        """
+        This is called on shutdown starting with version 1.5.3
+        """
