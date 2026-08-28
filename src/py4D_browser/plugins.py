@@ -91,7 +91,6 @@ def load_plugins(self: "DataViewer"):
 
 
 def unload_plugins(self: "DataViewer"):
-    # NOTE: This is currently not actually called!
     for plugin in self.loaded_plugins:
         try:
             plugin["plugin"].close()
