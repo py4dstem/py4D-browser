@@ -46,4 +46,4 @@ where = ["src"]
 py4D_browser = ["*.png"]
 
 [tool.setuptools.dynamic]
-version = {attr = "py4D_browser.__version__"}
+version = {attr = "py4D_browser.version.__version__"}

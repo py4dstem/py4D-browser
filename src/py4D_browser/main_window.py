@@ -26,7 +26,7 @@ import platformdirs
 from showinfm import show_in_file_manager
 
 from py4D_browser.utils import VLine, LatchingButton, strtobool, try_get_cmap
-from py4D_browser.__version__ import __version__
+from py4D_browser.version import __version__
 from py4D_browser.scalebar import ScaleBar
 
 
