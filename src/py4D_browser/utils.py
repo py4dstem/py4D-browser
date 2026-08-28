@@ -1,12 +1,37 @@
 import pyqtgraph as pg
+from pyqtgraph import ColorMap
+from pyqtgraph.graphicsItems.GradientEditorItem import Gradients
 import numpy as np
 from PyQt5.QtWidgets import QFrame, QPushButton, QApplication, QLabel
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import Qt, QObject
 from PyQt5.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout, QSpinBox
 
-from typing import NotRequired, TypedDict
+from typing import NotRequired, Optional, TypedDict
 from enum import Enum
+
+
+def try_get_cmap(name: str) -> Optional[ColorMap]:
+    """Try to get a pyqtgraph ColorMap by name, checking built-in gradients
+    first, then pyqtgraph colormaps, then matplotlib colormaps.
+
+    Returns None if the colormap is not found, in which case the ImageView's
+    default grayscale lookup table is used.
+    """
+    if name in Gradients:
+        g = Gradients[name]
+        positions = [t[0] for t in g["ticks"]]
+        colors = [t[1] for t in g["ticks"]]
+        return ColorMap(positions, colors)
+    try:
+        return pg.colormap.get(name)
+    except Exception:
+        pass
+    try:
+        return pg.colormap.getFromMatplotlib(name)
+    except Exception:
+        pass
+    return None
 
 
 class DetectorShape(Enum):

@@ -1,4 +1,6 @@
-from PyQt5.QtWidgets import QPushButton, QLabel
+import math
+
+from PyQt5.QtWidgets import QPushButton, QLabel, QDialogButtonBox
 from PyQt5.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -103,3 +105,195 @@ class ResizeDialog(QDialog):
                 return i, self.N // i
 
         raise ValueError("Factor finding failed, frustratingly.")
+
+
+class BinningDialog(QDialog):
+    """Dialog to select a binning factor for loading binned data.
+
+    Displays file size, original dimensions, and estimated RAM usage
+    both before and after binning.
+    """
+
+    def __init__(
+        self,
+        filepath: str,
+        file_size: int,
+        shape: tuple | None,
+        dtype: str | None,
+        parent=None,
+    ):
+        super().__init__(parent=parent)
+        self.setWindowTitle("Select Binning Factor")
+
+        self.filepath = filepath
+        self.file_size = file_size
+        self.shape = shape
+        self.dtype = dtype
+
+        layout = QVBoxLayout(self)
+
+        # File path display
+        layout.addWidget(QLabel(f"File: {filepath}"))
+        layout.addSpacing(8)
+
+        # File info section
+        info_layout = QVBoxLayout()
+        info_layout.addWidget(QLabel("File Information:"))
+        info_layout.addWidget(QLabel(f"  File size: {self._format_size(file_size)}"))
+
+        if shape is not None:
+            info_layout.addWidget(
+                QLabel(f"  Dimensions: {' x '.join(map(str, shape))}")
+            )
+            if dtype:
+                info_layout.addWidget(QLabel(f"  Data type: {dtype}"))
+            ram = self._calc_unbinned_ram()
+            info_layout.addWidget(QLabel(f"  Un-binned RAM: {self._format_size(ram)}"))
+        else:
+            info_layout.addWidget(
+                QLabel("  Dimensions: unavailable for this file type")
+            )
+
+        layout.addLayout(info_layout)
+        layout.addSpacing(8)
+
+        # Binning control section
+        binning_layout = QVBoxLayout()
+        binning_layout.addWidget(QLabel("Binning Control:"))
+        binning_layout.addWidget(
+            QLabel("  Apply binning factor to detector (last 2) dimensions:")
+        )
+
+        spin_layout = QHBoxLayout()
+        spin_layout.addWidget(QLabel("  Bin factor:"), 0)
+
+        self.bin_spin = QSpinBox()
+        if self.shape is not None:
+            max_bin = min(self.shape[-2:])
+            self.bin_spin.setRange(1, max(max_bin, 1))
+        else:
+            self.bin_spin.setRange(1, 100)
+        self.bin_spin.setValue(4)
+        self.bin_spin.setSingleStep(1)
+        self.bin_spin.setAccelerated(True)
+        self.bin_spin.setKeyboardTracking(False)
+        self.bin_spin.valueChanged.connect(self._update_estimates)
+        spin_layout.addWidget(self.bin_spin)
+        spin_layout.addStretch()
+
+        binning_layout.addLayout(spin_layout)
+        layout.addLayout(binning_layout)
+        layout.addSpacing(8)
+
+        # Estimate section
+        estimate_layout = QVBoxLayout()
+        estimate_layout.addWidget(QLabel("Estimated Result:"))
+
+        self.binned_dims_label = QLabel()
+        estimate_layout.addWidget(self.binned_dims_label)
+
+        self.binned_ram_label = QLabel()
+        estimate_layout.addWidget(self.binned_ram_label)
+
+        layout.addLayout(estimate_layout)
+        layout.addStretch()
+
+        # Crop notice (shown when detector dims aren't even multiples of bin factor)
+        self.crop_label = QLabel()
+        self.crop_label.setStyleSheet("color: orange;")
+        self.crop_label.hide()
+        layout.addWidget(self.crop_label)
+
+        # Buttons
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.accepted.connect(self.accept)
+        btns.rejected.connect(self.reject)
+        self.ok_button = btns.button(QDialogButtonBox.Ok)
+        layout.addWidget(btns)
+
+        self._update_estimates()
+
+    # ---- public classmethod entry-point ----
+
+    @classmethod
+    def get_bin_value(cls, filepath, file_size, shape, dtype, parent=None):
+        """Show the dialog and return (accepted, bin_value)."""
+        dlg = cls(
+            filepath=filepath,
+            file_size=file_size,
+            shape=shape,
+            dtype=dtype,
+            parent=parent,
+        )
+        ok = dlg.exec_() == QDialog.Accepted
+        return ok, dlg.bin_spin.value()
+
+    # ---- helpers ----
+
+    def _calc_unbinned_ram(self) -> int:
+        if self.shape is None:
+            return 0
+        itemsize = 1
+        if self.dtype:
+            itemsize = int(
+                self.dtype.replace("uint", "").replace("int", "").replace("float", "")
+            )
+        return int(math.prod(self.shape)) * itemsize
+
+    def _format_size(self, nbytes: int) -> str:
+        if nbytes <= 0:
+            return "N/A"
+        for unit in ("B", "KB", "MB", "GB", "TB"):
+            if nbytes < 1024 or unit == "TB":
+                f = nbytes / 1
+                if unit == "B" and nbytes == int(nbytes):
+                    return f"{int(nbytes)} B"
+                return f"{f:.1f} {unit}"
+            nbytes /= 1024
+        return f"{nbytes:.1f} PB"
+
+    def _update_estimates(self):
+        bin_val = self.bin_spin.value()
+
+        if self.shape is not None:
+            dx, dy = self.shape[-2:]
+            crop_dx = (dx // bin_val) * bin_val
+            crop_dy = (dy // bin_val) * bin_val
+            binned = (crop_dx // bin_val, crop_dy // bin_val)
+            self.binned_dims_label.setText(
+                f"  Binned detector dimensions: {' x '.join(map(str, binned))}"
+            )
+
+            # Compute RAM based on binned size. Integer sources always
+            # produce float32 output (averaging produces non-integer values),
+            # so use max(itemsize, 4) for integer dtypes.
+            itemsize = 1
+            if self.dtype:
+                itemsize = int(
+                    self.dtype.replace("uint", "")
+                    .replace("int", "")
+                    .replace("float", "")
+                )
+                if self.dtype.startswith("uint") or self.dtype.startswith("int"):
+                    itemsize = max(itemsize, 4)  # integer → float32 output
+            binned_ram = int(math.prod(list(self.shape[:-2]) + list(binned))) * itemsize
+            self.binned_ram_label.setText(
+                f"  Estimated RAM: {self._format_size(binned_ram)}"
+            )
+
+            # Show crop notice if dimensions need cropping
+            if dx % bin_val != 0 or dy % bin_val != 0:
+                self.crop_label.setText(
+                    f"  Note: Detector {dx} x {dy} will be cropped to {crop_dx} x {crop_dy} (dropping edge pixels)."
+                )
+                self.crop_label.show()
+            else:
+                self.crop_label.hide()
+            self.ok_button.setEnabled(True)
+        else:
+            self.binned_dims_label.setText("  Binned dimensions: N/A")
+            self.binned_ram_label.setText(
+                f"  Estimated RAM: N/A (reduces by ~{bin_val**2}x vs un-binned)"
+            )
+            self.crop_label.hide()
+            self.ok_button.setEnabled(True)

@@ -5,7 +5,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from py4D_browser.help_menu import KeyboardMapMenu
-from py4D_browser.dialogs import ResizeDialog
+from py4D_browser.dialogs import ResizeDialog, BinningDialog
 from py4DSTEM.io.filereaders import read_arina
 
 from typing import TYPE_CHECKING
@@ -25,9 +25,22 @@ def load_data_mmap(self: "DataViewer"):
 
 
 def load_data_bin(self: "DataViewer"):
-    # TODO: Ask user for binning level
     filename = self.show_file_dialog()
-    self.load_file(filename, mmap=False, binning=4)
+
+    shape, dtype = get_file_info(filename)
+    file_size = os.path.getsize(filename)
+
+    ok, bin_value = BinningDialog.get_bin_value(
+        filepath=filename,
+        file_size=file_size,
+        shape=shape,
+        dtype=dtype,
+        parent=self,
+    )
+    if not ok:
+        return
+
+    self.load_file(filename, mmap=False, binning=bin_value)
 
 
 def load_data_arina(self: "DataViewer"):
@@ -50,31 +63,77 @@ def load_file(self: "DataViewer", filepath, mmap=False, binning=1):
     print(f"Loading file {filepath}")
     extension = os.path.splitext(filepath)[-1].lower()
     print(f"Type: {extension}")
+
+    # mmap + binning are incompatible — binning produces a RAM array
+    if mmap and binning > 1:
+        QMessageBox.information(
+            self,
+            "mmap + binning",
+            "Binning and mmap cannot be used together. "
+            "Data will be loaded with lazy binning into RAM.",
+        )
+        mmap = False
+
     if extension in (".h5", ".hdf5", ".py4dstem", ".emd", ".mat"):
         file = h5py.File(filepath, "r")
         datacubes = get_ND(file)
         print(f"Found {len(datacubes)} 4D datasets inside the HDF5 file...")
         if len(datacubes) >= 1:
-            # Read the first datacube in the HDF5 file into RAM
             print(f"Reading dataset at location {datacubes[0].name}")
 
             parent = "/".join(datacubes[0].name.split("/")[:-1])
             if len(parent) > 1 and "emd_group_type" in file[parent].attrs:
                 print("This appears to be an emdfile... reading natively")
-                self.datacube = py4DSTEM.DataCube.from_h5(datacubes[0].file[parent])
-                try:
-                    calibration = py4DSTEM.Calibration.from_h5(
-                        datacubes[0].file["/datacube_root/metadatabundle/calibration"]
+                if binning > 1:
+                    # Try to load calibration before closing the file
+                    calibration = None
+                    try:
+                        calibration = py4DSTEM.Calibration.from_h5(
+                            file["/datacube_root/metadatabundle/calibration"]
+                        )
+                    except Exception:
+                        pass
+                    array = lazy_bin_load(
+                        datacubes[0], binning, output_dtype=datacubes[0].dtype
                     )
-                    self.datacube.calibration = calibration
-                except Exception as e:
-                    self.statusBar().showMessage(str(e))
+                    file.close()
+                    self.datacube = py4DSTEM.DataCube(array)
+                    if calibration is not None:
+                        self.datacube.calibration = calibration
+                        # Scale Q pixel size by bin factor
+                        q_size = self.datacube.calibration.get_Q_pixel_size()
+                        if q_size is not None:
+                            self.datacube.calibration.set_Q_pixel_size(q_size * binning)
+                else:
+                    self.datacube = py4DSTEM.DataCube.from_h5(datacubes[0].file[parent])
+                    try:
+                        calibration = py4DSTEM.Calibration.from_h5(
+                            datacubes[0].file[
+                                "/datacube_root/metadatabundle/calibration"
+                            ]
+                        )
+                        self.datacube.calibration = calibration
+                    except Exception as e:
+                        self.statusBar().showMessage(str(e))
             else:
-                self.datacube = py4DSTEM.DataCube(
-                    datacubes[0] if mmap else datacubes[0][()]
+                if binning > 1:
+                    array = lazy_bin_load(
+                        datacubes[0], binning, output_dtype=datacubes[0].dtype
+                    )
+                    file.close()
+                    self.datacube = py4DSTEM.DataCube(array)
+                else:
+                    self.datacube = py4DSTEM.DataCube(
+                        datacubes[0] if mmap else datacubes[0][()]
+                    )
+
+                R_size, R_units, Q_size, Q_units = find_calibrations(
+                    datacubes[0] if binning == 1 else self.datacube.data
                 )
 
-                R_size, R_units, Q_size, Q_units = find_calibrations(datacubes[0])
+                # Scale Q pixel size by bin factor
+                if binning > 1:
+                    Q_size = Q_size * binning if Q_size is not None else None
 
                 self.datacube.calibration.set_R_pixel_size(R_size)
                 self.datacube.calibration.set_R_pixel_units(R_units)
@@ -86,7 +145,13 @@ def load_file(self: "DataViewer", filepath, mmap=False, binning=1):
             datacubes = get_ND(file, N=3)
             print(f"Found {len(datacubes)} 3D datasets inside the HDF5 file...")
             if len(datacubes) >= 1:
-                array = datacubes[0] if mmap else datacubes[0][()]
+                if binning > 1:
+                    array = lazy_bin_load(
+                        datacubes[0], binning, output_dtype=datacubes[0].dtype
+                    )
+                    file.close()
+                else:
+                    array = datacubes[0] if mmap else datacubes[0][()]
                 new_shape = ResizeDialog.get_new_size([1, array.shape[0]], parent=self)
                 self.datacube = py4DSTEM.DataCube(
                     array.reshape(*new_shape, *array.shape[1:])
@@ -94,7 +159,12 @@ def load_file(self: "DataViewer", filepath, mmap=False, binning=1):
             else:
                 raise ValueError("No 4D (or even 3D) data detected in the H5 file!")
     elif extension in [".npy"]:
-        self.datacube = py4DSTEM.DataCube(np.load(filepath))
+        if binning > 1:
+            memmap = np.load(filepath, mmap_mode="r")
+            array = lazy_bin_load(memmap, binning, output_dtype=memmap.dtype)
+            self.datacube = py4DSTEM.DataCube(array)
+        else:
+            self.datacube = py4DSTEM.DataCube(np.load(filepath))
     else:
         self.datacube = py4DSTEM.import_file(
             filepath,
@@ -372,3 +442,158 @@ def find_calibrations(dset: h5py.Dataset):
         )
 
     return R_size, R_units, Q_size, Q_units
+
+
+def lazy_bin_load(source, bin_factor, output_dtype=None, chunk_size=10):
+    """Read data from a source and bin the last 2 (detector) dimensions lazily.
+
+    Reads the source in chunks along scan-space dimensions so the full unbinned
+    array never resides in RAM.  Each chunk's detector frames are binned by
+    averaging over NxN blocks.
+
+    Args:
+        source: Any subscriptable array-like (h5py.Dataset, np.memmap, np.ndarray).
+            Must be at least 3D (scan + detector).
+        bin_factor: Integer divisor for each detector dimension.
+        output_dtype: Dtype for the output (defaults to float32). Ignored for
+            integer source types — those always produce float32 to avoid overflow.
+        chunk_size: Maximum number of scan positions to read per chunk.
+
+    Returns:
+        numpy array with detector dimensions divided by bin_factor.
+    """
+    if bin_factor == 1:
+        return source[()]
+
+    shape = source.shape
+    if len(shape) < 3:
+        raise ValueError(f"Source must be at least 3D, got {len(shape)}D")
+
+    Dx, Dy = shape[-2], shape[-1]
+
+    if bin_factor > Dx or bin_factor > Dy:
+        raise ValueError(
+            f"Bin factor {bin_factor} exceeds detector dimension "
+            f"(detector is {Dx} x {Dy}). Reduce bin factor or disable binning."
+        )
+
+    # Crop detector dimensions to the largest even multiple of bin_factor
+    crop_Dx = (Dx // bin_factor) * bin_factor
+    crop_Dy = (Dy // bin_factor) * bin_factor
+
+    scan_shape = shape[:-2]
+    binned_Dx = crop_Dx // bin_factor
+    binned_Dy = crop_Dy // bin_factor
+
+    # Integer sources can overflow when binned (averaging produces non-integer
+    # intermediate values), so always use float32 for integer data types.
+    if output_dtype is None:
+        output_dtype = np.float32
+    if np.issubdtype(source.dtype, np.integer):
+        output_dtype = np.float32
+
+    out = np.empty(scan_shape + (binned_Dx, binned_Dy), dtype=output_dtype)
+
+    # Iterate over scan-space in chunks
+    _lazy_bin_load_nd(
+        source,
+        out,
+        0,
+        binned_Dx,
+        binned_Dy,
+        bin_factor,
+        chunk_size,
+        fixed=(),
+        crop_Dx=crop_Dx,
+        crop_Dy=crop_Dy,
+    )
+
+    return out
+
+
+def _lazy_bin_load_nd(
+    source,
+    out,
+    scan_idx,
+    binned_Dx,
+    binned_Dy,
+    bin_factor,
+    chunk_size,
+    fixed,
+    crop_Dx,
+    crop_Dy,
+):
+    """Recursive helper to iterate over scan-space dimensions in chunks.
+
+    Tracks accumulated slices in `fixed` (a tuple of slice objects) so that
+    the leaf level can build a complete ND slice to read the chunk with the
+    correct (cropped) detector dimensions.
+
+    Args:
+        source: The full data source (not sliced — indexing uses `fixed`).
+        out: The full output array (indexing uses `fixed`).
+        scan_idx: Index into the scan-space shape (incremented to reach detector dims).
+        binned_Dx, binned_Dy: Binned detector dimensions.
+        bin_factor: Bin factor for each detector dimension.
+        chunk_size: Maximum chunk size for the current dimension.
+        fixed: Tuple of slice objects for dimensions already iterated over.
+        crop_Dx, crop_Dy: Cropped detector dimensions (largest even multiple of bin_factor).
+    """
+    N = source.shape[scan_idx]
+    start = 0
+    while start < N:
+        end = min(start + chunk_size, N)
+        if scan_idx == len(source.shape) - 3:
+            # Last scan dimension — read chunks and bin detector dims
+            sl = fixed + (slice(start, end), slice(0, crop_Dx), slice(0, crop_Dy))
+            chunk = source[sl]  # (chunk_len, crop_Dx, crop_Dy)
+            # Flatten all scan dims, bin detector, reshape back
+            flat_len = (
+                chunk.shape[:-2].numel()
+                if hasattr(chunk.shape[:-2], "numel")
+                else int(np.prod(chunk.shape[:-2]))
+            )
+            binned = (
+                chunk.reshape(flat_len, binned_Dx, bin_factor, binned_Dy, bin_factor)
+                .mean(axis=-1)
+                .mean(axis=-2)
+            )
+            out_shape = chunk.shape[:-2]  # shape of scan dims in this chunk
+            binned = binned.reshape(*out_shape, binned_Dx, binned_Dy)
+            out[fixed + (slice(start, end),)] = binned
+        else:
+            # Intermediate scan dimension — recurse with extended slice
+            _lazy_bin_load_nd(
+                source,
+                out,
+                scan_idx + 1,
+                binned_Dx,
+                binned_Dy,
+                bin_factor,
+                chunk_size,
+                fixed + (slice(start, end),),
+                crop_Dx,
+                crop_Dy,
+            )
+        start = end
+
+
+def get_file_info(filepath):
+    """Get (shape, dtype_str) for the primary dataset in a file, if possible.
+
+    Returns ((s0, s1, ...), dtype_string) or (None, None) for unsupported types.
+    """
+    ext = os.path.splitext(filepath)[-1].lower()
+    if ext in (".h5", ".hdf5", ".py4dstem", ".emd", ".mat"):
+        with h5py.File(filepath, "r") as f:
+            dsets = get_ND(f)
+            if not dsets:
+                dsets = get_ND(f, N=3)
+            if dsets:
+                return tuple(dsets[0].shape), str(dsets[0].dtype)
+    elif ext == ".npy":
+        # Read header without loading full array
+        with open(filepath, "rb") as f:
+            shape, _, dtype = np.lib.format.read_header(f)
+        return shape, str(dtype)
+    return None, None
