@@ -31,6 +31,30 @@ if TYPE_CHECKING:
     from py4D_browser import DataViewer
 
 
+def update_scalebars(self: "DataViewer"):
+    """
+    Update scale bars from the datacube calibration.
+    """
+    if self.datacube is not None:
+        # Diffraction scale bar
+        self.diffraction_scale_bar.pixel_size = (
+            self.datacube.calibration.get_Q_pixel_size()
+        )
+        self.diffraction_scale_bar.units = format_unit(
+            self.datacube.calibration.get_Q_pixel_units()
+        )
+        self.diffraction_scale_bar.updateBar()
+
+        # Real space scale bar
+        self.real_space_scale_bar.pixel_size = (
+            self.datacube.calibration.get_R_pixel_size()
+        )
+        self.real_space_scale_bar.units = format_unit(
+            self.datacube.calibration.get_R_pixel_units()
+        )
+        self.real_space_scale_bar.updateBar()
+
+
 def get_diffraction_detector(self: "DataViewer") -> DetectorInfo:
     """
     Get the current detector and its position on the diffraction view.

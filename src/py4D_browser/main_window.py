@@ -25,14 +25,16 @@ import os
 import platformdirs
 from showinfm import show_in_file_manager
 
-from py4D_browser.utils import VLine, LatchingButton, strtobool
+from py4D_browser.utils import VLine, LatchingButton, strtobool, try_get_cmap
+from py4D_browser.version import __version__
 from py4D_browser.scalebar import ScaleBar
 
 
 class DataViewer(QMainWindow):
     """
     The class is used by instantiating and then entering the main Qt loop with, e.g.:
-        app = DataViewer(sys.argv)
+        win = DataViewer()
+        win.show()
         app.exec_()
     """
 
@@ -78,6 +80,7 @@ class DataViewer(QMainWindow):
         update_annulus_pos,
         update_annulus_radii,
         update_tooltip,
+        update_scalebars,
     )
 
     from py4D_browser.signals import (
@@ -85,18 +88,25 @@ class DataViewer(QMainWindow):
         set_internal_result_callback,
     )
 
-    from py4D_browser.plugins import load_plugins
+    from py4D_browser.plugins import load_plugins, unload_plugins
 
     signal_diffraction_data_changed = QtCore.pyqtSignal()
     signal_virtual_image_data_changed = QtCore.pyqtSignal()
     signal_datacube_changed = QtCore.pyqtSignal()
 
-    def __init__(self, argv):
+    def __init__(
+        self,
+        filepath: Optional[str] = None,
+        reset_state: bool = False,
+        debug_console: bool = False,
+    ):
         super().__init__()
         # Define this as the QApplication object
         self.qtapp = QApplication.instance()
         if not self.qtapp:
-            self.qtapp = QApplication(argv)
+            import sys
+
+            self.qtapp = QApplication(sys.argv)
 
         # Load settings from config file
         self.config_path = os.path.join(
@@ -132,7 +142,7 @@ class DataViewer(QMainWindow):
         self.unscaled_fft_image: Optional[np.ndarray] = None
 
         # Reset stored state if so asked:
-        if os.environ.get("PY4DGUI_RESET"):
+        if reset_state:
             self.settings.remove("last_state")
             print("Cleared saved state, using defaults...")
 
@@ -157,11 +167,11 @@ class DataViewer(QMainWindow):
         self.show()
 
         # If a file was passed on the command line, open it
-        if len(argv) > 1:
-            self.load_file(argv[1])
+        if filepath is not None:
+            self.load_file(filepath)
 
-        # launch pyqtgraph's debug console if environment variable exists
-        if os.environ.get("PY4DGUI_DEBUG"):
+        # launch pyqtgraph's debug console if requested or environment variable exists
+        if debug_console or os.environ.get("PY4DGUI_DEBUG"):
             pg.dbg(namespace={"main_window": self})
 
     def setup_menus(self):
@@ -638,10 +648,26 @@ class DataViewer(QMainWindow):
         )
         self.help_menu.addAction(self.show_config_file_action)
 
+        self.debug_console_action = QAction("&Debug Console", self)
+        self.debug_console_action.setShortcut(QtGui.QKeySequence("Ctrl+Shift+D"))
+        self.debug_console_action.triggered.connect(self._launch_debug_console)
+        self.help_menu.addAction(self.debug_console_action)
+
+        self.help_menu.addSeparator()
+
+        self.version_action = QAction(f"py4DGUI v{__version__}", self)
+        self.version_action.setEnabled(False)
+        self.help_menu.addAction(self.version_action)
+
     def setup_views(self):
         # Set up the diffraction space window.
         self.diffraction_space_widget = pg.ImageView()
-        self.diffraction_space_widget.setImage(np.zeros((512, 512)))
+        self.diffraction_space_widget.setImage(np.zeros((128, 128)))
+
+        cmap_name = self.settings.value("gui/diffraction_colormap", "inferno")
+        cmap = try_get_cmap(cmap_name)
+        if cmap is not None:
+            self.diffraction_space_widget.setColorMap(cmap)
 
         self.diffraction_space_widget.setMouseTracking(True)
 
@@ -660,7 +686,12 @@ class DataViewer(QMainWindow):
 
         # Set up the real space window.
         self.real_space_widget = pg.ImageView()
-        self.real_space_widget.setImage(np.zeros((512, 512)))
+        self.real_space_widget.setImage(np.zeros((256, 256)))
+
+        cmap_name = self.settings.value("gui/realspace_colormap", "thermal")
+        cmap = try_get_cmap(cmap_name)
+        if cmap is not None:
+            self.real_space_widget.setColorMap(cmap)
 
         # Add point selector connected to displayed diffraction pattern
         self.update_realspace_detector()
@@ -682,7 +713,12 @@ class DataViewer(QMainWindow):
 
         # Set up the FFT window.
         self.fft_widget = pg.ImageView()
-        self.fft_widget.setImage(np.zeros((512, 512)))
+        self.fft_widget.setImage(np.zeros((256, 256)))
+
+        cmap_name = self.settings.value("gui/fft_colormap", "yellowy")
+        cmap = try_get_cmap(cmap_name)
+        if cmap is not None:
+            self.fft_widget.setColorMap(cmap)
 
         # FFT scale bar
         self.fft_scale_bar = ScaleBar(pixel_size=1, units="1/px", width=10)
@@ -789,6 +825,13 @@ class DataViewer(QMainWindow):
     def resizeEvent(self, event):
         # Store window size for next run
         self.settings.setValue("last_state/window_size", event.size())
+
+    def _launch_debug_console(self):
+        pg.dbg(namespace={"main_window": self})
+
+    def closeEvent(self, event):
+        self.unload_plugins()
+        event.accept()
 
     # Handle dragging and dropping a file on the window
     def dragEnterEvent(self, event):

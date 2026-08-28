@@ -88,3 +88,6 @@ py4DSTEM/test/unit_test_data/
 ehthumbs.db
 Thumbs.db
 Untitled.ipynb
+
+# Claude Code #
+.claude/
