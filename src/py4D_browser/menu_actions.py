@@ -171,6 +171,31 @@ def load_file(self: "DataViewer", filepath, mmap=False, binning=1):
             self.datacube = py4DSTEM.DataCube(array)
         else:
             self.datacube = py4DSTEM.DataCube(np.load(filepath))
+    elif extension == ".raw":
+        # EMPAD: N patterns of 130 x 128 float32 (128 data rows + 2 metadata).
+        n_patterns = os.path.getsize(filepath) // (130 * 128 * 4)
+        nxy = int(round(np.sqrt(n_patterns)))
+        is_square = nxy * nxy == n_patterns
+        scan_shape = (nxy, nxy) if is_square else (n_patterns, 1)
+
+        source = np.memmap(
+            filepath, dtype=np.float32, mode="r", shape=(*scan_shape, 130, 128)
+        )
+        data = source[:, :, :128, :]  # drop the 2 metadata rows
+
+        if binning > 1:
+            array = lazy_bin_load(data, binning, output_dtype=np.float32)
+        elif mmap:
+            array = data
+        else:
+            array = data[()]
+
+        if not is_square:
+            # Not a square scan; let the user pick the real scan shape.
+            new_shape = ResizeDialog.get_new_size([n_patterns, 1], parent=self)
+            array = array.reshape(*new_shape, *array.shape[2:])
+
+        self.datacube = py4DSTEM.DataCube(array)
     else:
         self.datacube = py4DSTEM.import_file(
             filepath,
