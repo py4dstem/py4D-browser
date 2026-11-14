@@ -22,7 +22,7 @@ class VolumeViewerPlugin(QWidget):
     plugin_id = "py4DGUI.internal.volume_viewer"
     api_version = (1, 6)
     uses_single_action = True
-    display_name = "Render TIFF stack as volume"
+    display_name = "Open TIFF stack as volume..."
     dev_only = True
 
     def __init__(self, api, plugin_action, **kwargs):

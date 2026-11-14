@@ -39,6 +39,7 @@ As of version 1.3.0, the browser supports plugins that extend its functionality.
 * **Calibration** — calibrates the scale bars using known physical distances.
 * **Copy Image to Tab** — copies the currently-displayed virtual image or diffraction pattern into a new tab.
 * **Volume Viewer** - open a TIFF image stack in a volume tab. 
+* **Open Raw** - Open arbitrary raw data files. (Note: the GUI can read EMPAD-G1 `*.raw` files by drag and drop; other raw files need to be opened manually with this menu.)
 
 > [!NOTE]
 > The original plugin interface (v1.3-1.5) was experimental, and gave direct access to the entire DataViewer object. As of v1.6 there is now a (fingers-crossed) stable plugin API. Plugins built for v1.3 will not work under v1.6 unless modified. The plugin API object acts as an interposer between the DataViewer and the plugin; plugins now declare the API version they were built against and will always be passed a compatible API layer. See [PLUGINS.md](PLUGINS.md) for details. 
