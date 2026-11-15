@@ -438,25 +438,34 @@ class RawLoadDialog(QDialog):
         n = nx * ny
         per = qx * qy
 
-        if stride == per and b == 1:
-            # Contiguous, no bin: keep a lazy memmap view (no copy).
-            arr = np.memmap(
+        # A memmap-backed view of the data — contiguous when patterns are
+        # back-to-back, else a strided view with a per-pattern pitch. Lazy
+        # either way, so binning below can read it in chunks without ever
+        # holding the full unbinned array in RAM.
+        if stride == per:
+            source = np.memmap(
                 self.path, dtype=dt, mode="r",
                 shape=(nx, ny, qx, qy), offset=offset * itemsize,
             )
-            if not memmap:
-                arr = arr[()]
         else:
             span = offset + (n - 1) * stride + per
             flat = np.memmap(self.path, dtype=dt, mode="r", shape=(span,))
-            if stride == per:
-                win = flat[offset:offset + n * per]
-            else:  # strided gather (custom pitch)
-                win = flat[(offset + np.arange(n) * stride)[:, None]
-                           + np.arange(per)[None, :]]
-            arr = win.reshape(nx, ny, qx, qy)
+            source = np.lib.stride_tricks.as_strided(
+                flat[offset:offset + 1],
+                shape=(nx, ny, qx, qy),
+                strides=(
+                    ny * stride * itemsize,
+                    stride * itemsize,
+                    qy * itemsize,
+                    itemsize,
+                ),
+            )
 
         if b > 1:
-            arr = lazy_bin_load(arr, b)
+            arr = lazy_bin_load(source, b)  # chunked; unbinned data stays out of RAM
+        elif memmap:
+            arr = source  # keep the lazy memmap view
+        else:
+            arr = source[()]  # materialize into RAM
 
         self.api.set_datacube(py4DSTEM.DataCube(arr))

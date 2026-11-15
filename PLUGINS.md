@@ -8,7 +8,7 @@ We hope to maintain a list of existing plugins here. If you produce a browser pl
 
 ### Pre-packaged plugins
 Parts of what used to be "core" functionality are now implemented using the plugin interface to separate them from the core browser code. These are packaged with py4DGUI and always available:
-* `Calibration`: Allows for the calibration of the scale bars using known physical distances. Uses the versioned plugin API (v1.0) and updates the scale bars through `set_scalebar`.
+* `Calibration`: Allows for the calibration of the scale bars using known physical distances.
 * `tcBF`: Allows for the computation of tilt-corrected brightfield images. Uses the versioned plugin API (v1.6) and the detector getters, and displays its reconstruction in its own virtual-image tab (see below) so it does not overwrite the built-in virtual image.
 * `Copy Image to Tab`: Copies the raw array currently on display — the virtual image (the built-in image, or another plugin tab's image) or the diffraction pattern — into a new virtual-image tab, so it can be kept alongside the live display without being overwritten. The new tab mirrors the source view's **scaling and display range** (not its colormap), so the copy looks like what you were viewing (e.g. a copy of a square-root-scaled diffraction pattern is itself square-root-scaled).
 * `Open Raw...`: Loads an arbitrary raw binary file as a datacube. Prompts for the numpy dtype, endianness, in-file offset, per-pattern stride (pitch), and the full 4D shape; validates the settings fit the file size; supports memmap and bin-on-load. Named presets ship with defaults in the plugin and can be extended via the INI file.
