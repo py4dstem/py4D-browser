@@ -18,7 +18,7 @@ class LoggingConfigurationPlugin(QWidget):
     plugin_id = "py4DGUI.internal.logging"
 
     # the plugin API version this plugin was written against
-    api_version = (1, 0)
+    api_version = (1, 6)
 
     uses_single_action = True
     display_name = "Logger Settings..."

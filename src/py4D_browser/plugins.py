@@ -89,7 +89,7 @@ def load_plugins(self: "DataViewer"):
                     if api_version is None:
                         raise PluginAPIVersionError(
                             "does not declare an `api_version`. Declare "
-                            "`api_version = (1, 0)` (or the version this "
+                            "`api_version = (1, 6)` (or the version this "
                             "plugin was built against) to load it."
                         )
                     api = resolve_api_class(api_version)(self)
@@ -174,7 +174,7 @@ class py4DBrowserPlugin:
     # is skipped with a log message. The loader passes a compatible API
     # object as `api`; a plugin requiring a version the browser does not
     # provide is skipped.
-    api_version = (1, 0)
+    api_version = (1, 6)
 
     # Set to True to also receive the raw DataViewer as `parent` (bypassing
     # the versioned API; no compatibility guarantees). The API object is

@@ -32,8 +32,8 @@ class ExamplePlugin:
     # REQUIRED: a plugin that does not declare this is skipped with a log
     # message. The browser passes it the matching API object (see below),
     # or skips the plugin if this version is not supported.
-    # (Declare the version you actually build against; (1, 0) plugins are
-    # still loaded by a v1.6 browser.)
+    # (Declare the version you actually build against; the browser loads
+    # any 1.x minor at or below the one it provides and skips newer ones.)
     api_version = (1, 6)
 
     ######## optional flags ########
@@ -84,7 +84,7 @@ Plugins declare which version of the plugin API they were built against using th
 * If the plugin's **major** version is supported and its minor version is at most the latest minor for that major, the plugin is passed the matching API class. Within a major version the API is strictly additive: new features may appear, but existing ones never change behavior.
 * If the major version is unknown, or the plugin requests a minor version newer than the browser provides, the plugin is **skipped**: a `PluginAPIVersionError` naming the plugin and both versions is logged, and loading of all other plugins continues. The fix is to upgrade `py4D_browser` (or, for plugin authors, to build the plugin against an API version their users have).
 * Multiple major API versions coexist in the same browser, so a plugin built against 1.x continues to work after a 2.x API is introduced, as long as the browser still supports major 1.
-* `api_version` is **required**: a plugin that does not declare it is **skipped** with a log message telling it to declare one (e.g. `api_version = (1, 0)`). There is no legacy fallback.
+* `api_version` is **required**: a plugin that does not declare it is **skipped** with a log message telling it to declare one (e.g. `api_version = (1, 6)`). There is no legacy fallback.
 * `full_access = True` is an unversioned escape hatch: the plugin receives the raw `DataViewer` as `parent` in addition to the API object as `api`, and any breakage caused by the browser changing its internals is the plugin's responsibility.
 * **Targeting a specific API version:** by convention, the API minor version always matches the `py4D_browser` package minor version of the release that introduced it. So a plugin can require a given API simply by pinning the browser minor in its dependency — e.g. `py4d_browser>=1.6` guarantees API v1.6 (and its features, like virtual-image tabs) is available. Not every browser minor adds new API (some are bugfix-only releases), so there may be browser minors with no API change — but a browser's minor is always at least as high as any API minor it ships, so pinning the browser minor reliably lower-bounds the API a plugin gets.
 
@@ -96,14 +96,14 @@ The following design guidelines should still be followed:
 
 * If the plugin adds menu items, it should only add items to its own menu (not to ones already existing in the GUI). The plugin is permitted to add a menu to the top bar on its own, or (preferably) can set the `uses_plugin_menu` attribute which will initialize a menu under Plugins>MyPluginDisplayName which gets passed to the initializer as `plugin_menu`.
 * If the plugin adds a single menu item, it can have the browser create and insert that action item automatically by setting `uses_single_action`. The `QAction` object will be passed in as `plugin_action`. 
-* The plugin should *never* render an image to the views directly. To display images, plugins should always call `set_virtual_image` or `set_diffraction_image` using raw, unscaled data. If the plugin needs to produce a customized display, it cannot do that in the existing views and must create its own window. **Exception (v1.6):** an image-producing plugin should *prefer* to display its output in its own **virtual-image tab** (created with `create_virtual_image_tab`, see below) rather than overwriting the built-in virtual image with `set_virtual_image`. This keeps the browser's own pipeline visible and lets several image-producing plugins show output at the same time. Use `set_virtual_image` only when the plugin genuinely wants to drive the built-in pane (as a v1.0 plugin would).
+* The plugin should *never* render an image to the views directly. To display images, plugins should always call `set_virtual_image` or `set_diffraction_image` using raw, unscaled data. If the plugin needs to produce a customized display, it cannot do that in the existing views and must create its own window. **Exception (v1.6):** an image-producing plugin should *prefer* to display its output in its own **virtual-image tab** (created with `create_virtual_image_tab`, see below) rather than overwriting the built-in virtual image with `set_virtual_image`. This keeps the browser's own pipeline visible and lets several image-producing plugins show output at the same time. Use `set_virtual_image` only when the plugin genuinely wants to drive the built-in pane.
 * The plugin should not retain references to any objects in the `DataViewer`, as that may prevent objects from being freed at the right times. For example, do not do something like `self.current_datacube = self.api.datacube`, as until this reference is cleared the browser could not free memory after closing a dataset and opening a new one. 
 * Likewise, keep references to virtual-image tabs only as long as you need them — i.e. while the tab is open and you intend to drive it. A **closed** tab is not freed by the browser (its raw image array remains reachable through `tab.image`), so holding a reference to a tab after `close_virtual_image_tab` pins that image in memory until the process exits. In particular, do not accumulate a list of every tab you have ever created and keep it for the life of the session.
 * The plugin is allowed to read/write from the QSettings of the GUI, but should only do so in a top-level section with the same name as `plugin_id`, i.e. `value = self.api.settings.value(self.plugin_id + "/my_setting", default_value)`.
 
 ## The Plugin API (v1.6)
 
-The v1.6 API object is a broker between the plugin and the browser. Plugins should use only this surface; the browser is free to change its internals as long as the API object keeps working. v1.6 is a strict superset of v1.0 — everything below that is not marked new in v1.6 was also present in v1.0. The full v1.6 surface:
+The v1.6 API object is a broker between the plugin and the browser. Plugins should use only this surface; the browser is free to change its internals as long as the API object keeps working. The full v1.6 surface:
 
 * **`api_version`** — `(1, 6)`, for introspection.
 * **`datacube`** — read-only access to the currently loaded `DataCube` (or `None`). Mutating the cube object (e.g. its calibration) is fine; to replace the whole cube, use `set_datacube` below.
@@ -147,7 +147,7 @@ A `VirtualImageTab` object (returned by `create_virtual_image_tab`) exposes:
 * **`title`** (get/set), **`image`** (the last array passed to `set_image`), **`scale_bar`**, **`widget`** (the tab's backing container `QWidget`: the image view plus the fixed bottom strip), **`image_view`** (the underlying `pyqtgraph.ImageView` that renders the image — use this, not `widget`, for pyqtgraph view operations), **`rois`**, **`annotations`**, **`closed`**.
 * **`signal_data_changed`** — emitted (with the tab as its argument) after every `set_image`.
 
-**How the result pane tracks tabs.** The result pane (the built-in FFT, or a plugin's registered `callback_virtual_image_changed`) responds to updates on the **currently visible** tab via `signal_current_virtual_image_changed`, which fires when the visible tab's image changes or when the user switches tabs. `signal_virtual_image_data_changed` still fires on updates to the **default** tab (for v1.0 listeners), but the result machinery is driven by the new signal. Note that the result driver is a **singleton** — only one result handler (the built-in, or one plugin) is active at a time — so tabs can *coexist* in the pane, but they do not each get their own simultaneous result display.
+**How the result pane tracks tabs.** The result pane (the built-in FFT, or a plugin's registered `callback_virtual_image_changed`) responds to updates on the **currently visible** tab via `signal_current_virtual_image_changed`, which fires when the visible tab's image changes or when the user switches tabs. `signal_virtual_image_data_changed` still fires on updates to the **default** tab, but the result machinery is driven by the new signal. Note that the result driver is a **singleton** — only one result handler (the built-in, or one plugin) is active at a time — so tabs can *coexist* in the pane, but they do not each get their own simultaneous result display.
 
 **Example** (auto tcBF-style):
 

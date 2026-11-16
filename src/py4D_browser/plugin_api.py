@@ -4,7 +4,7 @@ The versioned plugin API for py4DGUI.
 Plugins declare which version of this API they were written against with a
 class-level attribute::
 
-    api_version = (1, 0)
+    api_version = (1, 6)
 
 The loader resolves that against :data:`SUPPORTED_API_VERSIONS` and passes
 the plugin an instance of the matching API class. Within a major version the
