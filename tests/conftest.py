@@ -33,12 +33,35 @@ def viewer(qapp):
     from py4D_browser import DataViewer
 
     config_dir = tempfile.mkdtemp(prefix="py4dgui_test_")
+    # Route the GUI config file into a throwaway dir; undo on teardown so the
+    # global `platformdirs` module attribute does not leak into other tests.
     mp = pytest.MonkeyPatch()
     mp.setattr(
         mw.platformdirs,
         "user_config_dir",
         lambda appname, appauthor=None, roaming=False: config_dir,
     )
-    v = DataViewer(reset_state=True)
-    yield v
-    mp.undo()
+    try:
+        v = DataViewer(reset_state=True)
+        yield v
+        # Close any tabs a test left open (most close their own).
+        for tab in list(getattr(v, "virtual_image_tabs", [])):
+            v.close_virtual_image_tab(tab)
+        # Destroy the C++ widget tree NOW, while the interpreter is still fully up.
+        #
+        # v.close() would only hide the window, leaving every C++ ViewBox (the
+        # built-in pane's plus any tab's) alive for CPython to free in arbitrary
+        # order at shutdown. pyqtgraph 0.14.0 then tears them down in a bad order:
+        # one ViewBox's destroyed handler calls updateAllViewLists(), which touches
+        # a half-freed sibling ViewBox and the process SIGSEGVs (exit 139) *after*
+        # the tests have all passed, masking the pytest summary line. This is a
+        # pre-existing pyqtgraph teardown-ordering bug (it reproduces on the
+        # baseline, not on this branch's changes).
+        #
+        # deleteLater() + processEvents() makes Qt destroy the tree in its own
+        # safe children-first order while the interpreter is alive, so there is
+        # nothing left for the shutdown GC to tear down.
+        v.deleteLater()
+        qapp.processEvents()
+    finally:
+        mp.undo()

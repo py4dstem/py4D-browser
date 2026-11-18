@@ -4,7 +4,6 @@
 *.swp
 *.ipynb_checkpoints*
 pyrightconfig.json
-tests/
 
 # Folders #
 .idea/
