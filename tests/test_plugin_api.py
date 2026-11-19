@@ -19,7 +19,6 @@ from py4D_browser.plugin_api import (
     resolve_api_class,
 )
 
-
 ########## Version resolution (pure logic, no Qt) ##########
 
 
@@ -586,10 +585,11 @@ def test_ctrl_tab_switches_virtual_image_tabs(viewer):
     # the shortcuts are bound to Ctrl+Tab / Ctrl+Shift+Tab
     from PyQt5 import QtGui
 
-    assert viewer.virtual_image_tab_next_shortcut.key() == QtGui.QKeySequence("Ctrl+Tab")
-    assert (
-        viewer.virtual_image_tab_prev_shortcut.key()
-        == QtGui.QKeySequence("Ctrl+Shift+Tab")
+    assert viewer.virtual_image_tab_next_shortcut.key() == QtGui.QKeySequence(
+        "Ctrl+Tab"
+    )
+    assert viewer.virtual_image_tab_prev_shortcut.key() == QtGui.QKeySequence(
+        "Ctrl+Shift+Tab"
     )
 
     # with only the default tab, the shortcuts are a no-op
@@ -636,9 +636,7 @@ def test_cmd_w_closes_window_and_bare_w_nudges(viewer, monkeypatch):
     )
 
     def press(key, modifiers):
-        viewer.keyPressEvent(
-            QtGui.QKeyEvent(QtGui.QKeyEvent.KeyPress, key, modifiers)
-        )
+        viewer.keyPressEvent(QtGui.QKeyEvent(QtGui.QKeyEvent.KeyPress, key, modifiers))
 
     press(QtCore.Qt.Key_W, QtCore.Qt.MetaModifier)  # Cmd+W: close, not nudge
     assert nudged == []
@@ -1076,9 +1074,8 @@ def test_current_virtual_image_settings_tracks_visible_view(viewer):
         viewer.set_virtual_image(im, reset=True)
         s = api.current_virtual_image_settings
         assert isinstance(s, VirtualImageSettings)
-        assert (
-            s.scaling
-            == viewer.vimg_scaling_group.checkedAction().text().replace("&", "")
+        assert s.scaling == viewer.vimg_scaling_group.checkedAction().text().replace(
+            "&", ""
         )
         assert s.autorange is viewer.realspace_rescale_button.latched
         assert s.percentiles == tuple(viewer.real_space_autoscale_percentiles)
@@ -1227,9 +1224,7 @@ def test_copy_diffraction_to_tab_mirrors_builtin_settings(viewer):
         viewer.set_diffraction_autoscale_range((5.0, 95.0), redraw=False)
         viewer.diffraction_rescale_button.latched = True
         viewer.set_diffraction_image(dp, reset=True)
-        built_levels = (
-            viewer.diffraction_space_widget.getHistogramWidget().getLevels()
-        )
+        built_levels = viewer.diffraction_space_widget.getHistogramWidget().getLevels()
 
         copy_dp.trigger()
         tab = viewer.virtual_image_tabs[-1]
@@ -1323,7 +1318,9 @@ def test_tab_colormap_defaults_to_settings_and_is_independent(viewer):
             lut_of(tab.colormap), lut_of(try_get_cmap("viridis")), atol=1
         )
         # the source pane is still showing magma
-        assert np.allclose(lut_of(source_item.lut), lut_of(try_get_cmap("magma")), atol=1)
+        assert np.allclose(
+            lut_of(source_item.lut), lut_of(try_get_cmap("magma")), atol=1
+        )
     finally:
         api.close_virtual_image_tab(tab)
         # restore the setting and the pane so the shared (session-scoped)
@@ -1345,9 +1342,7 @@ def test_tab_colormap_settable_by_name(viewer):
         # object each call.)
         tab.colormap = "magma"
         expected = try_get_cmap("magma")
-        assert np.array_equal(
-            tab.colormap.getLookupTable(), expected.getLookupTable()
-        )
+        assert np.array_equal(tab.colormap.getLookupTable(), expected.getLookupTable())
 
         # ... and an unknown name raises
         with pytest.raises(ValueError, match="Unknown colormap"):
@@ -1575,8 +1570,7 @@ def test_tab_demo_plugin_copies_visible_image(viewer):
     viewer.load_plugins()
 
     entry = next(
-        e for e in viewer.loaded_plugins
-        if e["id"] == "py4DGUI.internal.copy_to_tab"
+        e for e in viewer.loaded_plugins if e["id"] == "py4DGUI.internal.copy_to_tab"
     )
     assert type(entry["api"]) is PluginAPI1
     plugin = entry["plugin"]
@@ -1652,7 +1646,8 @@ def test_virtual_image_fft_is_default_mode(viewer):
     # image -> 2D FFT, 3D volume -> 3D FFT. It is the checked action in the
     # exclusive result-source group and part of the Result View menu.
     act = next(
-        a for a in viewer.result_source_action_group.actions()
+        a
+        for a in viewer.result_source_action_group.actions()
         if a.text().replace("&", "") == "Virtual Image FFT"
     )
     assert act.isCheckable()

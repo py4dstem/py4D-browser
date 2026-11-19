@@ -155,7 +155,9 @@ def test_post_init_receives_same_objects(viewer, load_fake_plugins):
 ########## Dev-only plugins ##########
 
 
-def test_dev_only_plugin_skipped_silently_when_disabled(viewer, load_fake_plugins, capsys):
+def test_dev_only_plugin_skipped_silently_when_disabled(
+    viewer, load_fake_plugins, capsys
+):
     viewer.settings.setValue("gui/dev_plugins", "0")
     plugin_cls = make_plugin("devonly", api_version=(1, 6), dev_only=True)
 

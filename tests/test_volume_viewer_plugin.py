@@ -97,7 +97,9 @@ def test_open_tiff_stack_creates_volume_tab(viewer, qapp, tmp_path, monkeypatch)
         # and it is a volume tab, shown selected. (Index 0 of the pane is the
         # built-in virtual image, so the plugin tabs start at 1.)
         assert hasattr(tab, "set_volume")
-        assert viewer.virtual_image_tab_widget.currentIndex() == len(viewer.virtual_image_tabs)
+        assert viewer.virtual_image_tab_widget.currentIndex() == len(
+            viewer.virtual_image_tabs
+        )
     finally:
         for tab in opened_tabs:
             if not tab.closed:

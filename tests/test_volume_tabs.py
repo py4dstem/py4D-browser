@@ -16,7 +16,6 @@ pytest.importorskip("OpenGL")
 from py4D_browser.plugin_api import PluginAPI  # noqa: E402
 from py4D_browser.volume_tabs import VolumeTab  # noqa: E402
 
-
 ########## creation and selection ##########
 
 
