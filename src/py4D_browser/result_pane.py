@@ -61,9 +61,7 @@ def update_fft_view(self: "DataViewer", mode: Optional[str] = None):
         self._result_volume_fft = fft
         if self.datacube is not None:
             self._result_volume_px = (
-                1.0
-                / self.datacube.calibration.get_R_pixel_size()
-                / self.datacube.R_Ny
+                1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
             )
         else:
             # No dataset → no calibration for a voxel size; use a unit voxel
@@ -207,10 +205,7 @@ def _render_result_image(
     # While the 3D FFT page is showing, re-render the volume instead (the
     # scaling / rescale controls route through this function); the 2D widget and
     # the existing 2D→RGB path are left untouched.
-    if (
-        self._result_volume_fft is not None
-        and self._result_stack.currentIndex() == 1
-    ):
+    if self._result_volume_fft is not None and self._result_stack.currentIndex() == 1:
         self._update_result_volume_display()
         return
 
@@ -310,9 +305,7 @@ def _render_result_volume(
     # Same colormap setting as the 2D result pane (gui/fft_colormap).
     cmap = try_get_cmap(self.settings.value("gui/fft_colormap", "yellowy"))
     if cmap is None:
-        cmap = pg.ColorMap(
-            [0, 1], [(0, 0, 0, 255), (255, 255, 255, 255)], mode="float"
-        )
+        cmap = pg.ColorMap([0, 1], [(0, 0, 0, 255), (255, 255, 255, 255)], mode="float")
     # nPts must be a keyword: getLookupTable(start, stop, nPts), so a positional
     # getLookupTable(256) would set start=256 and return an all-white table.
     color_lut = cmap.getLookupTable(nPts=256)
@@ -322,7 +315,7 @@ def _render_result_volume(
     # blob). gamma>1 keeps the dim bulk mostly transparent so the bright
     # features (DC + Bragg peaks) stand out. Fixed default, not user-selectable.
     _t = np.arange(256, dtype=np.float32) / 255.0
-    alpha_lut = (255.0 * (_t ** 2.0)).astype(np.uint8)
+    alpha_lut = (255.0 * (_t**2.0)).astype(np.uint8)
 
     rgba = np.empty(scaled.shape + (4,), dtype=np.ubyte)
     rgba[..., 0] = color_lut[idx, 0]

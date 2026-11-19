@@ -455,7 +455,9 @@ class CalibrateFromPeriodDialog(QDialog):
         self.unit_box.addItems(["Å", "nm"])
         self.unit_box.setMinimumContentsLength(5)
         # Default to the unit already chosen in the parent dialog.
-        self.unit_box.setCurrentText(self.parent_dialog.realspace_unit_box.currentText())
+        self.unit_box.setCurrentText(
+            self.parent_dialog.realspace_unit_box.currentText()
+        )
         controls.addWidget(self.unit_box, 0, 2)
 
         self.pixel_size_label = QLabel("")
@@ -503,9 +505,7 @@ class CalibrateFromPeriodDialog(QDialog):
             return
         unit = self.unit_box.currentText()
         pixel_size = r_view * period / self.N1
-        self.pixel_size_label.setText(
-            f"Pixel size: {pixel_size:.6g} {unit}"
-        )
+        self.pixel_size_label.setText(f"Pixel size: {pixel_size:.6g} {unit}")
 
     def calibrate_and_close(self):
         try:

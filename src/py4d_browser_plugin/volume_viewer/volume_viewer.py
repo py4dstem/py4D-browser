@@ -55,17 +55,14 @@ class VolumeViewerPlugin(QWidget):
         try:
             volume = np.asarray(tifffile.imread(path))
         except Exception as exc:
-            api.status_bar.showMessage(
-                f"Failed to read '{path}': {exc}", 5_000
-            )
+            api.status_bar.showMessage(f"Failed to read '{path}': {exc}", 5_000)
             return
 
         # Validate before creating the tab, so a bad file doesn't leave an
         # empty volume tab behind.
         if np.iscomplexobj(volume):
             api.status_bar.showMessage(
-                f"'{path}' contains complex data, which a volume tab cannot "
-                "render.",
+                f"'{path}' contains complex data, which a volume tab cannot " "render.",
                 5_000,
             )
             return
@@ -83,7 +80,7 @@ class VolumeViewerPlugin(QWidget):
         # exit.
         title = self._next_title("Volume")
         tab = api.create_volume_tab(title, select=True)
-        tab.set_volume(volume, voxel_size=(5,1,1))
+        tab.set_volume(volume, voxel_size=(5, 1, 1))
         api.status_bar.showMessage(
             f"Loaded a {volume.shape[0]}×{volume.shape[1]}×{volume.shape[2]} "
             f"volume from '{path}' into the '{title}' tab.",

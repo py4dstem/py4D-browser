@@ -539,9 +539,7 @@ def update_tooltip(self: "DataViewer"):
                                     # k [1/A] = |f| [mrad] * 1e-3 [rad/mrad] / lambda [A];
                                     # d = 1 / k.
                                     d = 1.0e3 * lam / f_mag  # Å
-                                    display_text += (
-                                        f", d={d:.3g} {format_unit('A')}"
-                                    )
+                                    display_text += f", d={d:.3g} {format_unit('A')}"
                                 except (
                                     AttributeError,
                                     KeyError,

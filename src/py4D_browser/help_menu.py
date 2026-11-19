@@ -98,53 +98,104 @@ class KeyCap(QLabel):
 # A ``None`` label is a fixed gap between key clusters.
 _KEYBOARD_ROWS = [
     [
-        ("ESC", 1), ("F1", 1), ("F2", 1), ("F3", 1), ("F4", 1),
+        ("ESC", 1),
+        ("F1", 1),
+        ("F2", 1),
+        ("F3", 1),
+        ("F4", 1),
         (None, 0.3),
-        ("F5", 1), ("F6", 1), ("F7", 1), ("F8", 1),
+        ("F5", 1),
+        ("F6", 1),
+        ("F7", 1),
+        ("F8", 1),
         (None, 0.3),
-        ("F9", 1), ("F10", 1), ("F11", 1), ("F12", 1),
+        ("F9", 1),
+        ("F10", 1),
+        ("F11", 1),
+        ("F12", 1),
     ],
     [
-        ("`", 1), ("1", 1), ("2", 1), ("3", 1), ("4", 1), ("5", 1),
-        ("6", 1), ("7", 1), ("8", 1), ("9", 1), ("0", 1),
-        ("-", 1), ("=", 1), ("BACKSPACE", 2.1),
+        ("`", 1),
+        ("1", 1),
+        ("2", 1),
+        ("3", 1),
+        ("4", 1),
+        ("5", 1),
+        ("6", 1),
+        ("7", 1),
+        ("8", 1),
+        ("9", 1),
+        ("0", 1),
+        ("-", 1),
+        ("=", 1),
+        ("BACKSPACE", 2.1),
     ],
     [
-        ("TAB", 1.5), ("Q", 1),
+        ("TAB", 1.5),
+        ("Q", 1),
         ("W", 1, "▲", DETECTOR_COLOR),
-        ("E", 1), ("R", 1), ("T", 1), ("Y", 1), ("U", 1),
+        ("E", 1),
+        ("R", 1),
+        ("T", 1),
+        ("Y", 1),
+        ("U", 1),
         ("I", 1, "▲", SELECTOR_COLOR),
-        ("O", 1), ("P", 1), ("[", 1), ("]", 1), ("\\", 1),
+        ("O", 1),
+        ("P", 1),
+        ("[", 1),
+        ("]", 1),
+        ("\\", 1),
     ],
     [
         ("CAPS", 1.7),
         ("A", 1, "◀", DETECTOR_COLOR),
         ("S", 1, "▼", DETECTOR_COLOR),
         ("D", 1, "▶", DETECTOR_COLOR),
-        ("F", 1), ("G", 1), ("H", 1),
+        ("F", 1),
+        ("G", 1),
+        ("H", 1),
         ("J", 1, "◀", SELECTOR_COLOR),
         ("K", 1, "▼", SELECTOR_COLOR),
         ("L", 1, "▶", SELECTOR_COLOR),
-        (";", 1), ("'", 1), ("ENTER", 2.4),
+        (";", 1),
+        ("'", 1),
+        ("ENTER", 2.4),
     ],
     [
         ("SHIFT", 2.0, "5 px per press", SHIFT_COLOR),
-        ("Z", 1), ("X", 1), ("C", 1), ("V", 1), ("B", 1), ("N", 1),
-        ("M", 1), (",", 1), (".", 1), ("/", 1),
+        ("Z", 1),
+        ("X", 1),
+        ("C", 1),
+        ("V", 1),
+        ("B", 1),
+        ("N", 1),
+        ("M", 1),
+        (",", 1),
+        (".", 1),
+        ("/", 1),
         ("SHIFT", 2.3, "5 px per press", SHIFT_COLOR),
     ],
     # The bottom rows differ by platform: a Mac has
     # Control-Option-Command, a Windows/Linux keyboard has Ctrl-Win-Alt.
     (
         [
-            ("CTRL", 1.4), ("OPTION", 1.8), ("COMMAND", 2.2),
+            ("CTRL", 1.4),
+            ("OPTION", 1.8),
+            ("COMMAND", 2.2),
             ("SPACE", 4.8),
-            ("COMMAND", 2.2), ("OPTION", 1.8), ("CTRL", 1.4),
+            ("COMMAND", 2.2),
+            ("OPTION", 1.8),
+            ("CTRL", 1.4),
         ]
         if IS_MAC
         else [
-            ("CTRL", 1.4), ("WIN", 1.4), ("ALT", 1.4), ("SPACE", 7.4),
-            ("ALT", 1.4), ("MENU", 1.4), ("CTRL", 1.4),
+            ("CTRL", 1.4),
+            ("WIN", 1.4),
+            ("ALT", 1.4),
+            ("SPACE", 7.4),
+            ("ALT", 1.4),
+            ("MENU", 1.4),
+            ("CTRL", 1.4),
         ]
     ),
 ]
@@ -190,9 +241,7 @@ def _build_legend():
     for color, text in _LEGEND:
         swatch = QLabel()
         swatch.setFixedSize(12, 12)
-        swatch.setStyleSheet(
-            f"background-color:{color}; border-radius:3px;"
-        )
+        swatch.setStyleSheet(f"background-color:{color}; border-radius:3px;")
         row.addWidget(swatch)
         row.addWidget(QLabel(text))
     row.addStretch(1)

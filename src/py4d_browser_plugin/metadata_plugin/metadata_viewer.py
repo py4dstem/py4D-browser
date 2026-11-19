@@ -48,9 +48,7 @@ class MetadataDialog(QDialog):
 
         print(api.datacube.metadata)
 
-        mdata = api.datacube.metadata | {
-            "calibration": api.datacube.calibration
-        }
+        mdata = api.datacube.metadata | {"calibration": api.datacube.calibration}
 
         tree = QTreeWidget()
         tree.setColumnCount(2)

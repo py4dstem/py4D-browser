@@ -193,9 +193,7 @@ class VirtualImageTab(QtCore.QObject):
         self._scaling_combo.setCurrentText(self._scaling)
         layout.addWidget(self._scaling_combo)
 
-        self._autorange_button = LatchingButton(
-            "Autorange", latched=self._autorange
-        )
+        self._autorange_button = LatchingButton("Autorange", latched=self._autorange)
         layout.addWidget(self._autorange_button)
 
         layout.addWidget(QLabel("Range"))
@@ -290,9 +288,7 @@ class VirtualImageTab(QtCore.QObject):
         is ignored.
         """
         if self._closed:
-            raise RuntimeError(
-                "Cannot set the colormap of a closed virtual-image tab."
-            )
+            raise RuntimeError("Cannot set the colormap of a closed virtual-image tab.")
         if value is None:
             return
         cmap = value
@@ -336,9 +332,7 @@ class VirtualImageTab(QtCore.QObject):
         unknown mode.
         """
         if self._closed:
-            raise RuntimeError(
-                "Cannot set the scaling of a closed virtual-image tab."
-            )
+            raise RuntimeError("Cannot set the scaling of a closed virtual-image tab.")
         if value not in SCALING_MODES:
             raise ValueError(
                 f"Unknown scaling mode: {value!r}; expected one of "
@@ -405,8 +399,7 @@ class VirtualImageTab(QtCore.QObject):
             low, high = float(value[0]), float(value[1])
         except (TypeError, ValueError, IndexError) as exc:
             raise ValueError(
-                f"autorange_percentiles must be a (low, high) pair, "
-                f"got {value!r}"
+                f"autorange_percentiles must be a (low, high) pair, " f"got {value!r}"
             ) from exc
         self._autorange_percentiles = (low, high)
         # Reflect in the spinboxes without re-firing their handlers.
@@ -438,13 +431,9 @@ class VirtualImageTab(QtCore.QObject):
         :attr:`autorange` is on (it overrides the next re-derive).
         """
         if self._closed:
-            raise RuntimeError(
-                "Cannot set the levels of a closed virtual-image tab."
-            )
+            raise RuntimeError("Cannot set the levels of a closed virtual-image tab.")
         if self._image is None:
-            raise RuntimeError(
-                "Cannot set the levels before an image has been set."
-            )
+            raise RuntimeError("Cannot set the levels before an image has been set.")
         self._image_view.setLevels(float(low), float(high))
 
     ########## control bar ##########
@@ -552,9 +541,7 @@ class VirtualImageTab(QtCore.QObject):
             If given, also update the tab's scale bar.
         """
         if self._closed:
-            raise RuntimeError(
-                "Cannot set the image of a closed virtual-image tab."
-            )
+            raise RuntimeError("Cannot set the image of a closed virtual-image tab.")
 
         self._image = image
         self._render(reset=reset)
@@ -674,9 +661,7 @@ class VirtualImageTab(QtCore.QObject):
         the ROI for convenience.
         """
         if self._closed:
-            raise RuntimeError(
-                "Cannot add a ROI to a closed virtual-image tab."
-            )
+            raise RuntimeError("Cannot add a ROI to a closed virtual-image tab.")
         self._image_view.getView().addItem(roi)
         self._rois.append(roi)
         return roi

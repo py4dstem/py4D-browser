@@ -33,9 +33,19 @@ from py4D_browser.utils import strtobool
 # All numpy builtin scalar types, in a stable display order.
 NUMPY_TYPES = [
     "bool",
-    "int8", "uint8", "int16", "uint16", "int32", "uint32", "int64", "uint64",
-    "float16", "float32", "float64",
-    "complex64", "complex128",
+    "int8",
+    "uint8",
+    "int16",
+    "uint16",
+    "int32",
+    "uint32",
+    "int64",
+    "uint64",
+    "float16",
+    "float32",
+    "float64",
+    "complex64",
+    "complex128",
 ]
 
 # (label, value) pairs for the endianness selector.
@@ -50,16 +60,16 @@ ENDIANNESS = [
 DEFAULT_PRESETS = {
     "EMPAD-G2-like": {
         "dtype": "float32",
-        "endianness": "native",   # best guess; verify per dataset
+        "endianness": "native",  # best guess; verify per dataset
         "offset": 0,
-        "stride": 128 * 128,      # contiguous (patterns back-to-back)
+        "stride": 128 * 128,  # contiguous (patterns back-to-back)
         "Qx": 128,
         "Qy": 128,
         # Nx, Ny left unset: they vary per dataset
     },
     "EMPAD1": {
         "dtype": "float32",
-        "endianness": "native",   # best guess; verify per dataset
+        "endianness": "native",  # best guess; verify per dataset
         "offset": 0,
         "stride": 128 * 128 + 256,  # 128x128 pattern + 256 per-frame metadata
         "Qx": 128,
@@ -206,7 +216,7 @@ class RawLoadDialog(QDialog):
             for key in settings.childKeys():
                 if not key.startswith("preset."):
                     continue
-                name, sep, field = key[len("preset."):].partition(".")
+                name, sep, field = key[len("preset.") :].partition(".")
                 if not sep or not field:
                     continue
                 presets.setdefault(name, {})[field] = settings.value(key)
@@ -227,16 +237,28 @@ class RawLoadDialog(QDialog):
     def _apply_fields(self, fields):
         # Q dims first, so a preset stride that is the contiguous pitch stays
         # consistent with the new Qx·Qy; stride is applied last.
-        order = ("Qx", "Qy", "dtype", "endianness", "offset",
-                 "Nx", "Ny", "memmap", "bin", "stride")
+        order = (
+            "Qx",
+            "Qy",
+            "dtype",
+            "endianness",
+            "offset",
+            "Nx",
+            "Ny",
+            "memmap",
+            "bin",
+            "stride",
+        )
         for field in order:
             if field in fields:
                 self._set_field(field, fields[field])
         # A custom pitch (≠ Qx·Qy) stops the auto-sync.
         self._set_bin_range()
         try:
-            self._stride_auto = (int(self.stride_edit.text())
-                                 == self.qx_spin.value() * self.qy_spin.value())
+            self._stride_auto = (
+                int(self.stride_edit.text())
+                == self.qx_spin.value() * self.qy_spin.value()
+            )
         except ValueError:
             self._stride_auto = True
         self._revalidate()
@@ -315,9 +337,7 @@ class RawLoadDialog(QDialog):
 
     def _on_q_changed(self, *args):
         if self._stride_auto:
-            self.stride_edit.setText(
-                str(self.qx_spin.value() * self.qy_spin.value())
-            )
+            self.stride_edit.setText(str(self.qx_spin.value() * self.qy_spin.value()))
         self._set_bin_range()
         self._revalidate()
 
@@ -327,9 +347,7 @@ class RawLoadDialog(QDialog):
         self._revalidate()
 
     def _set_bin_range(self):
-        self.bin_spin.setRange(
-            1, min(self.qx_spin.value(), self.qy_spin.value())
-        )
+        self.bin_spin.setRange(1, min(self.qx_spin.value(), self.qy_spin.value()))
 
     # --- validation ---
     @staticmethod
@@ -392,7 +410,8 @@ class RawLoadDialog(QDialog):
             not problems
             and maxn is not None
             and maxn >= 1
-            and nx is not None and ny is not None
+            and nx is not None
+            and ny is not None
             and 1 <= nx * ny <= maxn
         )
 
@@ -444,14 +463,17 @@ class RawLoadDialog(QDialog):
         # holding the full unbinned array in RAM.
         if stride == per:
             source = np.memmap(
-                self.path, dtype=dt, mode="r",
-                shape=(nx, ny, qx, qy), offset=offset * itemsize,
+                self.path,
+                dtype=dt,
+                mode="r",
+                shape=(nx, ny, qx, qy),
+                offset=offset * itemsize,
             )
         else:
             span = offset + (n - 1) * stride + per
             flat = np.memmap(self.path, dtype=dt, mode="r", shape=(span,))
             source = np.lib.stride_tricks.as_strided(
-                flat[offset:offset + 1],
+                flat[offset : offset + 1],
                 shape=(nx, ny, qx, qy),
                 strides=(
                     ny * stride * itemsize,

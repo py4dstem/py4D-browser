@@ -158,9 +158,7 @@ class DataViewer(QMainWindow):
             # exists. pyqtgraph's own GLVolumeItem example does the same.
             fmt = QtGui.QSurfaceFormat()
             fmt.setRenderableType(QtGui.QSurfaceFormat.RenderableType.OpenGL)
-            fmt.setProfile(
-                QtGui.QSurfaceFormat.OpenGLContextProfile.CoreProfile
-            )
+            fmt.setProfile(QtGui.QSurfaceFormat.OpenGLContextProfile.CoreProfile)
             fmt.setVersion(4, 1)
             QtGui.QSurfaceFormat.setDefaultFormat(fmt)
 
@@ -200,9 +198,9 @@ class DataViewer(QMainWindow):
         # Result-pane 3D FFT state (see _render_result_volume in update_views.py).
         # Kept separate from the 2D path (unscaled_fft_image / fft_widget);
         # None until a 3D FFT renders for the first time.
-        self._result_volume_item = None    # the GLVolumeItem
-        self._result_volume_fft = None    # last (unscaled) 3D FFT, for re-render
-        self._result_volume_px = 1.0      # its reciprocal-space voxel size
+        self._result_volume_item = None  # the GLVolumeItem
+        self._result_volume_fft = None  # last (unscaled) 3D FFT, for re-render
+        self._result_volume_px = 1.0  # its reciprocal-space voxel size
         self._result_volume_shape = None  # rendered shape (for the z-stretch transform)
 
         # Plugin-created virtual-image tabs (image or volume; see
@@ -923,9 +921,7 @@ class DataViewer(QMainWindow):
             )
             self.virtual_image_tab_prev_option_shortcut = QShortcut(
                 QtGui.QKeySequence(
-                    QtCore.Qt.AltModifier
-                    + QtCore.Qt.ShiftModifier
-                    + QtCore.Qt.Key_Tab
+                    QtCore.Qt.AltModifier + QtCore.Qt.ShiftModifier + QtCore.Qt.Key_Tab
                 ),
                 self,
             )
@@ -1013,9 +1009,7 @@ class DataViewer(QMainWindow):
         # than pyqtgraph's full-range autoLevels, so the user's chosen range is
         # respected on every press
         self.diffraction_rescale_button.activated.connect(
-            partial(
-                self._render_diffraction_image, reset=False, auto_level=True
-            )
+            partial(self._render_diffraction_image, reset=False, auto_level=True)
         )
         self.statusBar().addPermanentWidget(self.diffraction_rescale_button)
 
@@ -1231,9 +1225,7 @@ class DataViewer(QMainWindow):
         count = tab_widget.count()
         if count < 2:
             return
-        tab_widget.setCurrentIndex(
-            (tab_widget.currentIndex() + direction) % count
-        )
+        tab_widget.setCurrentIndex((tab_widget.currentIndex() + direction) % count)
 
     def _on_visible_virtual_image_changed(self, _index: int):
         # The visible tab changed (user switch, or a visible tab was closed).
@@ -1262,11 +1254,7 @@ class DataViewer(QMainWindow):
             name = "Virtual Image"
         else:
             tabs = self.virtual_image_tabs
-            name = (
-                tabs[index - 1].title
-                if index - 1 < len(tabs)
-                else "Virtual Image"
-            )
+            name = tabs[index - 1].title if index - 1 < len(tabs) else "Virtual Image"
 
         image = self.current_virtual_image
         if image is None:
@@ -1331,14 +1319,10 @@ class DataViewer(QMainWindow):
             if self.unscaled_realspace_image is None:
                 return None
             return VirtualImageSettings(
-                scaling=self.vimg_scaling_group.checkedAction().text().replace(
-                    "&", ""
-                ),
+                scaling=self.vimg_scaling_group.checkedAction().text().replace("&", ""),
                 autorange=self.realspace_rescale_button.latched,
                 percentiles=tuple(self.real_space_autoscale_percentiles),
-                levels=tuple(
-                    self.real_space_widget.getHistogramWidget().getLevels()
-                ),
+                levels=tuple(self.real_space_widget.getHistogramWidget().getLevels()),
             )
         tabs = self.virtual_image_tabs
         if index - 1 >= len(tabs):
@@ -1368,9 +1352,7 @@ class DataViewer(QMainWindow):
         if self.unscaled_diffraction_image is None:
             return None
         return VirtualImageSettings(
-            scaling=self.diff_scaling_group.checkedAction().text().replace(
-                "&", ""
-            ),
+            scaling=self.diff_scaling_group.checkedAction().text().replace("&", ""),
             autorange=self.diffraction_rescale_button.latched,
             percentiles=tuple(self.diffraction_autoscale_percentiles),
             levels=tuple(

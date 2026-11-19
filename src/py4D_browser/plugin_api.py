@@ -69,9 +69,7 @@ class PluginAPI1:
 
         # Signals: direct references to the viewer's bound signals, so
         # connecting/disconnecting through the API acts on the same signal.
-        self.signal_diffraction_data_changed = (
-            viewer.signal_diffraction_data_changed
-        )
+        self.signal_diffraction_data_changed = viewer.signal_diffraction_data_changed
         self.signal_virtual_image_data_changed = (
             viewer.signal_virtual_image_data_changed
         )

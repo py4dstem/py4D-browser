@@ -216,4 +216,3 @@ class py4DBrowserPlugin:
 
     def close(self):
         pass  # perform any shutdown activities
-

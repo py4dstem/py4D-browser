@@ -353,8 +353,7 @@ class VolumeTab(QtCore.QObject):
             )
         if any(not np.isfinite(v) or v <= 0 for v in values):
             raise ValueError(
-                "voxel_size values must be finite and positive; "
-                f"got {values!r}."
+                "voxel_size values must be finite and positive; " f"got {values!r}."
             )
         return values
 
