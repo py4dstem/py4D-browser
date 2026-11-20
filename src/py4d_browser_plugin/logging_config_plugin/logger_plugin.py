@@ -22,6 +22,7 @@ class LoggingConfigurationPlugin(QWidget):
 
     uses_single_action = True
     display_name = "Logger Settings..."
+    dev_only = True
 
     def __init__(self, api, plugin_action, **kwargs):
         super().__init__()

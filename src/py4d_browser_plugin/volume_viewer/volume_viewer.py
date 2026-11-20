@@ -23,7 +23,7 @@ class VolumeViewerPlugin(QWidget):
     api_version = (1, 6)
     uses_single_action = True
     display_name = "Open TIFF stack as volume..."
-    dev_only = True
+    dev_only = False
 
     def __init__(self, api, plugin_action, **kwargs):
         super().__init__()
