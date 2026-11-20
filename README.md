@@ -24,6 +24,10 @@ Run `py4DGUI` in your terminal to open the GUI. Then just drag and drop a 4D-STE
 * The FFT pane can be switched between displaying the FFT of the virtual image and displaying the [exit wave power cepstrum](https://doi.org/10.1016/j.ultramic.2020.112994).
 * Virtual images can be exported either as the scaled and clipped displays shown in the GUI or as raw data. The exact datatype stored in the raw TIFF image depends on both the datatype of the dataset and the type of virtual image being displayed (in particular, integer datatypes are converted internally to floating point to prevent overflows when generating any synthesized virtual images).
 
+## Configuration
+
+Preferences and UI state are stored in a single INI file (`GUI_config.ini` in the platform user-config directory). [CONFIG.md](CONFIG.md) documents every setting the browser and its built-in plugins read, and how plugins should use the shared settings object.
+
 ## New in Version 1.6
 
 * **Virtual image tabs** — the virtual-image pane now holds multiple tabs. Switch between them with Ctrl+Tab / Ctrl+Shift+Tab.
