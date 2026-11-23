@@ -11,6 +11,9 @@ legend under the keyboard:
   coral  W A S D  — nudge the diffraction-space detector
   blue   I J K L  — nudge the real-space scan position
   green  SHIFT    — hold to move 5 px per press instead of 1 px
+
+A double-click in the diffraction or virtual-image pane also jumps the
+selector to that data point (see the mouse note in the legend).
 """
 
 import platform
@@ -28,6 +31,7 @@ IS_MAC = platform.system() == "Darwin"
 DETECTOR_COLOR = "#e4715e"  # W/A/S/D — detector nudge
 SELECTOR_COLOR = "#4c9fd8"  # I/J/K/L — real-space selector nudge
 SHIFT_COLOR = "#52b788"  # SHIFT — 5 px per press
+DOUBLE_CLICK_COLOR = "#9b6dd6"  # double-click — jump selector to a point
 
 _NORMAL_STYLE = """
     QLabel {
@@ -227,6 +231,10 @@ _LEGEND = [
     (DETECTOR_COLOR, "W A S D — nudge the detector"),
     (SELECTOR_COLOR, "I J K L — nudge the scan position"),
     (SHIFT_COLOR, "Shift — 5 px per press"),
+    (
+        DOUBLE_CLICK_COLOR,
+        "Double-click — jump the detector / selector to that point",
+    ),
 ]
 
 

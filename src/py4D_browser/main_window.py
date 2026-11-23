@@ -102,6 +102,10 @@ class DataViewer(QMainWindow):
         update_diffraction_detector,
         nudge_real_space_selector,
         nudge_diffraction_selector,
+        center_diffraction_selector_at,
+        center_real_space_selector_at,
+        on_diffraction_double_click,
+        on_real_space_double_click,
         update_annulus_pos,
         update_annulus_radii,
     )
@@ -760,6 +764,11 @@ class DataViewer(QMainWindow):
         # Create virtual detector ROI selector
         self.update_diffraction_detector()
 
+        # Double-click to center the detector on a data point
+        self.diffraction_space_widget.view.scene().sigMouseClicked.connect(
+            self.on_diffraction_double_click
+        )
+
         # Scalebar
         self.diffraction_scale_bar = ScaleBar(pixel_size=1, units="px", width=10)
         self.diffraction_scale_bar.setParentItem(
@@ -781,6 +790,11 @@ class DataViewer(QMainWindow):
 
         # Add point selector connected to displayed diffraction pattern
         self.update_realspace_detector()
+
+        # Double-click to center the selector on a data point
+        self.real_space_widget.view.scene().sigMouseClicked.connect(
+            self.on_real_space_double_click
+        )
 
         # Scalebar, None by default
         self.real_space_scale_bar = ScaleBar(pixel_size=1, units="px", width=10)

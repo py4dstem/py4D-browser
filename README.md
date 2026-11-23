@@ -17,7 +17,7 @@ Run `py4DGUI` in your terminal to open the GUI. Then just drag and drop a 4D-STE
 ![Demonstration](/images/demo.gif)
 
 ### Controls
-* Move the virtual detector and the real-space selector using the mouse or using the keyboard shortcuts: WASD moves the detector and IJKL moves the selector, and holding down shift moves 5 pixels at a time.
+* Move the virtual detector and the real-space selector using the mouse or using the keyboard shortcuts: WASD moves the detector and IJKL moves the selector, and holding down shift moves 5 pixels at a time. Double-clicking in the diffraction or virtual-image pane jumps the detector or selector so that its center is on the clicked point.
 * Auto scaling of both views is on by default. Press the "Autoscale" buttons in the bottom right to disable. Press either button to apply automatic scaling once, or Shift + click to lock autoscaling back on.
 * Different shapes of virtual detector are available in the "Detector Shape" menu, and different detector responses are available in the "Detector Response" menu.
 * The information in the bottom bar contains the details of the virtual detector used to generate the images, and can be entered into py4DSTEM to generate the same image.

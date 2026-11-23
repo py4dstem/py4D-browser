@@ -1,6 +1,7 @@
 import numpy as np
 import pyqtgraph as pg
 from functools import partial
+from PyQt5 import QtCore
 from py4D_browser.utils import (
     pg_point_roi,
     make_detector,
@@ -414,18 +415,7 @@ def update_diffraction_detector(self: "DataViewer"):
 
 
 def nudge_real_space_selector(self: "DataViewer", dx, dy):
-    if (
-        hasattr(self, "real_space_point_selector")
-        and self.real_space_point_selector is not None
-    ):
-        selector = self.real_space_point_selector
-    elif (
-        hasattr(self, "real_space_rect_selector")
-        and self.real_space_rect_selector is not None
-    ):
-        selector = self.real_space_rect_selector
-    else:
-        raise RuntimeError("Can't find the real space selector!")
+    selector = _real_space_selector(self)
 
     position = selector.pos()
     position[0] += dy
@@ -435,28 +425,84 @@ def nudge_real_space_selector(self: "DataViewer", dx, dy):
 
 
 def nudge_diffraction_selector(self: "DataViewer", dx, dy):
-    if (
-        hasattr(self, "virtual_detector_point")
-        and self.virtual_detector_point is not None
-    ):
-        selector = self.virtual_detector_point
-    elif (
-        hasattr(self, "virtual_detector_roi") and self.virtual_detector_roi is not None
-    ):
-        selector = self.virtual_detector_roi
-    elif (
-        hasattr(self, "virtual_detector_roi_outer")
-        and self.virtual_detector_roi_outer is not None
-    ):
-        selector = self.virtual_detector_roi_outer
-    else:
-        raise RuntimeError("Can't find the diffraction space selector!")
+    selector = _diffraction_selector(self)
 
     position = selector.pos()
     position[0] += dy
     position[1] += dx
 
     selector.setPos(position)
+
+
+def _diffraction_selector(self: "DataViewer"):
+    """The currently-active diffraction-space ROI (point / rect / circle / annulus)."""
+    if (
+        hasattr(self, "virtual_detector_point")
+        and self.virtual_detector_point is not None
+    ):
+        return self.virtual_detector_point
+    if hasattr(self, "virtual_detector_roi") and self.virtual_detector_roi is not None:
+        return self.virtual_detector_roi
+    if (
+        hasattr(self, "virtual_detector_roi_outer")
+        and self.virtual_detector_roi_outer is not None
+    ):
+        return self.virtual_detector_roi_outer
+    raise RuntimeError("Can't find the diffraction space selector!")
+
+
+def _real_space_selector(self: "DataViewer"):
+    """The currently-active real-space (virtual-image) ROI (point / rect)."""
+    if (
+        hasattr(self, "real_space_point_selector")
+        and self.real_space_point_selector is not None
+    ):
+        return self.real_space_point_selector
+    if (
+        hasattr(self, "real_space_rect_selector")
+        and self.real_space_rect_selector is not None
+    ):
+        return self.real_space_rect_selector
+    raise RuntimeError("Can't find the real space selector!")
+
+
+def center_diffraction_selector_at(self: "DataViewer", view_pos):
+    """Recenter the active diffraction-space ROI on ``view_pos`` (in the view's
+    local/data coordinate space). ``setPos`` fires ``sigRegionChanged`` /
+    ``sigRegionChangeFinished``, so the real-space view recomputes just as it does
+    for a drag or a keyboard nudge — no explicit view update is needed."""
+    selector = _diffraction_selector(self)
+    size = selector.size()
+    selector.setPos((view_pos.x() - size.x() / 2.0, view_pos.y() - size.y() / 2.0))
+
+
+def center_real_space_selector_at(self: "DataViewer", view_pos):
+    """Recenter the active real-space ROI on ``view_pos`` (in the view's
+    local/data coordinate space). See :func:`center_diffraction_selector_at`."""
+    selector = _real_space_selector(self)
+    size = selector.size()
+    selector.setPos((view_pos.x() - size.x() / 2.0, view_pos.y() - size.y() / 2.0))
+
+
+def on_diffraction_double_click(self: "DataViewer", event):
+    """Diffraction-pane scene click handler: on a left-button double-click, center
+    the detector on the clicked data point. Single clicks, drags, and
+    right/middle-button double-clicks are ignored."""
+    if not event.double() or event.button() != QtCore.Qt.LeftButton:
+        return
+    view = self.diffraction_space_widget.view
+    view_pos = view.mapSceneToView(event.scenePos())
+    self.center_diffraction_selector_at(view_pos)
+
+
+def on_real_space_double_click(self: "DataViewer", event):
+    """Virtual-image (real-space) pane scene click handler: on a left-button
+    double-click, center the scan-position selector on the clicked data point."""
+    if not event.double() or event.button() != QtCore.Qt.LeftButton:
+        return
+    view = self.real_space_widget.view
+    view_pos = view.mapSceneToView(event.scenePos())
+    self.center_real_space_selector_at(view_pos)
 
 
 def update_annulus_pos(self: "DataViewer"):
