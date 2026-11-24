@@ -2015,9 +2015,7 @@ def test_volume_fft_updates_reciprocal_z_spacing_live(viewer):
     api, state = _setup_dataset(viewer)
     vol = api.create_volume_tab("Vol")
     try:
-        vol.set_volume(
-            np.random.rand(4, 5, 6).astype(np.float32), voxel_size=(2, 3, 4)
-        )
+        vol.set_volume(np.random.rand(4, 5, 6).astype(np.float32), voxel_size=(2, 3, 4))
         viewer.virtual_image_tab_widget.setCurrentIndex(
             viewer.virtual_image_tabs.index(vol) + 1
         )
