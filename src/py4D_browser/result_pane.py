@@ -5,6 +5,7 @@ from pyqtgraph import opengl as gl
 from PyQt5 import QtCore
 from py4D_browser.utils import format_unit
 from py4D_browser.utils import scale_image, complex_to_Lab, try_get_cmap
+from py4D_browser.virtual_image_tabs import VirtualImageTab
 from py4D_browser.volume_tabs import VolumeTab
 
 from typing import TYPE_CHECKING
@@ -14,189 +15,121 @@ if TYPE_CHECKING:
 
 
 def update_fft_view(self: "DataViewer", mode: Optional[str] = None):
-    # called via signals when the Result menu has an internal option chosen
-    # TODO: architect this as a plugin as well!
-
-    # This gets called when *any* internal option is picked and
-    # the mode is read from which menu item is selected
-
     mode = mode or self.result_source_action_group.checkedAction().text()
-
-    # Read the *currently visible* virtual image (built-in default tab or a
-    # plugin tab) rather than always the built-in image, so the result pane
-    # follows whatever is on display in the virtual-image pane.
     vimg = self.current_virtual_image
-    DP = self.unscaled_diffraction_image
-
-    if vimg is None:
-        # No visible virtual image (yet); nothing to compute a result from.
+    if not hasattr(self, "_result_stack"):
         return
 
-    # "Virtual Image FFT" is shape-aware: with a genuine 3D volume tab visible
-    # it renders the 3D FFT; with a 2D image, the 2D FFT below.
-    #
-    # Keyed on the visible tab, not just vimg.ndim==3: a 2D RGB(A) image is
-    # also ndim==3 and is a supported virtual-image shape, but it lives in the
-    # built-in pane or an image tab, never a VolumeTab. Keying on ndim alone
-    # would FFT the channel axis as a fake z-axis.
     if (
         mode == "Virtual Image FFT"
-        and vimg.ndim == 3
+        and vimg is not None
         and self._visible_volume_tab() is not None
     ):
-        # A genuine 3D volume FFT — a separate path from the 2D branches below,
-        # which would render a 3D array as RGB. Never touches unscaled_fft_image
-        # / fft_widget, so the existing 2D→RGB path is unaffected.
-        vimg_3D = vimg if np.isrealobj(vimg) else np.abs(vimg)
         fft_window = (
-            np.hanning(vimg_3D.shape[0])[:, None, None]
-            * np.hanning(vimg_3D.shape[1])[None, :, None]
-            * np.hanning(vimg_3D.shape[2])[None, None, :]
+            np.hanning(vimg.shape[0])[:, None, None]
+            * np.hanning(vimg.shape[1])[None, :, None]
+            * np.hanning(vimg.shape[2])[None, None, :]
         )
-        fft = np.abs(np.fft.fftshift(np.fft.fftn(vimg_3D * fft_window))) ** 0.5
-        # **0.5 keeps the same display scaling as the 2D branch.
-
-        # Store the (unscaled) FFT + reciprocal-space voxel size for re-render
-        # by the scaling / rescale controls (see _update_result_volume_display).
-        self._result_volume_fft = fft
-        if self.datacube is not None:
-            self._result_volume_px = (
-                1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
-            )
-        else:
-            # No dataset → no calibration for a voxel size; use a unit voxel
-            # (the z-stretch is applied by _render_result_volume).
-            self._result_volume_px = 1.0
+        self._result_volume_fft = (
+            np.abs(np.fft.fftshift(np.fft.fftn(vimg * fft_window))) ** 0.5
+        )
         self._update_result_volume_display()
         self._result_stack.setCurrentIndex(1)  # show the 3D page
         self._enable_view_lock()
         return
 
-    if DP is None or self.datacube is None:
-        # The 2D modes need a loaded dataset for their reciprocal-space scale;
-        # skip (the 3D branch above already returned for a volume).
-        return
-
-    # A 2D-only mode can't act on a non-2D virtual image, so skip silently
-    # (this runs on every image update, so a status message would be noisy).
-    # EWPC doesn't use the virtual image and still updates.
-    if vimg.ndim != 2 and mode in ("Virtual Image FFT", "Virtual Image FFT (complex)"):
+    scale = _result_scale(self, mode)
+    if scale is None:
         self._result_stack.setCurrentIndex(0)
         self._disable_view_lock()
         return
 
-    # The 2D modes render into the 2D page; switch back if the pane is still on
-    # the 3D page from a prior 3D FFT, and drop the view lock.
-    if mode in ("Virtual Image FFT", "Virtual Image FFT (complex)", "EWPC"):
-        self._result_stack.setCurrentIndex(0)
-        self._disable_view_lock()
-
-    if mode == "Virtual Image FFT":
+    if mode in ("Virtual Image FFT", "Virtual Image FFT (complex)"):
         vimg_2D = vimg if np.isrealobj(vimg) else np.abs(vimg)
         fft_window = (
             np.hanning(vimg_2D.shape[0])[:, None]
             * np.hanning(vimg_2D.shape[1])[None, :]
         )
-
-        fft = np.abs(np.fft.fftshift(np.fft.fft2(vimg_2D * fft_window))) ** 0.5
-        mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
-        self.set_result_image(
-            fft,
-            reset=mode_switch,
-            title="Virtual Image FFT",
-            pixel_size=(
-                1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
-            ),
-            pixel_units=format_unit(
-                f"{self.datacube.calibration.get_R_pixel_units()}⁻¹"
-            ),
-        )
-        self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
-        if mode_switch:
-            # Need to autorange after setRect
-            self.fft_widget.autoRange()
-    elif mode == "Virtual Image FFT (complex)":
-        vimg_2D = vimg if np.isrealobj(vimg) else np.abs(vimg)
-        fft_window = (
-            np.hanning(vimg_2D.shape[0])[:, None]
-            * np.hanning(vimg_2D.shape[1])[None, :]
-        )
-
-        fft = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(vimg_2D * fft_window)))
-        mode_switch = self.fft_widget_text.textItem.toPlainText() != "Virtual Image FFT"
-        self.set_result_image(
-            fft,
-            reset=mode_switch,
-            title="Virtual Image FFT",
-            pixel_size=(
-                1.0 / self.datacube.calibration.get_R_pixel_size() / self.datacube.R_Ny
-            ),
-            pixel_units=format_unit(
-                f"{self.datacube.calibration.get_R_pixel_units()}⁻¹"
-            ),
-        )
-        self.fft_widget.getImageItem().setRect(0, 0, fft.shape[1], fft.shape[1])
-        if mode_switch:
-            # Need to autorange after setRect
-            self.fft_widget.autoRange()
-
-    elif mode == "EWPC":
+        windowed = vimg_2D * fft_window
+        if mode == "Virtual Image FFT (complex)":
+            fft = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(windowed)))
+        else:
+            fft = np.abs(np.fft.fftshift(np.fft.fft2(windowed))) ** 0.5
+        title = "Virtual Image FFT"
+    else:
+        DP = self.unscaled_diffraction_image
         log_clip = np.maximum(1e-10, np.percentile(np.maximum(DP, 0.0), 0.1))
         fft = np.abs(np.fft.fftshift(np.fft.fft2(np.log(np.maximum(DP, log_clip)))))
-        mode_switch = self.fft_widget_text.textItem.toPlainText() != "EWPC"
-        self.set_result_image(
-            fft,
-            reset=mode_switch,
-            title="EWPC",
-            pixel_size=(
-                1.0 / self.datacube.calibration.get_Q_pixel_size() / self.datacube.Q_Ny
-            ),
-            pixel_units=format_unit(
-                f"{self.datacube.calibration.get_Q_pixel_units()}⁻¹"
-            ),
-        )
+        title = "EWPC"
 
-    else:
-        raise RuntimeError(
-            f"The internal FFT view callback was triggered but {mode} is checked!"
-        )
+    reset = (
+        self._result_stack.currentIndex() == 1
+        or self.fft_widget_text.textItem.toPlainText() != title
+        or self.unscaled_fft_image is None
+        or self.unscaled_fft_image.shape != fft.shape
+    )
+    self.set_result_image(
+        fft, reset=reset, title=title, pixel_size=scale[0], pixel_units=scale[1]
+    )
+    self._result_fft_mode = mode
+    # Both axes span the same frequency range for isotropic input pixels.
+    width = fft.shape[1]
+    self.fft_widget.getImageItem().setRect(0, 0, width, width)
+    if reset:
+        self.fft_widget.autoRange()
 
 
 def set_result_image(
     self: "DataViewer", vimg, reset=False, pixel_size=1.0, pixel_units="", title=""
 ):
+    self._result_stack.setCurrentIndex(0)
+    self._disable_view_lock()
+    self._result_fft_mode = None
     self.unscaled_fft_image = vimg
     self.fft_widget_text.setText(title)
-    self._render_result_image(reset=reset)
+    if vimg is None:
+        self.fft_widget.clear()
+    else:
+        self._render_result_image(reset=reset)
 
     self.set_scalebar("result", pixel_size, pixel_units)
 
 
 def refresh_result_scale_bar(self: "DataViewer"):
-    # The result scale bar is only set when the result view re-renders, but a
-    # calibration change doesn't re-render it — so recompute it from the current
-    # calibration and mode.
-    if self.datacube is None:
-        return
-
     mode = self.result_source_action_group.checkedAction().text()
-    calib = self.datacube.calibration
+    scale = _result_scale(self, mode)
+    if scale is not None:
+        self.set_scalebar("result", *scale)
 
+
+def _result_scale(self: "DataViewer", mode):
     if mode in ("Virtual Image FFT", "Virtual Image FFT (complex)"):
-        # A visible 3D volume tab renders the 3D FFT (its own scale); the 2D
-        # result bar is not refreshed.
-        if mode == "Virtual Image FFT" and self._visible_volume_tab() is not None:
-            return
-        pixel_size = 1.0 / calib.get_R_pixel_size() / self.datacube.R_Ny
-        pixel_units = format_unit(f"{calib.get_R_pixel_units()}⁻¹")
+        image = self.current_virtual_image
+        index = self.virtual_image_tab_widget.currentIndex()
+        bar = self.real_space_scale_bar
+        if index > 0:
+            tab = self.virtual_image_tabs[index - 1]
+            if not isinstance(tab, VirtualImageTab):
+                return None
+            bar = tab.scale_bar
     elif mode == "EWPC":
-        pixel_size = 1.0 / calib.get_Q_pixel_size() / self.datacube.Q_Ny
-        pixel_units = format_unit(f"{calib.get_Q_pixel_units()}⁻¹")
+        image = self.unscaled_diffraction_image
+        bar = self.diffraction_scale_bar
     else:
-        # Plugin-owned result pane; it sets its own scale bar.
-        return
+        return None
 
-    self.set_scalebar("result", pixel_size, pixel_units)
+    if image is None or image.ndim != 2:
+        return None
+
+    # The result view uses the horizontal bin spacing for both display axes.
+    units = format_unit(bar.units or "px")
+    if units.endswith("⁻¹"):
+        units = units[:-2]
+    elif units.startswith("1/"):
+        units = units[2:]
+    else:
+        units += "⁻¹"
+    return 1.0 / (bar.pixel_size * image.shape[1]), units
 
 
 def _render_result_image(
@@ -215,6 +148,9 @@ def _render_result_image(
         # no image loaded yet (e.g. an autoscale request fired before the
         # first datacube was shown); nothing to render
         return
+
+    # ImageView resets its transform on every setImage call.
+    scale = (1, vimg.shape[1] / vimg.shape[0]) if self._result_fft_mode else None
 
     # for 2D images, use the scaling set by the user
     # for RGB (3D) images, always scale linear
@@ -236,6 +172,7 @@ def _render_result_image(
 
         self.fft_widget.setImage(
             new_view.T,
+            scale=scale,
             autoLevels=False,
             levels=(
                 (
@@ -257,6 +194,7 @@ def _render_result_image(
         )
         self.fft_widget.setImage(
             np.transpose(new_view, (1, 0, 2)),  # flip x/y but keep RGB ordering
+            scale=scale,
             autoLevels=False,
             levels=(0, 1),
             autoRange=reset,
@@ -280,14 +218,13 @@ def _update_result_volume_display(self: "DataViewer"):
         float(np.percentile(scaled, self.result_autoscale_percentiles[0])),
         float(np.percentile(scaled, self.result_autoscale_percentiles[1])),
     )
-    self._render_result_volume(scaled, levels, reciprocal_px=self._result_volume_px)
+    self._render_result_volume(scaled, levels)
 
 
 def _render_result_volume(
     self: "DataViewer",
     scaled: np.ndarray,
     levels,
-    reciprocal_px: float = 1.0,
 ):
     """Render a scaled 3D array into the result pane's 3D volume view, mapping
     values through the result-pane colormap to RGBA.
@@ -295,9 +232,7 @@ def _render_result_volume(
     Deliberately independent of _render_result_image: it never touches
     unscaled_fft_image or the 2D fft_widget, so the 2D→RGB path is unaffected.
 
-    The first axis (z) is stretched to match the visible volume tab via
-    _apply_result_volume_geometry, so a z-stretch change re-applies only the
-    (cheap) transform, not this recompute."""
+    Voxel-size changes only update the geometry transform."""
     low, high = levels
     span = max(high - low, 1e-12)
     idx = (np.clip((scaled - low) / span, 0.0, 1.0) * 255).astype(np.uint8)
@@ -323,20 +258,12 @@ def _render_result_volume(
     rgba[..., 2] = color_lut[idx, 2]
     rgba[..., 3] = alpha_lut[idx]
 
-    self._result_volume_shape = scaled.shape
-
     # Create the volume item on first render, update it thereafter.
     item = self._result_volume_item
     if item is None:
         self._result_volume_item = item = gl.GLVolumeItem(rgba)
         self.result_volume_view.addItem(item)
-        # Frame it, including the z-stretch (applied just below) in the extent.
-        z_stretch = self._result_volume_z_stretch()
-        extent = max(
-            scaled.shape[0] * reciprocal_px * z_stretch,
-            scaled.shape[1] * reciprocal_px,
-            scaled.shape[2] * reciprocal_px,
-        )
+        extent = max(1.0 / size for size in self._visible_volume_tab().voxel_size)
         self.result_volume_view.setCameraPosition(distance=extent * 1.5)
     else:
         item.setData(rgba)
@@ -344,42 +271,22 @@ def _render_result_volume(
     self._apply_result_volume_geometry()
 
 
-def _result_volume_z_stretch(self: "DataViewer") -> float:
-    """First-axis (z) stretch for the result FFT, from the visible volume tab's
-    voxel size (live-adjustable by its z-size slider). 1.0 if none is visible."""
-    tab = self._visible_volume_tab()
-    if tab is not None:
-        vs = tab.voxel_size
-        if vs[1] > 0:
-            return vs[0] / vs[1]
-    return 1.0
-
-
 def _apply_result_volume_geometry(self: "DataViewer"):
-    """(Re-)apply the result volume's transform — center at the origin and
-    stretch its first axis (z) by the visible volume tab's z-stretch — without
-    recomputing its RGBA, so a z-size-slider drag is cheap."""
+    """Scale each FFT axis by its reciprocal-space bin spacing."""
     item = self._result_volume_item
-    if item is None:
+    tab = self._visible_volume_tab()
+    if item is None or tab is None:
         return
-    shape = self._result_volume_shape
-    z_stretch = self._result_volume_z_stretch()
-    z_px = self._result_volume_px * z_stretch
-    xy_px = self._result_volume_px
+    shape = self._result_volume_fft.shape
+    spacing = [1.0 / (n * size) for n, size in zip(shape, tab.voxel_size)]
+    origin = [-(n // 2 + 0.5) * step for n, step in zip(shape, spacing)]
     item.resetTransform()
-    item.scale(z_px, xy_px, xy_px)
-    item.translate(
-        -shape[0] * z_px / 2,
-        -shape[1] * xy_px / 2,
-        -shape[2] * xy_px / 2,
-        local=False,
-    )
+    item.scale(*spacing)
+    item.translate(*origin, local=False)
 
 
 def _on_volume_voxel_size_changed(self: "DataViewer", tab: "VolumeTab"):
-    """Re-apply the result 3D FFT's transform when the visible volume tab's z-size
-    slider changes, so it follows the tab's new z-stretch in lockstep. A no-op
-    unless a 3D result is showing and this tab is the visible volume tab."""
+    """Update reciprocal-space spacing when the active volume's z size changes."""
     if self._result_volume_item is None or self._result_volume_fft is None:
         return
     if tab is not self._visible_volume_tab():

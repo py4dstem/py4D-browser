@@ -203,10 +203,10 @@ def test_real_sample_plugins_load(viewer):
     ids = {entry["id"] for entry in viewer.loaded_plugins}
     assert {
         "py4DGUI.internal.calibration",
-        "py4DGUI.internal.logging",
         "py4DGUI.internal.metadata",
         "py4DGUI.internal.copy_to_tab",
     } <= ids
+    assert "py4DGUI.internal.logging" not in ids
 
     for entry in viewer.loaded_plugins:
         assert type(entry["api"]) is PluginAPI1

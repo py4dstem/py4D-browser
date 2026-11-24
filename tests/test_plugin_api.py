@@ -1605,9 +1605,8 @@ def test_tab_demo_plugin_copies_visible_image(viewer):
 
 def _setup_dataset(viewer):
     """
-    Load a small datacube plus a DP and a virtual image so update_fft_view
-    has a calibration to work from (it no-ops without all three). Returns
-    the prior state for restoration by _teardown_dataset.
+    Load a small datacube and known 2D source images. Return the prior state
+    for restoration by _teardown_dataset.
     """
     api = PluginAPI(viewer)
     state = (
@@ -1625,7 +1624,6 @@ def _setup_dataset(viewer):
 
 def _teardown_dataset(viewer, state):
     original_dc, original_dp, original_vimg, prev_mode, prev_tab = state
-    # Restore the datacube first so the mode trigger below is a no-op.
     viewer.datacube = original_dc
     viewer.set_diffraction_image(original_dp, reset=False)
     viewer.set_virtual_image(original_vimg, reset=False)
@@ -1731,6 +1729,170 @@ def test_volume_fft_renders_3d_volume_preserves_2d_path(viewer):
         _teardown_dataset(viewer, state)
 
 
+def test_visible_volume_result_exports_only_the_current_fft(
+    viewer, tmp_path, monkeypatch
+):
+    import tifffile
+    from PyQt5.QtWidgets import QApplication
+
+    api, state = _setup_dataset(viewer)
+    vol = api.create_volume_tab("Volume", select=True)
+    path = tmp_path / "fft.tif"
+    save_formats = []
+    clipboard = QApplication.clipboard()
+    previous_clipboard = clipboard.text()
+
+    def save_path(fmt):
+        save_formats.append(fmt)
+        return str(path)
+
+    monkeypatch.setattr(viewer, "get_savefile_name", save_path)
+    try:
+        vol.set_volume(np.arange(60, dtype=np.float32).reshape(5, 3, 4))
+        _select_result_mode(viewer, "Virtual Image FFT")
+
+        clipboard.setText("unchanged")
+        viewer.copy_result_to_clipboard()
+        assert clipboard.text() == "unchanged"
+        for fmt in ("PNG (display)", "TIFF (display)"):
+            viewer.export_virtual_image(fmt, "result")
+        assert save_formats == []
+
+        viewer.export_virtual_image("TIFF (raw)", "result")
+        assert save_formats == ["TIFF (raw)"]
+        with tifffile.TiffFile(path) as tif:
+            assert len(tif.pages) == 5
+            np.testing.assert_array_equal(tif.asarray(), viewer._result_volume_fft)
+    finally:
+        clipboard.setText(previous_clipboard)
+        vol.close()
+        _teardown_dataset(viewer, state)
+
+
+def test_plugin_result_replaces_visible_volume_fft(viewer):
+    api, state = _setup_dataset(viewer)
+    vol = api.create_volume_tab("Volume", select=True)
+    try:
+        vol.set_volume(np.arange(60, dtype=np.float32).reshape(5, 3, 4))
+        _select_result_mode(viewer, "Virtual Image FFT")
+        assert viewer._result_stack.currentIndex() == 1
+
+        api.register_result_callback("Plugin result", None)
+        result = np.arange(35, dtype=np.float32).reshape(5, 7)
+        api.set_result_image(result, title="Plugin result", reset=True)
+        assert viewer._result_stack.currentIndex() == 0
+        assert not viewer._view_sync._active
+        np.testing.assert_array_equal(viewer.fft_widget.image, result.T)
+    finally:
+        vol.close()
+        _teardown_dataset(viewer, state)
+
+
+@pytest.mark.parametrize("mode", ["Virtual Image FFT", "Virtual Image FFT (complex)"])
+def test_image_tab_fft_uses_its_own_sampling(viewer, mode):
+    api, state = _setup_dataset(viewer)
+    tab = api.create_virtual_image_tab("Calibrated image", select=True)
+    try:
+        tab.set_image(np.arange(35).reshape(5, 7), pixel_size=2.0, pixel_units="nm")
+        _select_result_mode(viewer, mode)
+        assert viewer.fft_scale_bar.pixel_size == pytest.approx(1 / 14)
+        assert viewer.fft_scale_bar.units == "nm⁻¹"
+
+        tab.set_scalebar(pixel_size=3.0, units="A")
+        assert viewer.fft_scale_bar.pixel_size == pytest.approx(1 / 21)
+        assert viewer.fft_scale_bar.units == "Å⁻¹"
+
+        viewer.datacube = None
+        viewer.set_diffraction_image(None)
+        tab.set_image(np.arange(45).reshape(5, 9))
+        assert viewer.unscaled_fft_image.shape == (5, 9)
+        assert viewer.fft_scale_bar.pixel_size == pytest.approx(1 / 27)
+
+        viewer._render_result_image()
+        transform = viewer.fft_widget.getImageItem().transform()
+        assert transform.m22() == pytest.approx(9 / 5)
+    finally:
+        tab.close()
+        _teardown_dataset(viewer, state)
+
+
+def test_fft_cursor_reports_dc_and_vertical_frequency(viewer, qapp, monkeypatch):
+    from PyQt5.QtCore import QPointF
+    import py4D_browser.update_views as update_views
+
+    api, state = _setup_dataset(viewer)
+    tab = api.create_virtual_image_tab("Calibrated image", select=True)
+    try:
+        tab.set_image(np.arange(35).reshape(5, 7), pixel_size=2.0, pixel_units="nm")
+        _select_result_mode(viewer, "Virtual Image FFT")
+        qapp.processEvents()
+        monkeypatch.setattr(viewer, "isActiveWindow", lambda: True)
+        graphics_view = viewer.fft_widget.ui.graphicsView
+        image_item = viewer.fft_widget.getImageItem()
+        for row, expected in [(2, "k=0 nm⁻¹"), (1, "k=0.1 nm⁻¹, d=10 nm")]:
+            scene_point = image_item.mapToScene(QPointF(3.5, row + 0.5))
+            pos = graphics_view.viewport().mapToGlobal(
+                graphics_view.mapFromScene(scene_point)
+            )
+            monkeypatch.setattr(
+                update_views, "QCursor", type("Cursor", (), {"pos": lambda: pos})
+            )
+            viewer.update_tooltip()
+            assert viewer.cursor_value_text.text().startswith(f"[{row},3]")
+            assert expected in viewer.cursor_value_text.text()
+    finally:
+        tab.close()
+        _teardown_dataset(viewer, state)
+
+
+def test_closing_active_tab_notifies_listeners_with_new_image(viewer):
+    api = PluginAPI(viewer)
+    left = api.create_virtual_image_tab("Left", select=True)
+    right = api.create_virtual_image_tab("Right")
+    left.set_image(np.ones((3, 3)))
+    right_image = np.full((4, 4), 2.0)
+    right.set_image(right_image)
+    observed = []
+
+    def record():
+        observed.append(api.current_virtual_image)
+
+    connection = api.signal_current_virtual_image_changed.connect(record)
+    try:
+        left.close()
+        assert len(observed) == 1
+        assert observed[0] is right_image
+        assert viewer.realspace_title.text() == "Right"
+    finally:
+        api.signal_current_virtual_image_changed.disconnect(connection)
+        left.close()
+        right.close()
+
+
+@pytest.mark.parametrize("shape", [(5, 7), (8, 5), (7, 8)])
+def test_fft_calibration_ring_centers_on_dc_pixel(viewer, shape):
+    from PyQt5.QtCore import QPointF
+    from py4d_browser_plugin.calibration_plugin.calibration_plugin import (
+        CalibrateDialog,
+        CalibrateFromPeriodDialog,
+    )
+
+    api, state = _setup_dataset(viewer)
+    viewer.set_virtual_image(np.arange(np.prod(shape)).reshape(shape))
+    parent = CalibrateDialog(api)
+    dialog = CalibrateFromPeriodDialog(api, parent)
+    try:
+        center = dialog.roi.pos() + dialog.roi.size() / 2
+        item = dialog.image_widget.getImageItem()
+        dc = item.mapFromParent(QPointF(center))
+        assert dc.x() == pytest.approx(shape[1] // 2 + 0.5)
+        assert dc.y() == pytest.approx(shape[0] // 2 + 0.5)
+    finally:
+        dialog.deleteLater()
+        parent.deleteLater()
+        _teardown_dataset(viewer, state)
+
+
 def test_volume_fft_ignores_3d_rgb_virtual_image(viewer):
     # "Virtual Image FFT" must treat a 3D *RGB* virtual image (shape (H, W, 3),
     # also ndim == 3) as a 2D image, NOT as a genuine 3D volume. The 3D branch
@@ -1793,9 +1955,7 @@ def test_volume_fft_ignores_3d_rgb_image_tab(viewer):
 
 
 def test_volume_fft_without_dataset(viewer):
-    # "Virtual Image FFT" works with a visible 3D volume even when no dataset
-    # is loaded (no datacube / calibration): the reciprocal-space scale falls
-    # back to a unit voxel rather than the mode erroring out (or nothing).
+    # Unit input voxels give reciprocal spacing of 1/N on each FFT axis.
     pytest.importorskip("OpenGL")
     from pyqtgraph import opengl as gl
 
@@ -1814,8 +1974,8 @@ def test_volume_fft_without_dataset(viewer):
         item = viewer._result_volume_item
         assert isinstance(item, gl.GLVolumeItem)
         assert item.data.shape == (4, 5, 6, 4)
-        # no calibration to derive a reciprocal-space voxel from: unit voxel
-        assert viewer._result_volume_px == pytest.approx(1.0)
+        spacing = np.diag(item.transform().matrix(3))[:3]
+        assert spacing == pytest.approx([1 / 4, 1 / 5, 1 / 6])
     finally:
         viewer.virtual_image_tab_widget.setCurrentIndex(0)
         api.close_virtual_image_tab(vol)
@@ -1850,16 +2010,14 @@ def test_volume_fft_switching_back_to_2d_mode(viewer):
         _teardown_dataset(viewer, state)
 
 
-def test_volume_fft_follows_z_stretch_live(viewer):
-    # Moving the visible volume tab's z-size slider while "Virtual Image FFT"
-    # is showing the 3D page re-stretches the result FFT's z-axis in lockstep
-    # (a transform-only change — the RGBA data is untouched), and the z-slider
-    # is a no-op for the result FFT once a 2D-only mode is selected.
+def test_volume_fft_updates_reciprocal_z_spacing_live(viewer):
     pytest.importorskip("OpenGL")
     api, state = _setup_dataset(viewer)
     vol = api.create_volume_tab("Vol")
     try:
-        vol.set_volume(np.random.rand(4, 5, 6).astype(np.float32), reset=True)
+        vol.set_volume(
+            np.random.rand(4, 5, 6).astype(np.float32), voxel_size=(2, 3, 4)
+        )
         viewer.virtual_image_tab_widget.setCurrentIndex(
             viewer.virtual_image_tabs.index(vol) + 1
         )
@@ -1867,24 +2025,18 @@ def test_volume_fft_follows_z_stretch_live(viewer):
         item = viewer._result_volume_item
         assert item is not None
 
-        def z_ratio(it):
-            # the scale is on the 4x4 transform's diagonal; the z-axis (axis 0)
-            # relative to the x-axis (axis 1) is the applied z-stretch.
-            m = np.array(it.transform().matrix(3))
-            return m[0, 0] / m[1, 1]
+        assert np.diag(item.transform().matrix(3))[:3] == pytest.approx(
+            [1 / 8, 1 / 15, 1 / 24]
+        )
 
-        # baseline: the default voxel size (1, 1, 1) gives a z-stretch of 1.0
-        assert z_ratio(item) == pytest.approx(1.0)
-
-        # move the z-size slider to a larger first-axis voxel size; the result
-        # FFT's z-axis must follow while x/y stay put
+        rgba = item.data
         vol._z_slider.setValue(vol._z_slider.maximum())
         new_z = vol.voxel_size[0]
-        assert new_z > 1.0
-        assert z_ratio(item) == pytest.approx(new_z / vol.voxel_size[1])
-
-        # transform-only: the RGBA data is not recomputed on a z-stretch
-        assert item.data.shape == (4, 5, 6, 4)
+        assert new_z > 2.0
+        assert np.diag(item.transform().matrix(3))[:3] == pytest.approx(
+            [1 / (4 * new_z), 1 / 15, 1 / 24]
+        )
+        assert item.data is rgba
 
         # selecting a 2D-only mode makes the z-slider a no-op for the result FFT
         transform_2d = np.array(item.transform().matrix(3)).copy()

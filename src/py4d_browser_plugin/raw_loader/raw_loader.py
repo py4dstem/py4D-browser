@@ -488,6 +488,6 @@ class RawLoadDialog(QDialog):
         elif memmap:
             arr = source  # keep the lazy memmap view
         else:
-            arr = source[()]  # materialize into RAM
+            arr = np.array(source, copy=True)
 
         self.api.set_datacube(py4DSTEM.DataCube(arr))

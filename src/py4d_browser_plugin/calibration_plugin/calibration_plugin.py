@@ -4,7 +4,7 @@ import numpy as np
 from tqdm import tqdm
 from PyQt5.QtWidgets import QFrame, QPushButton, QApplication, QLabel
 from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtCore import Qt, QObject
+from PyQt5.QtCore import QPointF, Qt, QObject
 from PyQt5.QtGui import QDoubleValidator
 from PyQt5.QtWidgets import (
     QDialog,
@@ -419,19 +419,23 @@ class CalibrateFromPeriodDialog(QDialog):
         )
         # Force a square view: this is what makes the frequency axis
         # isotropic, so a circular ROI is a constant-period ring.
-        self.image_widget.getImageItem().setRect(0, 0, self.N1, self.N1)
+        image_item = self.image_widget.getImageItem()
+        image_item.setRect(0, 0, self.N1, self.N1)
+        self.image_widget.autoRange()
 
         # Fixed-center circular ROI on the zero frequency (the view center).
         main_pen = {"color": "g", "width": 6}
         handle_pen = {"color": "r", "width": 9}
         hover_pen = {"color": "c", "width": 6}
         hover_handle = {"color": "c", "width": 9}
-        # Zero-frequency pixel index N1/2 has its center at N1/2 + 0.5; add the
-        # half-pixel so the ROI sits on the peak, not the corner between pixels.
-        center = self.N1 / 2.0 + 0.5
+        # fftshift places DC at floor(N/2) on each axis. Map that pixel's
+        # center through the rectangular-to-square display transform.
+        center = image_item.mapToParent(
+            QPointF(vimg.shape[1] // 2 + 0.5, vimg.shape[0] // 2 + 0.5)
+        )
         default_r = max(1.0, min(vimg.shape) / 10.0)
         self.roi = pg.CircleROI(
-            [center - default_r, center - default_r],
+            [center.x() - default_r, center.y() - default_r],
             [2 * default_r, 2 * default_r],
             movable=False,
             pen=main_pen,
@@ -518,6 +522,11 @@ class CalibrateFromPeriodDialog(QDialog):
             return
 
         pixel_size = self.roi_radius() * period / self.N1
+        if not np.isfinite(pixel_size) or pixel_size <= 0:
+            self.api.status_bar.showMessage(
+                "From FFT: enter a positive period and select a nonzero radius.", 5_000
+            )
+            return
         unit = self.unit_box.currentText()
 
         # Apply to the datacube calibration (R pixel size is isotropic).
@@ -530,6 +539,7 @@ class CalibrateFromPeriodDialog(QDialog):
             self.datacube.calibration.get_R_pixel_size(),
             format_unit(self.datacube.calibration.get_R_pixel_units()),
         )
+        self.api.refresh_result_scale_bar()
 
         # Reflect the new calibration back into the parent dialog.
         self.parent_dialog.realspace_unit_box.setCurrentText(unit)

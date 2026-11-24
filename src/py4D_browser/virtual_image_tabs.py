@@ -619,6 +619,8 @@ class VirtualImageTab(QtCore.QObject):
             self._scale_bar.units = format_unit(units)
         if pixel_size is not None or units is not None:
             self._scale_bar.updateBar()
+            if self._viewer.is_virtual_image_tab_visible(self):
+                self._viewer.refresh_result_scale_bar()
 
     ########## bottom-bar handlers ##########
 

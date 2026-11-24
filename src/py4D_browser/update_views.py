@@ -467,11 +467,13 @@ def update_tooltip(self: "DataViewer"):
             # it (and move on to the other panes).
             if getattr(scene, "getView", None) is None:
                 continue
-            if data is None:
-                return
-            pos_in_scene = scene.mapFromGlobal(QCursor.pos())
-            if scene.getView().rect().contains(pos_in_scene):
-                pos_in_data = scene.view.mapSceneToView(pos_in_scene)
+            if data is None or (scene is self.fft_widget and not scene.isVisible()):
+                continue
+            graphics_view = scene.ui.graphicsView
+            pos = graphics_view.viewport().mapFromGlobal(global_pos)
+            pos_in_scene = graphics_view.mapToScene(pos)
+            if scene.getView().sceneBoundingRect().contains(pos_in_scene):
+                pos_in_data = scene.getImageItem().mapFromScene(pos_in_scene)
 
                 y = int(np.clip(np.floor(pos_in_data.x()), 0, data.shape[1] - 1))
                 x = int(np.clip(np.floor(pos_in_data.y()), 0, data.shape[0] - 1))
@@ -495,57 +497,30 @@ def update_tooltip(self: "DataViewer"):
                 else:
                     display_text = f"[{x},{y}]: |z|={np.abs(data[x,y]):.5g}, ϕ={np.degrees(np.angle(data[x,y])):.5g}°"
 
-                # The FFT is fftshift-ed, so the zero frequency sits at the
-                # center pixel (index N/2). Each pixel step is the
-                # reciprocal-space pixel size set on the result scale bar, so
-                # the spatial frequency at the cursor is its offset from the
-                # center, in that scale bar's units; the real-space period is
-                # its reciprocal. Guarded so a plugin-replaced result display
-                # (or an uncalibrated scale bar) simply omits this rather than
-                # breaking the base tooltip.
-                if scene is self.fft_widget:
-                    try:
-                        f_spacing = float(self.fft_scale_bar.pixel_size)
-                        N = data.shape[1]
-                        fx = (x - N / 2.0) * f_spacing
-                        fy = (y - N / 2.0) * f_spacing
-                        f_mag = float(np.hypot(fx, fy))
-                        f_units = str(self.fft_scale_bar.units)
-                    except (AttributeError, TypeError, ValueError, IndexError):
-                        f_mag = None
-                    if f_mag is not None:
-                        display_text += f" k={f_mag:.3g} {f_units}".rstrip()
-                        # A real-space period only exists when |f| is a
-                        # reciprocal distance, i.e. the frequency unit's base is
-                        # a length (Å/nm/px). For EWPC the frequency may instead
-                        # be in mrad, an angular unit where 1/|f| is not a
-                        # real-space distance; converting mrad to a reciprocal
-                        # distance (angle [rad] = k [1/A] * lambda [A]) needs the
-                        # electron wavelength, which needs the accelerating
-                        # voltage set in the calibration. When that's available
-                        # we show the period (d); otherwise it's omitted.
-                        if f_mag > 0 and f_units.endswith("⁻¹"):
-                            base = f_units[:-2]
-                            if base in ("A", "Å", "nm", "px", "pixels"):
-                                display_text += (
-                                    f", d={1.0 / f_mag:.3g} {format_unit(base)}"
-                                )
-                            elif base == "mrad":
-                                try:
-                                    # The Calibration plugin stores the
-                                    # accelerating voltage in volts (== eV).
-                                    voltage = self.datacube.calibration["voltage"]
-                                    lam = electron_wavelength_angstrom(voltage)  # Å
-                                    # k [1/A] = |f| [mrad] * 1e-3 [rad/mrad] / lambda [A];
-                                    # d = 1 / k.
-                                    d = 1.0e3 * lam / f_mag  # Å
-                                    display_text += f", d={d:.3g} {format_unit('A')}"
-                                except (
-                                    AttributeError,
-                                    KeyError,
-                                    TypeError,
-                                    ValueError,
-                                ):
-                                    pass
+                if scene is self.fft_widget and self._result_fft_mode:
+                    rows, cols = data.shape[:2]
+                    step = self.fft_scale_bar.pixel_size
+                    distance = np.hypot((x - rows // 2) * cols / rows, y - cols // 2)
+                    magnitude = distance * step
+                    units = self.fft_scale_bar.units
+                    if self._result_fft_mode == "EWPC":
+                        if units == "mrad⁻¹" and self.datacube is not None:
+                            try:
+                                voltage = float(self.datacube.calibration["voltage"])
+                            except (KeyError, TypeError, ValueError):
+                                voltage = 0
+                            if np.isfinite(voltage) and voltage > 0:
+                                magnitude *= 1e3 * electron_wavelength_angstrom(voltage)
+                                units = "Å"
+                        display_text += f" r={magnitude:.3g} {units}"
+                    else:
+                        display_text += f" k={magnitude:.3g} {units}"
+                        if magnitude > 0 and units in (
+                            "Å⁻¹",
+                            "nm⁻¹",
+                            "px⁻¹",
+                            "pixels⁻¹",
+                        ):
+                            display_text += f", d={1.0 / magnitude:.3g} {units[:-2]}"
 
                 self.cursor_value_text.setText(display_text)

@@ -116,7 +116,6 @@ class DataViewer(QMainWindow):
         _render_result_image,
         _render_result_volume,
         _update_result_volume_display,
-        _result_volume_z_stretch,
         _apply_result_volume_geometry,
         _on_volume_voxel_size_changed,
         _visible_volume_tab,
@@ -198,14 +197,13 @@ class DataViewer(QMainWindow):
         self.unscaled_diffraction_image: Optional[np.ndarray] = None
         self.unscaled_realspace_image: Optional[np.ndarray] = None
         self.unscaled_fft_image: Optional[np.ndarray] = None
+        self._result_fft_mode = None
 
-        # Result-pane 3D FFT state (see _render_result_volume in update_views.py).
+        # Result-pane 3D FFT state (see _render_result_volume in result_pane.py).
         # Kept separate from the 2D path (unscaled_fft_image / fft_widget);
         # None until a 3D FFT renders for the first time.
         self._result_volume_item = None  # the GLVolumeItem
         self._result_volume_fft = None  # last (unscaled) 3D FFT, for re-render
-        self._result_volume_px = 1.0  # its reciprocal-space voxel size
-        self._result_volume_shape = None  # rendered shape (for the z-stretch transform)
 
         # Plugin-created virtual-image tabs (image or volume; see
         # virtual_image_tabs.py / volume_tabs.py). The built-in virtual
@@ -1181,14 +1179,13 @@ class DataViewer(QMainWindow):
         # free). Removing the currently-visible tab fires currentChanged, which
         # (below) notifies listeners that the visible virtual image changed.
         widx = self.virtual_image_tab_widget.indexOf(tab.widget)
+        if tab in self.virtual_image_tabs:
+            self.virtual_image_tabs.remove(tab)
+        tab._closed = True
         if widx != -1:
             self.virtual_image_tab_widget.removeTab(widx)
         tab.widget.deleteLater()
 
-        if tab in self.virtual_image_tabs:
-            self.virtual_image_tabs.remove(tab)
-
-        tab._closed = True
         self._refresh_tab_bar()
         gc.collect()
 

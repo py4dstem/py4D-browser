@@ -195,7 +195,7 @@ A `VolumeTab` object (returned by `create_volume_tab`) exposes:
 * **`title`** (get/set), **`widget`** (the tab's backing `QWidget`: the 3D view plus the fixed bottom strip — the two transfer-function editors and the z-size slider), **`closed`**.
 * **`signal_data_changed`** — emitted (with the tab as its argument) after every `set_volume`.
 
-**What is and isn't 2D-only.** The display-oriented paths assume a 2D rendered image, so they **bail with a status message** when a volume tab is visible: "PNG (display)" / "TIFF (display)" exports, and copying to the clipboard. **"TIFF (raw)" works** — it writes the raw array, so it exports the 3D volume. The built-in virtual-image FFT result modes **skip silently** when the visible image is a 3D volume (they have no 3D equivalent). If you register your own result callback (`register_result_callback`), handle the 3D case yourself.
+**Volume export and FFT.** Use **TIFF (raw)** to export a volume tab or its 3D FFT as a grayscale TIFF stack. Display-image export and clipboard actions show a status message for a 3D view. The built-in **Virtual Image FFT** uses the active volume's shape and voxel sizes to set its reciprocal-space axes. When you register your own result callback (`register_result_callback`), it can receive 3D volumes through `current_virtual_image`.
 
 **Interoperability note.** Code that iterates `virtual_image_tabs` and calls `tab.set_image(...)` on every tab will hit an `AttributeError` on volume tabs (they have `set_volume`, not `set_image`) and vice versa. Distinguish the two kinds with `isinstance(tab, ...)` or a duck check (`hasattr(tab, "set_image")`) before dispatching.
 

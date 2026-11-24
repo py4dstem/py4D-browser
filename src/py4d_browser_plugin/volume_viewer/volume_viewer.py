@@ -1,10 +1,5 @@
 """
-A development-only plugin: load a 3D volume from a multi-page TIFF image
-stack (via a file picker) and display it in a new 3D volume tab.
-
-Useful for trying out the volume-tab rendering (API v1.6) with arbitrary
-volumes without loading a 4D-STEM dataset. It is ``dev_only``: it loads
-only when the ``gui/dev_plugins`` setting is enabled.
+Load a multi-page TIFF image stack into a new 3D volume tab.
 """
 
 import numpy as np

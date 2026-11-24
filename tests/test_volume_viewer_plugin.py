@@ -1,12 +1,4 @@
-"""
-Tests for the dev-only TIFF volume-stack viewer plugin: it is gated behind
-the `gui/dev_plugins` setting, and when enabled its menu action loads a 3D
-TIFF stack into a new 3D volume tab.
-
-The viewer fixture (session-scoped) already loaded the real plugins with
-dev plugins off; these tests re-run `load_plugins` after toggling the
-setting, mirroring the dev-plugin tests in test_loader.py.
-"""
+"""Tests for the TIFF volume-stack viewer plugin and its menu action."""
 
 import numpy as np
 import pytest
@@ -32,11 +24,11 @@ def _find_plugin(viewer, plugin_id):
 ########## dev-plugin gating ##########
 
 
-def test_volume_viewer_not_loaded_when_dev_plugins_disabled(viewer):
+def test_volume_viewer_loads_when_dev_plugins_disabled(viewer):
     viewer.settings.setValue("gui/dev_plugins", "0")
     viewer.load_plugins()
 
-    assert PLUGIN_ID not in _loaded_ids(viewer)
+    assert PLUGIN_ID in _loaded_ids(viewer)
 
 
 def test_volume_viewer_loads_when_dev_plugins_enabled(viewer):
@@ -53,7 +45,7 @@ def test_volume_viewer_loads_when_dev_plugins_enabled(viewer):
 ########## opening a TIFF stack ##########
 
 
-def test_open_tiff_stack_creates_volume_tab(viewer, qapp, tmp_path, monkeypatch):
+def test_open_tiff_stack_creates_volume_tab(viewer, tmp_path, monkeypatch):
     from PyQt5.QtWidgets import QFileDialog
 
     # A small 3D stack, written as a multi-page (one page per z slice) TIFF.
@@ -61,7 +53,7 @@ def test_open_tiff_stack_creates_volume_tab(viewer, qapp, tmp_path, monkeypatch)
     stack_path = str(tmp_path / "stack.tif")
     import tifffile
 
-    tifffile.imwrite(stack_path, volume)
+    tifffile.imwrite(stack_path, volume, photometric="minisblack")
 
     def fake_get_open_file_name(parent, caption, directory, filter):
         return (stack_path, "TIFF images (*.tif *.tiff);;All files (*)")
@@ -71,16 +63,13 @@ def test_open_tiff_stack_creates_volume_tab(viewer, qapp, tmp_path, monkeypatch)
     )
 
     opened_tabs = []
-    viewer.settings.setValue("gui/dev_plugins", "1")
     try:
         viewer.load_plugins()
         entry = _find_plugin(viewer, PLUGIN_ID)
         assert entry is not None
         plugin = entry["plugin"]
-        menu = entry["menu"]
-        assert menu is not None
-        action = menu.actions()[0]
-        assert action.text() == "Open TIFF Stack as Volume Tab…"
+        action = entry["action"]
+        assert action in viewer.processing_menu.actions()
 
         # Snapshot the count before triggering: viewer.virtual_image_tabs is
         # the live list, so binding it directly would just alias the new tab in.
@@ -104,8 +93,6 @@ def test_open_tiff_stack_creates_volume_tab(viewer, qapp, tmp_path, monkeypatch)
         for tab in opened_tabs:
             if not tab.closed:
                 tab.close()
-        viewer.settings.setValue("gui/dev_plugins", "0")
-        viewer.load_plugins()
 
 
 def test_open_2d_tiff_is_rejected_without_creating_a_tab(viewer, tmp_path, monkeypatch):
@@ -124,14 +111,9 @@ def test_open_2d_tiff_is_rejected_without_creating_a_tab(viewer, tmp_path, monke
         QFileDialog, "getOpenFileName", staticmethod(fake_get_open_file_name)
     )
 
-    viewer.settings.setValue("gui/dev_plugins", "1")
-    try:
-        viewer.load_plugins()
-        plugin = _find_plugin(viewer, PLUGIN_ID)["plugin"]
+    viewer.load_plugins()
+    plugin = _find_plugin(viewer, PLUGIN_ID)["plugin"]
 
-        count_before = len(viewer.virtual_image_tabs)
-        plugin.open_tiff_stack()
-        assert len(viewer.virtual_image_tabs) == count_before
-    finally:
-        viewer.settings.setValue("gui/dev_plugins", "0")
-        viewer.load_plugins()
+    count_before = len(viewer.virtual_image_tabs)
+    plugin.open_tiff_stack()
+    assert len(viewer.virtual_image_tabs) == count_before

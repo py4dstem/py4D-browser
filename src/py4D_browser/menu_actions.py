@@ -173,7 +173,14 @@ def load_file(self: "DataViewer", filepath, mmap=False, binning=1):
             self.datacube = py4DSTEM.DataCube(np.load(filepath))
     elif extension == ".raw":
         # EMPAD: N patterns of 130 x 128 float32 (128 data rows + 2 metadata).
-        n_patterns = os.path.getsize(filepath) // (130 * 128 * 4)
+        n_patterns, trailing_bytes = divmod(os.path.getsize(filepath), 130 * 128 * 4)
+        if n_patterns == 0 or trailing_bytes:
+            self.statusBar().showMessage(
+                "Invalid EMPAD file: expected complete frames. "
+                "For other formats, use Plugins > Open Raw.",
+                10_000,
+            )
+            return
         nxy = int(round(np.sqrt(n_patterns)))
         is_square = nxy * nxy == n_patterns
         scan_shape = (nxy, nxy) if is_square else (n_patterns, 1)
@@ -184,11 +191,11 @@ def load_file(self: "DataViewer", filepath, mmap=False, binning=1):
         data = source[:, :, :128, :]  # drop the 2 metadata rows
 
         if binning > 1:
-            array = lazy_bin_load(data, binning, output_dtype=np.float32)
+            array = lazy_bin_load(data, binning, sum_bins=True)
         elif mmap:
             array = data
         else:
-            array = data[()]
+            array = np.array(data, copy=True)
 
         if not is_square:
             # Not a square scan; let the user pick the real scan shape.
@@ -321,7 +328,10 @@ def export_virtual_image(self: "DataViewer", im_format: str, im_type: str):
         )
         return
 
-    filename = self.get_savefile_name(im_format)
+    volume_result = im_type == "result" and self._result_stack.currentIndex() == 1
+    if volume_result and im_format in ("PNG (display)", "TIFF (display)"):
+        self.statusBar().showMessage("Use TIFF (raw) to export the 3D result.")
+        return
 
     if im_type == "image":
         # Export whatever is currently displayed in the virtual-image pane:
@@ -333,9 +343,15 @@ def export_virtual_image(self: "DataViewer", im_format: str, im_type: str):
         rawimg = self.unscaled_diffraction_image
     elif im_type == "result":
         view = self.fft_widget
-        rawimg = self.unscaled_fft_image
+        rawimg = self._result_volume_fft if volume_result else self.unscaled_fft_image
     else:
         raise RuntimeError("Unrecognized export image source...")
+
+    if rawimg is None:
+        self.statusBar().showMessage(f"No {im_type} to export.")
+        return
+
+    filename = self.get_savefile_name(im_format)
 
     if im_format in ("PNG (display)", "TIFF (display)"):
         vimg = view.image.T
@@ -362,7 +378,12 @@ def export_virtual_image(self: "DataViewer", im_format: str, im_type: str):
         from tifffile import TiffWriter
 
         with TiffWriter(filename) as tw:
-            tw.write(rawimg)
+            if volume_result or (
+                im_type == "image" and not hasattr(view, "getImageItem")
+            ):
+                tw.write(rawimg, photometric="minisblack", metadata={"axes": "ZYX"})
+            else:
+                tw.write(rawimg)
     else:
         raise RuntimeError("Nothing saved! Format not recognized")
 
@@ -400,6 +421,13 @@ def copy_diff_to_clipboard(self: "DataViewer"):
 
 
 def copy_result_to_clipboard(self: "DataViewer"):
+    if self._result_stack.currentIndex() == 1:
+        self.statusBar().showMessage("Use TIFF (raw) to export the 3D result.")
+        return
+    if self.unscaled_fft_image is None:
+        self.statusBar().showMessage("No result to copy.")
+        return
+
     img = self.fft_widget.getImageItem()
 
     if img._renderRequired:
@@ -533,12 +561,14 @@ def find_calibrations(dset: h5py.Dataset):
     return R_size, R_units, Q_size, Q_units
 
 
-def lazy_bin_load(source, bin_factor, output_dtype=None, chunk_size=10):
+def lazy_bin_load(
+    source, bin_factor, output_dtype=None, chunk_size=10, *, sum_bins=False
+):
     """Read data from a source and bin the last 2 (detector) dimensions lazily.
 
     Reads the source in chunks along scan-space dimensions so the full unbinned
     array never resides in RAM.  Each chunk's detector frames are binned by
-    averaging over NxN blocks.
+    averaging over NxN blocks by default.
 
     Args:
         source: Any subscriptable array-like (h5py.Dataset, np.memmap, np.ndarray).
@@ -547,6 +577,7 @@ def lazy_bin_load(source, bin_factor, output_dtype=None, chunk_size=10):
         output_dtype: Dtype for the output (defaults to float32). Ignored for
             integer source types — those always produce float32 to avoid overflow.
         chunk_size: Maximum number of scan positions to read per chunk.
+        sum_bins: Sum detector counts instead of averaging, as for EMPAD data.
 
     Returns:
         numpy array with detector dimensions divided by bin_factor.
@@ -595,6 +626,7 @@ def lazy_bin_load(source, bin_factor, output_dtype=None, chunk_size=10):
         fixed=(),
         crop_Dx=crop_Dx,
         crop_Dy=crop_Dy,
+        sum_bins=sum_bins,
     )
 
     return out
@@ -611,6 +643,7 @@ def _lazy_bin_load_nd(
     fixed,
     crop_Dx,
     crop_Dy,
+    sum_bins,
 ):
     """Recursive helper to iterate over scan-space dimensions in chunks.
 
@@ -627,6 +660,7 @@ def _lazy_bin_load_nd(
         chunk_size: Maximum chunk size for the current dimension.
         fixed: Tuple of slice objects for dimensions already iterated over.
         crop_Dx, crop_Dy: Cropped detector dimensions (largest even multiple of bin_factor).
+        sum_bins: Whether to sum the blocks.
     """
     N = source.shape[scan_idx]
     start = 0
@@ -642,11 +676,13 @@ def _lazy_bin_load_nd(
                 if hasattr(chunk.shape[:-2], "numel")
                 else int(np.prod(chunk.shape[:-2]))
             )
-            binned = (
-                chunk.reshape(flat_len, binned_Dx, bin_factor, binned_Dy, bin_factor)
-                .mean(axis=-1)
-                .mean(axis=-2)
+            blocks = chunk.reshape(
+                flat_len, binned_Dx, bin_factor, binned_Dy, bin_factor
             )
+            if sum_bins:
+                binned = blocks.sum(axis=(2, 4))
+            else:
+                binned = blocks.mean(axis=-1).mean(axis=-2)
             out_shape = chunk.shape[:-2]  # shape of scan dims in this chunk
             binned = binned.reshape(*out_shape, binned_Dx, binned_Dy)
             out[fixed + (slice(start, end),)] = binned
@@ -663,6 +699,7 @@ def _lazy_bin_load_nd(
                 fixed + (slice(start, end),),
                 crop_Dx,
                 crop_Dy,
+                sum_bins,
             )
         start = end
 
