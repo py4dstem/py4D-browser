@@ -27,6 +27,7 @@ dependencies = [
   "PyOpenGL",
   "sigfig",
   "show-in-file-manager",
+  "tifffile",
   "click",
 ]
 
