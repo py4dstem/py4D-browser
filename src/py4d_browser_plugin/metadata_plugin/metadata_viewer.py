@@ -17,13 +17,16 @@ class MetadataViewer(QWidget):
     # required for py4DGUI to recognize this as a plugin.
     plugin_id = "py4DGUI.internal.metadata"
 
+    # the plugin API version this plugin was written against
+    api_version = (1, 6)
+
     uses_single_action = True
     display_name = "Show Metadata..."
 
-    def __init__(self, parent, plugin_action, **kwargs):
+    def __init__(self, api, plugin_action, **kwargs):
         super().__init__()
 
-        self.parent = parent
+        self.api = api
 
         plugin_action.triggered.connect(self.launch_dialog)
 
@@ -31,23 +34,21 @@ class MetadataViewer(QWidget):
         pass
 
     def launch_dialog(self):
-        dialog = MetadataDialog(parent=self.parent)
+        dialog = MetadataDialog(self.api)
         dialog.open()
 
 
 class MetadataDialog(QDialog):
-    def __init__(self, parent):
-        super().__init__(parent=parent)
-
-        self.parent = parent
+    def __init__(self, api):
+        # Parented to the API's dialog-parent widget so it shows over the
+        # main window; the datacube is read through the API object.
+        super().__init__(parent=api.qt_window)
 
         layout = QVBoxLayout(self)
 
-        print(self.parent.datacube.metadata)
+        print(api.datacube.metadata)
 
-        mdata = self.parent.datacube.metadata | {
-            "calibration": self.parent.datacube.calibration
-        }
+        mdata = api.datacube.metadata | {"calibration": api.datacube.calibration}
 
         tree = QTreeWidget()
         tree.setColumnCount(2)

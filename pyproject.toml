@@ -24,9 +24,17 @@ dependencies = [
   "platformdirs",
   "PyQt5 >= 5.10",
   "pyqtgraph >= 0.11",
+  "PyOpenGL",
   "sigfig",
   "show-in-file-manager",
+  "tifffile",
   "click",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-qt",
 ]
 
 [project.scripts]

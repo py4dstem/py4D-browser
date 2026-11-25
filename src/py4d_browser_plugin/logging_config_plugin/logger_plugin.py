@@ -17,13 +17,17 @@ class LoggingConfigurationPlugin(QWidget):
     # required for py4DGUI to recognize this as a plugin.
     plugin_id = "py4DGUI.internal.logging"
 
+    # the plugin API version this plugin was written against
+    api_version = (1, 6)
+
     uses_single_action = True
     display_name = "Logger Settings..."
+    dev_only = True
 
-    def __init__(self, parent, plugin_action, **kwargs):
+    def __init__(self, api, plugin_action, **kwargs):
         super().__init__()
 
-        self.parent = parent
+        self.api = api
 
         plugin_action.triggered.connect(self.launch_dialog)
 
@@ -31,15 +35,16 @@ class LoggingConfigurationPlugin(QWidget):
         pass
 
     def launch_dialog(self):
-        dialog = LoggerDialog(parent=self.parent)
+        dialog = LoggerDialog(self.api)
         dialog.open()
 
 
 class LoggerDialog(QDialog):
-    def __init__(self, parent):
-        super().__init__(parent=parent)
+    def __init__(self, api):
+        # Parented to the API's dialog-parent widget so it shows over the
+        # main window.
+        super().__init__(parent=api.qt_window)
 
-        self.parent = parent
         self.layout = QVBoxLayout(self)
 
         ####### LAYOUT ########

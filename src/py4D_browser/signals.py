@@ -80,7 +80,10 @@ def _replace_result_callbacks(
     _registered_result_callbacks["diffraction"] = None
 
     if _registered_result_callbacks["virtual_image"] is not None:
-        self.signal_virtual_image_data_changed.disconnect(
+        # The virtual-image result driver is wired to the "current virtual
+        # image" signal (which fires for the visible tab, default or plugin),
+        # not the default-tab-only signal.
+        self.signal_current_virtual_image_changed.disconnect(
             _registered_result_callbacks["virtual_image"]
         )
     _registered_result_callbacks["virtual_image"] = None
@@ -106,7 +109,7 @@ def _replace_result_callbacks(
 
     if callback_virtual_image_changed is not None:
         _registered_result_callbacks["virtual_image"] = (
-            self.signal_virtual_image_data_changed.connect(
+            self.signal_current_virtual_image_changed.connect(
                 callback_virtual_image_changed
             )
         )

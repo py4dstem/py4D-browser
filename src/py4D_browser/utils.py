@@ -7,7 +7,7 @@ from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import Qt, QObject
 from PyQt5.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout, QSpinBox
 
-from typing import NotRequired, Optional, TypedDict
+from typing import NamedTuple, NotRequired, Optional, TypedDict
 from enum import Enum
 
 
@@ -53,6 +53,7 @@ class DetectorShape(Enum):
 class DetectorMode(Enum):
     INTEGRATING = "integrating"
     MAXIMUM = "maximum"
+    AVERAGE = "average"
     CoM = "com"
     CoMx = "comx"
     CoMy = "comy"
@@ -238,6 +239,63 @@ def make_detector(shape: tuple, mode: str, geometry) -> np.ndarray:
             raise ValueError(f"mode and geometry not understood: {unknown}")
 
     return mask
+
+
+# ---- virtual-image display scaling (shared by the built-in pane and the
+#      per-tab controls) ----
+
+# The smallest value a "Log"-scaled image may take (avoids log2(0) -> -inf).
+LOG_SCALE_MIN_VALUE = 1e-6
+
+# The discrete scaling modes a virtual image can be rendered with. These
+# strings must match the built-in pane's scaling menu actions exactly (see
+# ``vimg_scaling_group`` in main_window.py), so a tab's ``scaling`` value and
+# the built-in's always line up.
+SCALING_MODES = ("Linear", "Log", "Square Root")
+
+
+def scale_image(image: np.ndarray, mode: str) -> np.ndarray:
+    """
+    Apply a virtual-image scaling mode to ``image``.
+
+    ``mode`` must be one of :data:`SCALING_MODES`. This is the single shared
+    implementation of the Linear/Log/Square-Root scaling used by both the
+    built-in virtual-image pane and the per-tab controls, so the two can never
+    drift apart. The returned array is the one to render (read-only from here
+    on).
+    """
+    if mode == "Linear":
+        return image
+    if mode == "Log":
+        return np.log2(np.maximum(image, LOG_SCALE_MIN_VALUE))
+    if mode == "Square Root":
+        return np.sqrt(np.maximum(image, 0.0))
+    raise ValueError(f"Unknown scaling mode: {mode!r}")
+
+
+class VirtualImageSettings(NamedTuple):
+    """
+    The display settings of a visible virtual-image view, as reported by
+    ``DataViewer.current_virtual_image_settings`` (and surfaced through the
+    plugin API).
+
+    Fields
+    ------
+    scaling : str
+        One of :data:`SCALING_MODES`.
+    autorange : bool
+        Whether the display range auto-re-derives from the data (the
+        built-in "Autorange Virtual Image" latch / a tab's Autorange control).
+    percentiles : (low, high)
+        The autoscale percentiles (in 0-100) used when ``autorange`` is on.
+    levels : (low, high)
+        The actual display level range currently on screen.
+    """
+
+    scaling: str
+    autorange: bool
+    percentiles: tuple
+    levels: tuple
 
 
 def complex_to_Lab(
